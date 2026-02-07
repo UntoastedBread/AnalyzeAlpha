@@ -1122,7 +1122,6 @@ function LoadingScreen({ ticker, isPro }) {
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 420, gap: 20, position: "relative" }}>
       <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, zIndex: 1 }}>
         <div style={{ position: "relative" }}>
-          <LogoGlow size="lg" />
           <div style={{ position: "relative", zIndex: 1, animation: "alphaFloat 3s ease-in-out infinite" }}>
             <LogoIcon size={40} />
           </div>
@@ -1172,7 +1171,6 @@ function HomeTab({ onAnalyze }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "28px 32px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div style={{ position: "relative" }}>
-            <LogoGlow size="lg" />
             <div style={{ position: "relative", zIndex: 1 }}>
               <LogoIcon size={36} />
             </div>
