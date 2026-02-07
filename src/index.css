@@ -53,3 +53,12 @@ select option { background: #FAF7F2; color: #1A1612; }
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-2px); }
 }
+
+/* Ticker strip scrollbar hiding */
+.ticker-strip-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.ticker-strip-scroll::-webkit-scrollbar {
+  display: none;
+}

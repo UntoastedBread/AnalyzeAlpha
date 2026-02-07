@@ -35,6 +35,53 @@ app.get('/api/chart/:ticker', (req, res) => {
   });
 });
 
+app.get('/api/rss', (req, res) => {
+  const rssUrl = 'https://finance.yahoo.com/news/rssindex';
+  const parsed = new URL(rssUrl);
+  if (!parsed.hostname.endsWith('yahoo.com')) {
+    return res.status(403).json({ error: 'Blocked hostname' });
+  }
+
+  console.log('[Proxy] Fetching RSS feed');
+
+  https.get(rssUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+    }
+  }, (apiRes) => {
+    let data = '';
+    apiRes.on('data', chunk => data += chunk);
+    apiRes.on('end', () => {
+      try {
+        const items = [];
+        const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+        let match;
+        while ((match = itemRegex.exec(data)) !== null) {
+          const block = match[1];
+          const get = (tag) => {
+            const m = block.match(new RegExp(`<${tag}><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}>([\\s\\S]*?)<\\/${tag}>`));
+            return m ? (m[1] || m[2] || '').trim() : '';
+          };
+          items.push({
+            title: get('title'),
+            link: get('link'),
+            pubDate: get('pubDate'),
+            description: get('description').replace(/<[^>]*>/g, '').slice(0, 200),
+            source: get('source') || 'Yahoo Finance',
+          });
+        }
+        res.json({ items: items.slice(0, 12) });
+        console.log(`[Proxy] ✓ RSS — ${items.length} items`);
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+  }).on('error', (e) => {
+    console.error(`[Proxy] ✗ RSS — ${e.message}`);
+    res.status(500).json({ error: e.message });
+  });
+});
+
 const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`\n  ┌─────────────────────────────────────┐`);

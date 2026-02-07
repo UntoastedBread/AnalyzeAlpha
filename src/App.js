@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ComposedChart, ReferenceLine, Brush, Customized,
-  PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+  PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  AreaChart, Area
 } from "recharts";
 import "./App.css";
 
@@ -84,6 +85,81 @@ async function fetchStockData(ticker, period = "1y", interval = "1d") {
   const err = new Error(`All data sources failed for ${ticker}`);
   err.debug = debug;
   throw err;
+}
+
+async function fetchQuickQuote(ticker) {
+  const url = `/api/chart/${encodeURIComponent(ticker)}?range=5d&interval=1d`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const json = await resp.json();
+  const r = json?.chart?.result?.[0];
+  if (!r?.meta) throw new Error("Bad response");
+  const meta = r.meta;
+  const closes = r.indicators?.quote?.[0]?.close?.filter(c => c != null) || [];
+  const volumes = r.indicators?.quote?.[0]?.volume?.filter(v => v != null) || [];
+  const price = meta.regularMarketPrice ?? closes[closes.length - 1] ?? 0;
+  const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? (closes.length > 1 ? closes[closes.length - 2] : price);
+  const change = price - prevClose;
+  const changePct = prevClose ? (change / prevClose) * 100 : 0;
+  const volume = volumes[volumes.length - 1] || 0;
+  return { ticker, price, change, changePct, volume, name: meta.shortName || meta.symbol || ticker, spark: closes.slice(-7) };
+}
+
+async function fetchIntradayData(ticker) {
+  const url = `/api/chart/${encodeURIComponent(ticker)}?range=1d&interval=5m`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const json = await resp.json();
+  const r = json?.chart?.result?.[0];
+  if (!r?.timestamp) throw new Error("Bad response");
+  const q = r.indicators.quote[0];
+  const prevClose = r.meta?.chartPreviousClose ?? r.meta?.previousClose ?? q.close?.[0] ?? 0;
+  const points = [];
+  for (let i = 0; i < r.timestamp.length; i++) {
+    const c = q.close[i];
+    if (c == null) continue;
+    const d = new Date(r.timestamp[i] * 1000);
+    points.push({ time: `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`, price: +c.toFixed(2) });
+  }
+  const lastPrice = points.length ? points[points.length - 1].price : prevClose;
+  return { points, prevClose, lastPrice, isUp: lastPrice >= prevClose };
+}
+
+async function fetchMarketMovers() {
+  const results = await Promise.allSettled(HEATMAP_UNIVERSE.map(s => fetchQuickQuote(s.ticker)));
+  const quotes = results
+    .filter(r => r.status === "fulfilled")
+    .map(r => r.value);
+  const sorted = [...quotes].sort((a, b) => b.changePct - a.changePct);
+  const gainers = sorted.filter(s => s.changePct > 0).slice(0, 5);
+  const losers = [...quotes].sort((a, b) => a.changePct - b.changePct).filter(s => s.changePct < 0).slice(0, 5);
+  const mostActive = [...quotes].sort((a, b) => b.volume - a.volume).slice(0, 5);
+  return { gainers, losers, mostActive };
+}
+
+async function fetchRSSNews() {
+  try {
+    const resp = await fetch("/api/rss");
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const json = await resp.json();
+    if (json.items && json.items.length > 0) return json.items.slice(0, 8);
+    return FALLBACK_NEWS;
+  } catch {
+    return FALLBACK_NEWS;
+  }
+}
+
+async function fetchTickerStrip() {
+  const results = await Promise.allSettled(
+    TICKER_STRIP_SYMBOLS.map(s => fetchQuickQuote(s.symbol))
+  );
+  return TICKER_STRIP_SYMBOLS.map((s, i) => {
+    const r = results[i];
+    if (r.status === "fulfilled") {
+      return { ...s, price: r.value.price, change: r.value.change, changePct: r.value.changePct, loaded: true };
+    }
+    return { ...s, price: 0, change: 0, changePct: 0, loaded: false };
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -562,25 +638,34 @@ const HEATMAP_UNIVERSE = [
   { ticker: "ADBE", name: "Adobe", cap: 220 }, { ticker: "PEP", name: "PepsiCo", cap: 210 },
 ];
 
-const HOME_NEWS = [
-  { title: "Mega-cap earnings set the tone for the week ahead", source: "Market Desk", time: "2h ago" },
-  { title: "Rates pause keeps focus on growth and AI leaders", source: "Global Markets", time: "4h ago" },
-  { title: "Energy rebounds while defensives stay bid", source: "Daily Brief", time: "6h ago" },
-  { title: "Retail sales preview: expectations and risks", source: "Macro Wire", time: "9h ago" },
+const TICKER_STRIP_SYMBOLS = [
+  { symbol: "^GSPC", label: "S&P 500" },
+  { symbol: "^IXIC", label: "Nasdaq" },
+  { symbol: "^DJI", label: "Dow Jones" },
+  { symbol: "^RUT", label: "Russell 2K" },
+  { symbol: "^VIX", label: "VIX" },
+  { symbol: "^TNX", label: "10Y Yield" },
+  { symbol: "BTC-USD", label: "Bitcoin" },
+  { symbol: "GC=F", label: "Gold" },
+  { symbol: "CL=F", label: "Crude Oil" },
 ];
 
-const MARKET_INDEXES = [
-  { name: "S&P 500", value: 4922.4, change: 0.62 },
-  { name: "Nasdaq 100", value: 17520.8, change: 0.84 },
-  { name: "Dow Jones", value: 38210.1, change: -0.12 },
+const DEFAULT_TRENDING = [
+  { ticker: "AAPL", name: "Apple" },
+  { ticker: "NVDA", name: "NVIDIA" },
+  { ticker: "MSFT", name: "Microsoft" },
+  { ticker: "AMZN", name: "Amazon" },
+  { ticker: "META", name: "Meta" },
+  { ticker: "TSLA", name: "Tesla" },
+  { ticker: "GOOGL", name: "Alphabet" },
+  { ticker: "NFLX", name: "Netflix" },
 ];
 
-const POPULAR_STOCKS = [
-  { ticker: "AAPL", name: "Apple", price: 189.12, change: 1.2, spark: [178, 182, 184, 183, 186, 188, 189] },
-  { ticker: "NVDA", name: "NVIDIA", price: 708.4, change: -0.8, spark: [690, 706, 722, 715, 704, 698, 708] },
-  { ticker: "MSFT", name: "Microsoft", price: 402.6, change: 0.5, spark: [392, 395, 399, 401, 398, 400, 403] },
-  { ticker: "AMZN", name: "Amazon", price: 173.8, change: 0.9, spark: [166, 168, 169, 171, 172, 173, 174] },
-  { ticker: "META", name: "Meta", price: 468.3, change: 1.6, spark: [438, 452, 459, 463, 470, 472, 468] },
+const FALLBACK_NEWS = [
+  { title: "Mega-cap earnings set the tone for the week ahead", source: "Market Desk", pubDate: "", description: "Major technology companies report quarterly results this week." },
+  { title: "Rates pause keeps focus on growth and AI leaders", source: "Global Markets", pubDate: "", description: "Federal Reserve holds rates steady as inflation moderates." },
+  { title: "Energy rebounds while defensives stay bid", source: "Daily Brief", pubDate: "", description: "Oil prices recover on supply concerns and geopolitical tensions." },
+  { title: "Retail sales preview: expectations and risks", source: "Macro Wire", pubDate: "", description: "Consumer spending data expected to show continued resilience." },
 ];
 
 const CHANGELOG = [
@@ -620,11 +705,6 @@ const CHANGELOG = [
   },
 ];
 
-const NEW_ITEMS = [
-  "GitHub Pages deployment — publish with npm run deploy",
-  "Configured homepage for UntoastedBread.github.io/AnalyzeAlpha",
-  "Version 1.0.0 — first public release",
-];
 
 // ═══════════════════════════════════════════════════════════
 // DESIGN SYSTEM + UI COMPONENTS
@@ -1162,121 +1242,373 @@ function ErrorScreen({ error, debugInfo, onRetry }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// HOME TAB
+// HOME TAB — SUB-COMPONENTS
 // ═══════════════════════════════════════════════════════════
-function HomeTab({ onAnalyze }) {
-  return (
-    <div style={{ display: "grid", gap: 24 }}>
-      {/* Hero welcome */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "28px 32px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ position: "relative" }}>
-            <div style={{ position: "relative", zIndex: 1 }}>
-              <LogoIcon size={36} />
-            </div>
-          </div>
-          <div>
-            <div style={{ fontFamily: "var(--display)", fontSize: 28, fontWeight: 300, color: C.ink, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
-              <span>Analyze</span><span style={{ fontWeight: 500 }}>Alpha</span>
-            </div>
-            <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginTop: 6, letterSpacing: "0.02em" }}>
-              Quantitative analysis across technical, statistical, and fundamental signals
-            </div>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: C.cream, border: `1px solid ${C.ruleFaint}` }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.up, animation: "livePulse 2s ease-in-out infinite" }} />
-            <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted, letterSpacing: "0.06em" }}>MARKETS OPEN</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Market indexes */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
-        {MARKET_INDEXES.map((idx) => (
-          <div key={idx.name} style={{ padding: "18px 20px", background: C.warmWhite, border: `1px solid ${C.rule}`, display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600 }}>{idx.name}</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-              <span style={{ fontSize: 24, fontFamily: "var(--display)", color: C.ink, fontWeight: 400 }}>{idx.value.toFixed(1)}</span>
-              <span style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 600, color: idx.change >= 0 ? C.up : C.down }}>
-                {idx.change >= 0 ? "+" : ""}{fmtPct(idx.change, 2)}
-              </span>
-            </div>
+function SkeletonBlock({ width = "100%", height = 16, style }) {
+  return (
+    <div style={{ width, height, background: `linear-gradient(90deg, ${C.paper} 25%, ${C.warmWhite} 50%, ${C.paper} 75%)`, backgroundSize: "200% 100%", animation: "loadSlide 1.5s ease-in-out infinite", borderRadius: 2, ...style }} />
+  );
+}
+
+function TickerStrip({ data, loading }) {
+  return (
+    <div className="ticker-strip-scroll" style={{ display: "flex", gap: 0, overflowX: "auto", background: C.ink, padding: "0" }}>
+      {loading ? (
+        Array.from({ length: 9 }).map((_, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", minWidth: 140, borderRight: `1px solid rgba(255,255,255,0.08)` }}>
+            <SkeletonBlock width={60} height={10} style={{ opacity: 0.2 }} />
+            <SkeletonBlock width={50} height={12} style={{ opacity: 0.15 }} />
+          </div>
+        ))
+      ) : (
+        data.map((item) => (
+          <div key={item.symbol} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", minWidth: 140, borderRight: `1px solid rgba(255,255,255,0.08)`, whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", fontWeight: 600 }}>{item.label}</span>
+            <span style={{ fontSize: 12, fontFamily: "var(--mono)", color: "#fff", fontWeight: 600 }}>
+              {item.loaded ? (item.price >= 1000 ? item.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : item.price.toFixed(2)) : "—"}
+            </span>
+            <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: item.changePct > 0 ? "#4ADE80" : item.changePct < 0 ? "#F87171" : "rgba(255,255,255,0.5)" }}>
+              {item.loaded ? `${item.changePct >= 0 ? "+" : ""}${item.changePct.toFixed(2)}%` : ""}
+            </span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+function MiniIntradayChart({ data, label, loading }) {
+  if (loading || !data) {
+    return (
+      <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}`, minHeight: 180 }}>
+        <SkeletonBlock width={100} height={10} style={{ marginBottom: 8 }} />
+        <SkeletonBlock width="100%" height={120} />
+      </div>
+    );
+  }
+  const { points, prevClose, isUp } = data;
+  const color = isUp ? C.up : C.down;
+
+  const lastPrice = points.length ? points[points.length - 1].price : prevClose;
+  const change = lastPrice - prevClose;
+  const changePct = prevClose ? (change / prevClose) * 100 : 0;
+  return (
+    <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+        <div>
+          <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600 }}>{label}</span>
+          <span style={{ fontSize: 18, fontFamily: "var(--display)", color: C.ink, fontWeight: 400, marginLeft: 12 }}>{fmt(lastPrice)}</span>
+        </div>
+        <span style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 700, color }}>
+          {change >= 0 ? "+" : ""}{fmt(change)} ({changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%)
+        </span>
+      </div>
+      <ResponsiveContainer width="100%" height={120}>
+        <AreaChart data={points} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+          <defs>
+            <linearGradient id={`grad-${label}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.2} />
+              <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <ReferenceLine y={prevClose} stroke={C.rule} strokeDasharray="3 3" />
+          <Area type="monotone" dataKey="price" stroke={color} strokeWidth={1.5} fill={`url(#grad-${label})`} dot={false} isAnimationActive={false} />
+          <XAxis dataKey="time" hide />
+          <YAxis domain={["auto", "auto"]} hide />
+          <Tooltip
+            contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, fontSize: 11, fontFamily: "var(--mono)" }}
+            formatter={(v) => [`$${Number(v).toFixed(2)}`, "Price"]}
+            labelFormatter={(l) => l}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function MoverColumn({ title, stocks, loading, onAnalyze }) {
+  if (loading) {
+    return (
+      <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+        <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600, marginBottom: 12 }}>{title}</div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+            <SkeletonBlock width={50} height={12} />
+            <SkeletonBlock width={60} height={12} />
           </div>
         ))}
       </div>
+    );
+  }
+  return (
+    <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600, marginBottom: 12 }}>{title}</div>
+      {(!stocks || stocks.length === 0) ? (
+        <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)", padding: "12px 0" }}>No data available</div>
+      ) : (
+        stocks.map((s) => (
+          <button key={s.ticker} onClick={() => onAnalyze?.(s.ticker)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 4px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.background = C.paper}
+            onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 80 }}>
+              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 11, color: C.ink }}>{s.ticker}</span>
+              <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
+            </div>
+            {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} />}
+            <div style={{ textAlign: "right", minWidth: 80 }}>
+              <span style={{ fontFamily: "var(--mono)", fontSize: 11, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
+              <span style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: s.changePct >= 0 ? C.up : C.down, marginLeft: 8 }}>
+                {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
+              </span>
+            </div>
+          </button>
+        ))
+      )}
+    </div>
+  );
+}
 
-      {/* News + Popular */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 16 }}>
-        <Section title="Market News">
-          <div style={{ display: "grid", gap: 1 }}>
-            {HOME_NEWS.map((n, i) => (
-              <div key={n.title} style={{ padding: "14px 16px", background: C.warmWhite, borderLeft: `2px solid ${i === 0 ? C.ink : "transparent"}`, borderRight: `1px solid ${C.rule}`, borderTop: `1px solid ${C.rule}`, borderBottom: `1px solid ${C.rule}` }}>
-                <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{n.title}</div>
-                <div style={{ marginTop: 6, display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
-                  <span style={{ fontWeight: 600 }}>{n.source}</span>
-                  <span style={{ color: C.ruleFaint }}>|</span>
-                  <span>{n.time}</span>
-                </div>
-              </div>
-            ))}
+function timeAgo(dateStr) {
+  if (!dateStr) return "";
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  } catch { return ""; }
+}
+
+function NewsSection({ news, loading }) {
+  if (loading) {
+    return (
+      <div style={{ display: "grid", gap: 1 }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} style={{ padding: "14px 16px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+            <SkeletonBlock width="80%" height={14} style={{ marginBottom: 6 }} />
+            <SkeletonBlock width="60%" height={10} />
           </div>
-        </Section>
-        <Section title="Trending">
-          <div style={{ display: "grid", gap: 1 }}>
-            {POPULAR_STOCKS.map((s) => (
-              <button key={s.ticker} onClick={() => onAnalyze?.(s.ticker)}
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, cursor: "pointer", width: "100%", textAlign: "left", transition: "background 0.15s" }}
-                onMouseEnter={e => e.currentTarget.style.background = C.paper}
-                onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}>
-                <div style={{ display: "grid", gap: 2, minWidth: 60 }}>
-                  <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
-                  <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
-                </div>
-                <Sparkline data={s.spark} color={s.change >= 0 ? C.up : C.down} />
-                <div style={{ textAlign: "right", minWidth: 56 }}>
-                  <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</div>
-                  <div style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 600, color: s.change >= 0 ? C.up : C.down }}>
-                    {s.change >= 0 ? "+" : ""}{fmtPct(s.change, 1)}
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "grid", gap: 1 }}>
+      {news.map((n, i) => (
+        <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
+          style={{ display: "block", padding: "14px 16px", background: C.warmWhite, borderLeft: `2px solid ${i === 0 ? C.ink : "transparent"}`, borderRight: `1px solid ${C.rule}`, borderTop: `1px solid ${C.rule}`, borderBottom: `1px solid ${C.rule}`, textDecoration: "none", transition: "background 0.15s" }}
+          onMouseEnter={e => e.currentTarget.style.background = C.paper}
+          onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}>
+          <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{n.title}</div>
+          {n.description && (
+            <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.4, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.description}</div>
+          )}
+          <div style={{ marginTop: 6, display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
+            <span style={{ fontWeight: 600 }}>{n.source || "Yahoo Finance"}</span>
+            {n.pubDate && <>
+              <span style={{ color: C.ruleFaint }}>|</span>
+              <span>{timeAgo(n.pubDate)}</span>
+            </>}
+          </div>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function TrendingWatchlist({ stocks, loading, onAnalyze }) {
+  if (loading) {
+    return (
+      <div style={{ display: "grid", gap: 1 }}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+            <SkeletonBlock width={50} height={12} />
+            <SkeletonBlock width={70} height={12} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "grid", gap: 1 }}>
+      {stocks.map((s) => (
+        <button key={s.ticker} onClick={() => onAnalyze?.(s.ticker)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, cursor: "pointer", width: "100%", textAlign: "left", transition: "background 0.15s" }}
+          onMouseEnter={e => e.currentTarget.style.background = C.paper}
+          onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}>
+          <div style={{ display: "grid", gap: 2, minWidth: 60 }}>
+            <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
+            <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
+          </div>
+          {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} />}
+          <div style={{ textAlign: "right", minWidth: 56 }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 600, color: s.changePct >= 0 ? C.up : C.down }}>
+              {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ChangelogBanner() {
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem("changelog_dismissed_1.0.0") === "true"; } catch { return false; }
+  });
+  const [expanded, setExpanded] = useState(false);
+
+  if (dismissed) return null;
+
+  return (
+    <div style={{ background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
+        <button onClick={() => setExpanded(!expanded)}
+          style={{ display: "flex", alignItems: "center", gap: 8, background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
+          <span style={{ fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>What's New v1.0.0</span>
+          <span style={{ fontSize: 10, color: C.inkFaint, transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
+        </button>
+        <button onClick={() => { setDismissed(true); try { localStorage.setItem("changelog_dismissed_1.0.0", "true"); } catch {} }}
+          style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 14, color: C.inkFaint, padding: "0 4px", lineHeight: 1 }}>×</button>
+      </div>
+      {expanded && (
+        <div style={{ padding: "0 16px 14px", display: "grid", gap: 12 }}>
+          {CHANGELOG.map((entry) => (
+            <div key={entry.version}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 11, fontWeight: 600, color: C.ink }}>v{entry.version}</span>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: C.inkFaint }}>{entry.date}</span>
+              </div>
+              <div style={{ display: "grid", gap: 4, marginTop: 6 }}>
+                {entry.items.map((it) => (
+                  <div key={it} style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", lineHeight: 1.5, paddingLeft: 12, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: C.inkFaint }}>+</span>
+                    {it}
                   </div>
-                </div>
-              </button>
-            ))}
-          </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// HOME TAB
+// ═══════════════════════════════════════════════════════════
+function HomeTab({ onAnalyze }) {
+  const [stripData, setStripData] = useState([]);
+  const [stripLoading, setStripLoading] = useState(true);
+  const [spIntraday, setSpIntraday] = useState(null);
+  const [nasdaqIntraday, setNasdaqIntraday] = useState(null);
+  const [chartsLoading, setChartsLoading] = useState(true);
+  const [movers, setMovers] = useState(null);
+  const [moversLoading, setMoversLoading] = useState(true);
+  const [news, setNews] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [trending, setTrending] = useState([]);
+  const [trendingLoading, setTrendingLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStrip = async () => {
+      try {
+        const data = await fetchTickerStrip();
+        if (!cancelled) { setStripData(data); setStripLoading(false); }
+      } catch { if (!cancelled) setStripLoading(false); }
+    };
+
+    const loadCharts = async () => {
+      try {
+        const [sp, nq] = await Promise.allSettled([
+          fetchIntradayData("^GSPC"),
+          fetchIntradayData("^IXIC"),
+        ]);
+        if (!cancelled) {
+          if (sp.status === "fulfilled") setSpIntraday(sp.value);
+          if (nq.status === "fulfilled") setNasdaqIntraday(nq.value);
+          setChartsLoading(false);
+        }
+      } catch { if (!cancelled) setChartsLoading(false); }
+    };
+
+    const loadMovers = async () => {
+      try {
+        const data = await fetchMarketMovers();
+        if (!cancelled) { setMovers(data); setMoversLoading(false); }
+      } catch { if (!cancelled) setMoversLoading(false); }
+    };
+
+    const loadNews = async () => {
+      try {
+        const data = await fetchRSSNews();
+        if (!cancelled) { setNews(data); setNewsLoading(false); }
+      } catch { if (!cancelled) { setNews(FALLBACK_NEWS); setNewsLoading(false); } }
+    };
+
+    const loadTrending = async () => {
+      try {
+        const results = await Promise.allSettled(DEFAULT_TRENDING.map(s => fetchQuickQuote(s.ticker)));
+        if (!cancelled) {
+          const stocks = DEFAULT_TRENDING.map((s, i) => {
+            const r = results[i];
+            if (r.status === "fulfilled") return { ...s, price: r.value.price, changePct: r.value.changePct, spark: r.value.spark, loaded: true };
+            return { ...s, price: 0, changePct: 0, spark: [], loaded: false };
+          }).filter(s => s.loaded);
+          setTrending(stocks);
+          setTrendingLoading(false);
+        }
+      } catch { if (!cancelled) setTrendingLoading(false); }
+    };
+
+    loadStrip();
+    loadCharts();
+    loadMovers();
+    loadNews();
+    loadTrending();
+
+    const stripInterval = setInterval(loadStrip, 60000);
+
+    return () => { cancelled = true; clearInterval(stripInterval); };
+  }, []);
+
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      {/* Ticker Strip */}
+      <TickerStrip data={stripData} loading={stripLoading} />
+
+      {/* Intraday Charts */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <MiniIntradayChart data={spIntraday} label="S&P 500" loading={chartsLoading && !spIntraday} />
+        <MiniIntradayChart data={nasdaqIntraday} label="Nasdaq" loading={chartsLoading && !nasdaqIntraday} />
+      </div>
+
+      {/* Market Movers — 3 columns */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+        <MoverColumn title="Top Gainers" stocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
+        <MoverColumn title="Top Losers" stocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
+        <MoverColumn title="Most Active" stocks={movers?.mostActive} loading={moversLoading} onAnalyze={onAnalyze} />
+      </div>
+
+      {/* News + Trending */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.7fr", gap: 16 }}>
+        <Section title="Market News">
+          <NewsSection news={news} loading={newsLoading} />
+        </Section>
+        <Section title="Trending Stocks">
+          <TrendingWatchlist stocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
         </Section>
       </div>
 
-      {/* New + Changelog */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <Section title="What's New">
-          <div style={{ display: "grid", gap: 1 }}>
-            {NEW_ITEMS.map((item) => (
-              <div key={item} style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, fontSize: 12, color: C.inkSoft, fontFamily: "var(--body)", display: "flex", gap: 8, alignItems: "baseline" }}>
-                <span style={{ color: C.inkFaint, fontSize: 8 }}>+</span>
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
-        </Section>
-        <Section title="Changelog">
-          <div style={{ display: "grid", gap: 12 }}>
-            {CHANGELOG.map((entry) => (
-              <div key={entry.version} style={{ padding: "14px 16px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <span style={{ fontFamily: "var(--mono)", fontSize: 11, fontWeight: 600, color: C.ink }}>v{entry.version}</span>
-                  <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: C.inkFaint }}>{entry.date}</span>
-                </div>
-                <div style={{ display: "grid", gap: 4, marginTop: 8 }}>
-                  {entry.items.map((it) => (
-                    <div key={it} style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", lineHeight: 1.5 }}>{it}</div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Section>
-      </div>
+      {/* Changelog Banner */}
+      <ChangelogBanner />
     </div>
   );
 }
