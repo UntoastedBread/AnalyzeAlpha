@@ -1,0 +1,8 @@
+{
+  "buildCommand": "react-scripts build",
+  "outputDirectory": "build",
+  "rewrites": [
+    { "source": "/api/chart/:ticker", "destination": "/api/chart/[ticker]" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}

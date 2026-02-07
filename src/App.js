@@ -1139,7 +1139,7 @@ function LoadingScreen({ ticker, isPro }) {
       <div style={{ width: 200, height: 2, background: C.ruleFaint, borderRadius: 2, overflow: "hidden", zIndex: 1 }}>
         <div style={{ width: "55%", height: "100%", background: "linear-gradient(90deg, rgba(26,22,18,0), rgba(26,22,18,0.7), rgba(26,22,18,0))", animation: "proSweep 1.6s ease infinite" }} />
       </div>
-      <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--mono)", zIndex: 1, letterSpacing: "0.04em" }}>Live data via local proxy</div>
+      <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--mono)", zIndex: 1, letterSpacing: "0.04em" }}>Live data via Yahoo Finance</div>
     </div>
   );
 }
@@ -1151,7 +1151,7 @@ function ErrorScreen({ error, debugInfo, onRetry }) {
       <BrandMark size={24} muted glow />
       <div style={{ fontSize: 24, fontFamily: "var(--display)", color: C.ink, fontWeight: 600 }}>Connection Failed</div>
       <div style={{ fontSize: 14, color: C.inkMuted, fontFamily: "var(--body)", textAlign: "center", maxWidth: 440, lineHeight: 1.6 }}>
-        Unable to retrieve market data. Make sure the proxy server is running — you need both <code style={{ background: C.paper, padding: "2px 6px", fontFamily: "var(--mono)", fontSize: 12 }}>npm start</code> commands active.
+        Unable to retrieve market data. If running locally, make sure the proxy server is running with <code style={{ background: C.paper, padding: "2px 6px", fontFamily: "var(--mono)", fontSize: 12 }}>npm start</code>.
       </div>
       <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
         <button onClick={onRetry} style={{ padding: "10px 28px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Retry</button>
