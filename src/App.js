@@ -1738,11 +1738,11 @@ function ChartsTab({ result, livePrice }) {
   const [show, setShow] = useState({ sma: true, bb: true, vol: true, rsi: true, macd: false, stoch: false });
   const [chartType, setChartType] = useState("line");
   const [expanded, setExpanded] = useState(null);
-  const data = result?.data || [];
+  const data = result?.data;
   const ticker = result?.ticker || "";
   const toggle = k => setShow(p => ({ ...p, [k]: !p[k] }));
   const cd = useMemo(() => {
-    if (!data.length) return [];
+    if (!data || !data.length) return [];
     return data.map((d, i) => {
       const isLast = i === data.length - 1;
       const live = isLast && livePrice != null ? livePrice : d.Close;
