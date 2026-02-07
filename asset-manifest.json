@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/AnalyzeAlpha/static/css/main.3acaa3de.css",
+    "main.js": "/AnalyzeAlpha/static/js/main.776bc35f.js",
+    "static/js/453.ec5227de.chunk.js": "/AnalyzeAlpha/static/js/453.ec5227de.chunk.js",
+    "index.html": "/AnalyzeAlpha/index.html",
+    "main.3acaa3de.css.map": "/AnalyzeAlpha/static/css/main.3acaa3de.css.map",
+    "main.776bc35f.js.map": "/AnalyzeAlpha/static/js/main.776bc35f.js.map",
+    "453.ec5227de.chunk.js.map": "/AnalyzeAlpha/static/js/453.ec5227de.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.3acaa3de.css",
+    "static/js/main.776bc35f.js"
+  ]
+}

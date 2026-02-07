@@ -1,0 +1,8 @@
+{
+  "short_name": "AnalyzeAlpha",
+  "name": "AnalyzeAlpha",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#FAF7F2",
+  "background_color": "#FAF7F2"
+}
