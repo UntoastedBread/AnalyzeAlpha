@@ -51,12 +51,12 @@ async function fetchStockData(ticker, period = "1y", interval = "1d") {
     debug.attempts.push({ source: "local-proxy", status: "failed", error: e.message });
   }
 
-  // Fallback: direct fetch (might work in some environments)
+  // Fallback: CORS proxy (for static hosting like GitHub Pages)
   try {
     const s = performance.now();
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${period}&interval=${interval}&includePrePost=false`;
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`Yahoo HTTP ${resp.status}`);
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${period}&interval=${interval}&includePrePost=false`;
+    const resp = await fetch(`https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`);
+    if (!resp.ok) throw new Error(`CORS proxy HTTP ${resp.status}`);
     const json = await resp.json();
     const r = json?.chart?.result?.[0];
     if (!r?.timestamp || !r?.indicators?.quote?.[0]?.close) throw new Error("Bad response");
@@ -74,10 +74,10 @@ async function fetchStockData(ticker, period = "1y", interval = "1d") {
     const minPoints = interval === "1d" ? 10 : 5;
     if (data.length < minPoints) throw new Error(`Only ${data.length} data points`);
     const lat = Math.round(performance.now() - s);
-    debug.attempts.push({ source: "yahoo-direct", status: "success", latency: lat });
-    return { data, source: "Yahoo (Direct)", latency: lat, debug, isLive: true };
+    debug.attempts.push({ source: "cors-proxy", status: "success", latency: lat, points: data.length });
+    return { data, source: "Yahoo Finance", latency: lat, debug, isLive: true };
   } catch (e) {
-    debug.attempts.push({ source: "yahoo-direct", status: "failed", error: e.message });
+    debug.attempts.push({ source: "cors-proxy", status: "failed", error: e.message });
   }
 
   debug.totalTime = Math.round(performance.now() - t0);
@@ -1738,11 +1738,11 @@ function ChartsTab({ result, livePrice }) {
   const [show, setShow] = useState({ sma: true, bb: true, vol: true, rsi: true, macd: false, stoch: false });
   const [chartType, setChartType] = useState("line");
   const [expanded, setExpanded] = useState(null);
-  const data = result?.data || [];
+  const data = result?.data;
   const ticker = result?.ticker || "";
   const toggle = k => setShow(p => ({ ...p, [k]: !p[k] }));
   const cd = useMemo(() => {
-    if (!data.length) return [];
+    if (!data || !data.length) return [];
     return data.map((d, i) => {
       const isLast = i === data.length - 1;
       const live = isLast && livePrice != null ? livePrice : d.Close;
