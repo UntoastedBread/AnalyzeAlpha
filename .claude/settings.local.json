@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx react-scripts build:*)",
+      "Bash(gh auth:*)",
+      "Bash(brew list:*)"
+    ]
+  }
+}

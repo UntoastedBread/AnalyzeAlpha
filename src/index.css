@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Source+Serif+4:wght@300;400;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Libre+Franklin:wght@400;500;600;700&display=swap');
+
+:root {
+  --display: 'Cormorant Garamond', 'Georgia', serif;
+  --body: 'Libre Franklin', 'Helvetica Neue', sans-serif;
+  --serif: 'Source Serif 4', 'Georgia', serif;
+  --mono: 'IBM Plex Mono', 'Menlo', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #FAF7F2; font-family: 'Libre Franklin', sans-serif; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #F5F1EA; }
+::-webkit-scrollbar-thumb { background: #D4CBBB; }
+input::placeholder { color: #A69E94; }
+select option { background: #FAF7F2; color: #1A1612; }
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(27,107,58,0.33); }
+  50% { opacity: 0.3; box-shadow: 0 0 2px rgba(27,107,58,0.13); }
+}
+@keyframes slideUp {
+  from { transform: translateY(70%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes slideDown {
+  from { transform: translateY(-70%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes barGrow {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.3); }
+}
+@keyframes loadSlide {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(0%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes proSweep {
+  0% { transform: translateX(-120%); opacity: 0.2; }
+  40% { opacity: 1; }
+  100% { transform: translateX(220%); opacity: 0.2; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes alphaPulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.35; }
+}
+@keyframes alphaFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+@keyframes logoBloom {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+  50% { transform: translate(8px, -4px) scale(1.1); opacity: 0.85; }
+}
+@keyframes logoBloomAlt {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+  50% { transform: translate(-8px, 6px) scale(1.15); opacity: 0.75; }
+}
