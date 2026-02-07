@@ -585,6 +585,15 @@ const POPULAR_STOCKS = [
 
 const CHANGELOG = [
   {
+    version: "1.0.0",
+    date: "Feb 8, 2026",
+    items: [
+      "GitHub Pages deployment support with gh-pages",
+      "Added deploy and predeploy scripts for one-command publishing",
+      "Configured homepage for GitHub Pages hosting",
+    ],
+  },
+  {
     version: "0.9.1",
     date: "Feb 7, 2026",
     items: [
@@ -612,9 +621,9 @@ const CHANGELOG = [
 ];
 
 const NEW_ITEMS = [
-  "Refined logo and brand identity with icon mark",
-  "Ambient glow animation integrated into logo",
-  "Home page hero section and layout polish",
+  "GitHub Pages deployment — publish with npm run deploy",
+  "Configured homepage for UntoastedBread.github.io/AnalyzeAlpha",
+  "Version 1.0.0 — first public release",
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -654,19 +663,7 @@ function LogoIcon({ size = 20, color }) {
   );
 }
 
-function LogoGlow({ size = "md", muted = false }) {
-  const scale = size === "lg" ? 1.6 : size === "sm" ? 0.7 : 1;
-  const op = muted ? 0.3 : 1;
-  return (
-    <div style={{ position: "absolute", inset: -10 * scale, pointerEvents: "none", zIndex: 0, opacity: op }}>
-      <span style={{ position: "absolute", width: 80 * scale, height: 80 * scale, left: -8 * scale, top: -18 * scale, background: "radial-gradient(circle, rgba(255,175,100,0.45), rgba(255,175,100,0) 70%)", filter: `blur(${14 * scale}px)`, animation: "logoBloom 6s ease-in-out infinite" }} />
-      <span style={{ position: "absolute", width: 90 * scale, height: 90 * scale, left: 30 * scale, top: -12 * scale, background: "radial-gradient(circle, rgba(110,180,255,0.4), rgba(110,180,255,0) 70%)", filter: `blur(${16 * scale}px)`, animation: "logoBloomAlt 7.5s ease-in-out infinite" }} />
-      <span style={{ position: "absolute", width: 70 * scale, height: 70 * scale, left: 14 * scale, top: 16 * scale, background: "radial-gradient(circle, rgba(170,110,255,0.35), rgba(170,110,255,0) 70%)", filter: `blur(${18 * scale}px)`, animation: "logoBloom 8s ease-in-out infinite reverse" }} />
-    </div>
-  );
-}
-
-function BrandMark({ size = 26, pro = false, muted = false, weight = 300, glow = false, iconOnly = false }) {
+function BrandMark({ size = 26, pro = false, muted = false, weight = 300, iconOnly = false }) {
   const iconSize = Math.round(size * 0.78);
   const content = (
     <div style={{
@@ -676,7 +673,6 @@ function BrandMark({ size = 26, pro = false, muted = false, weight = 300, glow =
       lineHeight: 1,
       position: "relative",
     }}>
-      {glow && <LogoGlow size={size > 30 ? "lg" : size < 20 ? "sm" : "md"} muted={muted} />}
       <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center" }}>
         <LogoIcon size={iconSize} color={muted ? C.inkMuted : C.ink} />
       </div>
@@ -1148,7 +1144,7 @@ function ErrorScreen({ error, debugInfo, onRetry }) {
   const [showDebug, setShowDebug] = useState(false);
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 400, gap: 16 }}>
-      <BrandMark size={24} muted glow />
+      <BrandMark size={24} muted />
       <div style={{ fontSize: 24, fontFamily: "var(--display)", color: C.ink, fontWeight: 600 }}>Connection Failed</div>
       <div style={{ fontSize: 14, color: C.inkMuted, fontFamily: "var(--body)", textAlign: "center", maxWidth: 440, lineHeight: 1.6 }}>
         Unable to retrieve market data. If running locally, make sure the proxy server is running with <code style={{ background: C.paper, padding: "2px 6px", fontFamily: "var(--mono)", fontSize: 12 }}>npm start</code>.
@@ -1324,7 +1320,7 @@ function AnalysisTab({ result, livePrice, latency, isPro }) {
   if (!result) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 400, gap: 14 }}>
-        <BrandMark size={26} muted glow />
+        <BrandMark size={26} muted />
         <div style={{ fontSize: 26, fontFamily: "var(--display)", color: C.inkSoft, marginTop: 10, fontWeight: 400 }}>Enter a ticker to begin</div>
         <div style={{ fontSize: 13, color: C.inkMuted, fontFamily: "var(--body)" }}>Type a symbol above and press Analyze</div>
       </div>
@@ -1959,7 +1955,7 @@ function HeatmapTab() {
         {!stocks && !loading && <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: C.inkMuted, fontFamily: "var(--display)", fontSize: 20 }}>Click "Load Heatmap" to fetch data</div>}
         {loading && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12 }}>
-            <BrandMark size={20} muted glow />
+            <BrandMark size={20} muted />
             <span style={{ fontFamily: "var(--display)", color: C.inkMuted, fontSize: 16 }}>Fetching {HEATMAP_UNIVERSE.length} stocks…</span>
             <span style={{ fontFamily: "var(--mono)", color: C.inkFaint, fontSize: 11 }}>{progress}</span>
           </div>
@@ -2327,7 +2323,7 @@ function App() {
       <header style={{ padding: "16px 32px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
-            <BrandMark size={24} pro={isPro} glow />
+            <BrandMark size={24} pro={isPro} />
             <span style={{ width: 1, height: 16, background: C.rule, display: "inline-block", margin: "0 2px" }} />
             <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>Quantitative Analysis</span>
           </div>
@@ -2404,7 +2400,7 @@ function App() {
           <button onClick={() => setIsPro(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
             DEV: {isPro ? "DISABLE" : "ENABLE"} PRO
           </button>
-          <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v0.9.1</span>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v1.0.0</span>
         </div>
       </footer>
     </div>
