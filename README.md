@@ -2,7 +2,7 @@
 
 Quantitative stock analysis platform with live Yahoo Finance data, technical indicators, regime detection, valuation models, and market heatmaps.
 
-**Live:** [UntoastedBread.github.io/AnalyzeAlpha](https://UntoastedBread.github.io/AnalyzeAlpha)
+**Live:** [analyze-alpha.vercel.app](https://analyze-alpha.vercel.app)
 
 ## Quick Start
 
