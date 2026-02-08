@@ -1586,16 +1586,13 @@ function HomeTab({ onAnalyze, liveTickers }) {
   const [trending, setTrending] = useState([]);
   const [trendingLoading, setTrendingLoading] = useState(true);
 
-  const loadRegionData = useCallback(async (rgn, cancelled) => {
+  const loadRegionData = useCallback(async (rgn, cancelled, skeleton) => {
     const cfg = MARKET_REGIONS[rgn];
-    // Strip
-    setStripLoading(true);
+    if (skeleton) { setStripLoading(true); setChartsLoading(true); }
     try {
       const data = await fetchTickerStrip(cfg.strip);
       if (!cancelled.current) { setStripData(data); setStripLoading(false); }
     } catch { if (!cancelled.current) setStripLoading(false); }
-    // Charts
-    setChartsLoading(true);
     try {
       const [c1, c2] = await Promise.allSettled([
         fetchIntradayData(cfg.charts[0].symbol),
@@ -1609,17 +1606,34 @@ function HomeTab({ onAnalyze, liveTickers }) {
     } catch { if (!cancelled.current) setChartsLoading(false); }
   }, []);
 
+  const loadMovers = useCallback(async (cancelled) => {
+    try {
+      const data = await fetchMarketMovers();
+      if (!cancelled.current) { setMovers(data); setMoversLoading(false); }
+    } catch { if (!cancelled.current) setMoversLoading(false); }
+  }, []);
+
+  const loadTrending = useCallback(async (cancelled) => {
+    try {
+      const results = await Promise.allSettled(DEFAULT_TRENDING.map(s => fetchQuickQuote(s.ticker)));
+      if (!cancelled.current) {
+        const stocks = DEFAULT_TRENDING.map((s, i) => {
+          const r = results[i];
+          if (r.status === "fulfilled") return { ...s, price: r.value.price, changePct: r.value.changePct, spark: r.value.spark, loaded: true };
+          return { ...s, price: 0, changePct: 0, spark: [], loaded: false };
+        }).filter(s => s.loaded);
+        setTrending(stocks);
+        setTrendingLoading(false);
+      }
+    } catch { if (!cancelled.current) setTrendingLoading(false); }
+  }, []);
+
   useEffect(() => {
     const cancelled = { current: false };
 
-    loadRegionData(region, cancelled);
-
-    const loadMovers = async () => {
-      try {
-        const data = await fetchMarketMovers();
-        if (!cancelled.current) { setMovers(data); setMoversLoading(false); }
-      } catch { if (!cancelled.current) setMoversLoading(false); }
-    };
+    loadRegionData(region, cancelled, true);
+    loadMovers(cancelled);
+    loadTrending(cancelled);
 
     const loadNews = async () => {
       try {
@@ -1627,39 +1641,26 @@ function HomeTab({ onAnalyze, liveTickers }) {
         if (!cancelled.current) { setNews(data); setNewsLoading(false); }
       } catch { if (!cancelled.current) { setNews(FALLBACK_NEWS); setNewsLoading(false); } }
     };
-
-    const loadTrending = async () => {
-      try {
-        const results = await Promise.allSettled(DEFAULT_TRENDING.map(s => fetchQuickQuote(s.ticker)));
-        if (!cancelled.current) {
-          const stocks = DEFAULT_TRENDING.map((s, i) => {
-            const r = results[i];
-            if (r.status === "fulfilled") return { ...s, price: r.value.price, changePct: r.value.changePct, spark: r.value.spark, loaded: true };
-            return { ...s, price: 0, changePct: 0, spark: [], loaded: false };
-          }).filter(s => s.loaded);
-          setTrending(stocks);
-          setTrendingLoading(false);
-        }
-      } catch { if (!cancelled.current) setTrendingLoading(false); }
-    };
-
-    loadMovers();
     loadNews();
-    loadTrending();
 
-    const refreshInterval = setInterval(() => loadRegionData(region, cancelled), 60000);
+    const refreshInterval = setInterval(() => loadRegionData(region, cancelled, false), 60000);
 
     return () => { cancelled.current = true; clearInterval(refreshInterval); };
-  }, [region, loadRegionData]);
+  }, [region, loadRegionData, loadMovers, loadTrending]);
 
-  // Live tickers polling
+  // Live tickers polling — refreshes strip, charts, movers, trending every 30s
   useEffect(() => {
     if (!liveTickers) return;
     const cancelled = { current: false };
-    const poll = () => loadRegionData(region, cancelled);
+    const poll = () => {
+      loadRegionData(region, cancelled, false);
+      loadMovers(cancelled);
+      loadTrending(cancelled);
+    };
+    poll();
     const id = setInterval(poll, 30000);
     return () => { cancelled.current = true; clearInterval(id); };
-  }, [liveTickers, region, loadRegionData]);
+  }, [liveTickers, region, loadRegionData, loadMovers, loadTrending]);
 
   const handleRegionChange = (rgn) => {
     if (rgn === region) return;
