@@ -1529,7 +1529,10 @@ function TickerStrip({ data, loading, onAnalyze }) {
         color: "inherit",
         cursor: "pointer",
         textAlign: "left",
+        transition: "transform 0.2s ease, background 0.2s ease",
       }}
+      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = "transparent"; }}
     >
       <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", fontWeight: 600 }}>{item.label}</span>
       <span style={{ fontSize: 12, fontFamily: "var(--mono)", color: "#fff", fontWeight: 600 }}>
@@ -1570,7 +1573,7 @@ function TickerStrip({ data, loading, onAnalyze }) {
   );
 }
 
-function MiniIntradayChart({ data, label, loading, onAnalyze, ticker }) {
+function MiniIntradayChart({ data, label, loading, onAnalyze, ticker, compact = false }) {
   if (loading || !data) {
     return (
       <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}`, minHeight: 180 }}>
@@ -1599,7 +1602,7 @@ function MiniIntradayChart({ data, label, loading, onAnalyze, ticker }) {
       type="button"
       onClick={() => clickable && onAnalyze?.(ticker)}
       style={{
-        padding: "16px 20px",
+        padding: compact ? "12px 14px" : "16px 20px",
         background: C.warmWhite,
         border: `1px solid ${C.rule}`,
         cursor: clickable ? "pointer" : "default",
@@ -1609,14 +1612,14 @@ function MiniIntradayChart({ data, label, loading, onAnalyze, ticker }) {
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
         <div>
-          <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600 }}>{label}</span>
-          <span style={{ fontSize: 30, fontFamily: "var(--display)", color: C.inkSoft, fontWeight: 600, marginLeft: 12 }}>{fmt(lastPrice)}</span>
+          <span style={{ fontSize: compact ? 9 : 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600 }}>{label}</span>
+          <span style={{ fontSize: compact ? 22 : 30, fontFamily: "var(--display)", color: C.inkSoft, fontWeight: 600, marginLeft: 12 }}>{fmt(lastPrice)}</span>
         </div>
-        <span style={{ fontSize: 14, fontFamily: "var(--mono)", fontWeight: 800, color, background: changeBg, padding: "4px 8px", borderRadius: 10 }}>
+        <span style={{ fontSize: compact ? 12 : 14, fontFamily: "var(--mono)", fontWeight: 800, color, background: changeBg, padding: compact ? "3px 6px" : "4px 8px", borderRadius: 10 }}>
           {change >= 0 ? "+" : ""}{fmt(change)} ({changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%)
         </span>
       </div>
-      <ResponsiveContainer width="100%" height={120}>
+      <ResponsiveContainer width="100%" height={compact ? 90 : 120}>
         <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
           <defs>
             <linearGradient id={`gradUp-${safeLabel}`} x1="0" y1="0" x2="0" y2="1">
@@ -2304,7 +2307,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
           border: `1px solid ${C.rule}`,
           background: "transparent",
           color: safeIndexPage === 0 ? C.inkFaint : C.ink,
-          cursor: safeIndexPage === 0 ? "not-allowed" : "pointer",
+          cursor: "pointer",
           fontFamily: "var(--mono)",
           fontSize: 10,
         }}
@@ -2323,7 +2326,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
           border: `1px solid ${C.rule}`,
           background: "transparent",
           color: safeIndexPage >= totalIndexPages - 1 ? C.inkFaint : C.ink,
-          cursor: safeIndexPage >= totalIndexPages - 1 ? "not-allowed" : "pointer",
+          cursor: "pointer",
           fontFamily: "var(--mono)",
           fontSize: 10,
         }}
@@ -2358,7 +2361,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
       </div>
 
       {/* Headlines + Indexes */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 0.8fr)", gap: 16, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 0.6fr)", gap: 16, alignItems: "start" }}>
         <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
           <Section title="Market News">
             <NewsSection news={news} loading={newsLoading} />
@@ -2366,7 +2369,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
           <PortfolioTileCard data={PORTFOLIO_TILE} />
         </div>
         <Section title="Indexes" actions={indexActions} style={{ minWidth: 0 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+          <div key={safeIndexPage} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, animation: "fadeIn 0.25s ease" }}>
             {pageCharts.map((c) => {
               const idx = cfg.charts.findIndex(x => x.symbol === c.symbol);
               return (
@@ -2377,6 +2380,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
                   loading={chartsLoading && !charts[idx]?.data}
                   onAnalyze={onAnalyze}
                   ticker={c.symbol}
+                  compact
                 />
               );
             })}
@@ -3907,9 +3911,6 @@ function App() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={() => setIsPro(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
             DEV: {isPro ? "DISABLE" : "ENABLE"} PRO
-          </button>
-          <button onClick={() => setLiveTickers(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: liveTickers ? C.ink : "transparent", color: liveTickers ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
-            DEV: LIVE TICKERS {liveTickers ? "ON" : "OFF"}
           </button>
           <button onClick={() => setShowPerf(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: showPerf ? C.ink : "transparent", color: showPerf ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
             DEV: PERF
