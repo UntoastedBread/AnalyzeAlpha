@@ -859,13 +859,6 @@ const FALLBACK_NEWS = [
 
 const NEWS_PLACEHOLDER_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 500'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0%25' stop-color='%23EFE7DC'/><stop offset='100%25' stop-color='%23D7C8B4'/></linearGradient></defs><rect width='800' height='500' fill='url(%23g)'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Verdana' font-size='36' fill='%236B5E52'>Market%20News</text></svg>";
 
-const WATCHLIST_SUMMARY = [
-  { ticker: "AAPL", name: "Apple", price: 196.32, changePct: 1.12, note: "Target 205" },
-  { ticker: "NVDA", name: "NVIDIA", price: 722.84, changePct: -0.84, note: "Alert 700" },
-  { ticker: "MSFT", name: "Microsoft", price: 412.15, changePct: 0.44, note: "Earnings soon" },
-  { ticker: "TSLA", name: "Tesla", price: 248.05, changePct: -1.6, note: "Trim zone" },
-  { ticker: "AMZN", name: "Amazon", price: 171.52, changePct: 0.9, note: "Add on dip" },
-];
 
 const MARKET_CALENDAR = [
   { date: "Feb 12", time: "08:30", event: "CPI (YoY)", impact: "High" },
@@ -1845,52 +1838,6 @@ function MiniCard({ title, children, style }) {
   );
 }
 
-function WatchlistSummary({ items, onAnalyze }) {
-  return (
-    <MiniCard title="Watchlist Summary">
-      <div style={{ display: "grid", gap: 1 }}>
-        {items.map((it) => (
-          <button
-            key={it.ticker}
-            type="button"
-            onClick={() => onAnalyze?.(it.ticker)}
-            style={{
-              display: "flex",
-              alignItems: "stretch",
-              justifyContent: "space-between",
-              gap: 10,
-              padding: "12px 8px",
-              background: "transparent",
-              border: "none",
-              borderBottom: `1px solid ${C.ruleFaint}`,
-              cursor: "pointer",
-              textAlign: "left",
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = C.paper}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-          >
-            <div style={{ display: "grid", gap: 6, width: "100%" }}>
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-                  <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 16, color: C.ink }}>{it.ticker}</span>
-                  <span style={{ fontFamily: "var(--mono)", fontSize: 16, fontWeight: 700, color: C.ink }}>${fmt(it.price)}</span>
-                </div>
-                <span style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: it.changePct >= 0 ? C.up : C.down, background: it.changePct >= 0 ? C.upBg : C.downBg, padding: "4px 8px", borderRadius: 12 }}>
-                  {it.changePct >= 0 ? "+" : ""}{it.changePct.toFixed(2)}%
-                </span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 12, color: C.inkFaint, fontFamily: "var(--body)" }}>{it.name}</span>
-                <span style={{ fontSize: 12, color: C.inkFaint, fontFamily: "var(--body)" }}>{it.note}</span>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </MiniCard>
-  );
-}
-
 function MarketCalendarCard({ items }) {
   const impactColor = (impact) => {
     if (impact === "High") return { color: C.down, bg: C.downBg };
@@ -2444,14 +2391,11 @@ function HomeTab({ onAnalyze, liveTickers }) {
         <MoverColumn title="Trending Stocks" stocks={trending} allStocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
       </div>
 
-      {/* Asset Class Sections + Watchlist */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start", minWidth: 0 }}>
-        <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
-          {ASSET_SECTIONS.map(section => (
-            <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
-          ))}
-        </div>
-        <WatchlistSummary items={WATCHLIST_SUMMARY} onAnalyze={onAnalyze} />
+      {/* Asset Class Sections */}
+      <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+        {ASSET_SECTIONS.map(section => (
+          <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
+        ))}
       </div>
 
       {/* Market Brief */}
