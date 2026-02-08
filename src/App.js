@@ -2445,7 +2445,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
       </div>
 
       {/* Asset Class Sections + Watchlist */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start", minWidth: 0 }}>
         <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
           {ASSET_SECTIONS.map(section => (
             <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
