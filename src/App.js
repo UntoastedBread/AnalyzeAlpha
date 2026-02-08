@@ -2271,7 +2271,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
   });
 
   return (
-    <div style={{ display: "grid", gap: 16, overflow: "hidden" }}>
+    <div style={{ width: "clamp(320px, 70%, 1200px)", margin: "0 auto", display: "grid", gap: 16, overflow: "hidden" }}>
       {/* Ticker Strip */}
       <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} />
 
