@@ -2488,6 +2488,26 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
   }, [result]);
 
   const [peerPack, setPeerPack] = useState({ status: "idle", metrics: [], source: "Yahoo Finance" });
+  const epsSeries = useMemo(() => {
+    const shares = result?.fundamentals?.shares || 0;
+    if (!shares) return [];
+    return finSeries.map(p => ({
+      period: p.period,
+      eps: (p.netIncome * 1e9) / shares,
+    }));
+  }, [finSeries, result?.fundamentals?.shares]);
+  const ratioSeries = useMemo(() => {
+    const labels = ["Q3'24", "Q4'24", "Q1'25", "Q2'25", "Q3'25"];
+    const baseCurrent = result?.fundamentals?.ratios?.currentRatio ?? 1.6;
+    const baseDebt = result?.fundamentals?.debtToEquity ?? 0.8;
+    const baseRoe = (result?.fundamentals?.ratios?.roe ?? 0.15) * 100;
+    return labels.map((label, i) => ({
+      label,
+      currentRatio: baseCurrent * (0.85 + seededRange(peerSeed, 90 + i, 0.85, 1.15)),
+      debtToEquity: baseDebt * (0.85 + seededRange(peerSeed, 120 + i, 0.8, 1.2)),
+      roe: baseRoe * (0.85 + seededRange(peerSeed, 160 + i, 0.8, 1.2)),
+    }));
+  }, [peerSeed, result?.fundamentals?.ratios?.currentRatio, result?.fundamentals?.debtToEquity, result?.fundamentals?.ratios?.roe]);
 
   useEffect(() => {
     if (!result?.ticker) return;
@@ -2636,26 +2656,6 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
     color: C.ink,
     outline: "none",
   };
-  const epsSeries = useMemo(() => {
-    const shares = result?.fundamentals?.shares || 0;
-    if (!shares) return [];
-    return finSeries.map(p => ({
-      period: p.period,
-      eps: (p.netIncome * 1e9) / shares,
-    }));
-  }, [finSeries, result?.fundamentals?.shares]);
-  const ratioSeries = useMemo(() => {
-    const labels = ["Q3'24", "Q4'24", "Q1'25", "Q2'25", "Q3'25"];
-    const baseCurrent = result?.fundamentals?.ratios?.currentRatio ?? 1.6;
-    const baseDebt = result?.fundamentals?.debtToEquity ?? 0.8;
-    const baseRoe = (result?.fundamentals?.ratios?.roe ?? 0.15) * 100;
-    return labels.map((label, i) => ({
-      label,
-      currentRatio: baseCurrent * (0.85 + seededRange(peerSeed, 90 + i, 0.85, 1.15)),
-      debtToEquity: baseDebt * (0.85 + seededRange(peerSeed, 120 + i, 0.8, 1.2)),
-      roe: baseRoe * (0.85 + seededRange(peerSeed, 160 + i, 0.8, 1.2)),
-    }));
-  }, [peerSeed, result?.fundamentals?.ratios?.currentRatio, result?.fundamentals?.debtToEquity, result?.fundamentals?.ratios?.roe]);
   const buildPeerSeries = (key, percent = false) => {
     const rows = (peerPack.metrics || [])
       .filter(m => Number.isFinite(m[key]))
