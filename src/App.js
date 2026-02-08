@@ -12,6 +12,16 @@ import "./App.css";
 // ═══════════════════════════════════════════════════════════
 let apiCallCount = 0;
 let lastApiLatency = 0;
+const CHART_ANIM_MS = 650;
+const INTERVAL_MS = {
+  "1m": 60 * 1000,
+  "5m": 5 * 60 * 1000,
+  "15m": 15 * 60 * 1000,
+  "30m": 30 * 60 * 1000,
+  "60m": 60 * 60 * 1000,
+  "1h": 60 * 60 * 1000,
+  "1d": 24 * 60 * 60 * 1000,
+};
 
 function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
@@ -27,6 +37,31 @@ function formatDateLabel(ts, interval) {
     return `${day} ${iso.slice(11, 16)}`;
   }
   return day;
+}
+
+function parseDateLabel(label) {
+  if (!label) return null;
+  if (label.includes("T")) return new Date(label);
+  if (label.length === 10) return new Date(`${label}T00:00:00Z`);
+  if (label.includes(" ")) return new Date(label.replace(" ", "T") + "Z");
+  return new Date(label);
+}
+
+function applyLivePoint(data, livePrice, interval) {
+  if (!data || !data.length || livePrice == null) return data || [];
+  const ms = INTERVAL_MS[interval] || 0;
+  if (!ms || ms >= INTERVAL_MS["1d"]) return data;
+  const last = data[data.length - 1];
+  const lastTime = parseDateLabel(last.date);
+  if (!lastTime || Number.isNaN(lastTime.getTime())) return data;
+  const now = Date.now();
+  const bucket = Math.floor(now / ms) * ms;
+  if (bucket <= lastTime.getTime()) return data;
+  const label = formatDateLabel(Math.floor(bucket / 1000), interval);
+  const open = last.Close;
+  const high = Math.max(open, livePrice);
+  const low = Math.min(open, livePrice);
+  return [...data, { ...last, date: label, Open: open, High: high, Low: low, Close: livePrice }];
 }
 
 async function fetchStockData(ticker, period = "1y", interval = "1d") {
@@ -1139,6 +1174,39 @@ function usePrevious(value) {
   const ref = useRef(value);
   useEffect(() => { ref.current = value; }, [value]);
   return ref.current;
+}
+
+function useInView(rootMargin = "200px 0px") {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    if (inView) return;
+    if (!("IntersectionObserver" in window)) {
+      setInView(true);
+      return;
+    }
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          obs.disconnect();
+        }
+      },
+      { rootMargin }
+    );
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, [inView, rootMargin]);
+  return [ref, inView];
+}
+
+function LazySection({ children, minHeight = 140, rootMargin = "200px 0px" }) {
+  const [ref, inView] = useInView(rootMargin);
+  return (
+    <div ref={ref} style={{ minHeight }}>
+      {inView ? children : null}
+    </div>
+  );
 }
 
 function AnimatedPrice({ price, prevPrice, large = false }) {
@@ -2388,31 +2456,39 @@ function HomeTab({ onAnalyze }) {
       </div>
 
       {/* Market Movers — 3 columns */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-        <MoverColumn title="Top Gainers" stocks={movers?.gainers} allStocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
-        <MoverColumn title="Top Losers" stocks={movers?.losers} allStocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
-        <MoverColumn title="Trending Stocks" stocks={trending} allStocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
-      </div>
+      <LazySection minHeight={240}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+          <MoverColumn title="Top Gainers" stocks={movers?.gainers} allStocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
+          <MoverColumn title="Top Losers" stocks={movers?.losers} allStocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
+          <MoverColumn title="Trending Stocks" stocks={trending} allStocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
+        </div>
+      </LazySection>
 
       {/* Asset Class Sections */}
-      <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
-        {ASSET_SECTIONS.map(section => (
-          <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
-        ))}
-      </div>
+      <LazySection minHeight={200}>
+        <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+          {ASSET_SECTIONS.map(section => (
+            <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
+          ))}
+        </div>
+      </LazySection>
 
       {/* Market Brief */}
-      <Section title="Market Brief">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-          <MarketCalendarCard items={MARKET_CALENDAR} />
-          <SectorSnapshotCard items={SECTOR_SNAPSHOT} />
-          <AnalystFeedCard items={ANALYST_FEED} />
-          <InsiderFeedCard items={INSIDER_FEED} />
-        </div>
-      </Section>
+      <LazySection minHeight={220}>
+        <Section title="Market Brief">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+            <MarketCalendarCard items={MARKET_CALENDAR} />
+            <SectorSnapshotCard items={SECTOR_SNAPSHOT} />
+            <AnalystFeedCard items={ANALYST_FEED} />
+            <InsiderFeedCard items={INSIDER_FEED} />
+          </div>
+        </Section>
+      </LazySection>
 
       {/* Changelog Banner */}
-      <ChangelogBanner />
+      <LazySection minHeight={120}>
+        <ChangelogBanner />
+      </LazySection>
     </div>
   );
 }
@@ -2420,7 +2496,7 @@ function HomeTab({ onAnalyze }) {
 // ═══════════════════════════════════════════════════════════
 // ANALYSIS TAB
 // ═══════════════════════════════════════════════════════════
-function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onReanalyze }) {
+function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period, interval, onReanalyze }) {
   const [subTab, setSubTab] = useState("stock");
   const [finPeriod, setFinPeriod] = useState("LTM");
   const [assumptions, setAssumptions] = useState(null);
@@ -2509,14 +2585,18 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
   const { ticker, recommendation: rec, techSignals, regime, statSignals, risk, target, stopLoss, data, valuation: marketValuation, fundamentals, valuationModels } = result;
   const strat = STRATEGIES[regime.overall] || STRATEGIES.TRANSITIONING;
   const stretchPos = Math.min(100, Math.max(0, marketValuation?.stretch || 0));
-  const prevClose = data.length > 1 ? data[data.length - 2].Close : price;
+  const chartBase = useMemo(
+    () => applyLivePoint(data || [], chartLivePrice, interval || result?.interval),
+    [data, chartLivePrice, interval, result?.interval]
+  );
+  const prevClose = chartBase.length > 1 ? chartBase[chartBase.length - 2].Close : price;
   const change = price - prevClose, pctChange = (change / prevClose) * 100;
-  const chartSlice = data.slice(-60);
+  const chartSlice = chartBase.slice(-60);
   const chartData = chartSlice.map((d, i) => {
     const isLast = i === chartSlice.length - 1;
-    const live = isLast && livePrice != null ? livePrice : d.Close;
-    const high = isLast && livePrice != null ? Math.max(d.High ?? live, live) : d.High;
-    const low = isLast && livePrice != null ? Math.min(d.Low ?? live, live) : d.Low;
+    const live = isLast && chartLivePrice != null ? chartLivePrice : d.Close;
+    const high = isLast && chartLivePrice != null ? Math.max(d.High ?? live, live) : d.High;
+    const low = isLast && chartLivePrice != null ? Math.min(d.Low ?? live, live) : d.Low;
     return { n: d.date.slice(5), c: live, o: d.Open, h: high, l: low, s20: d.SMA_20, s50: d.SMA_50, bu: d.BB_Upper, bl: d.BB_Lower };
   });
   const finData = fundamentals?.periods?.find(p => p.label === finPeriod) || fundamentals?.periods?.[0];
@@ -2693,6 +2773,7 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
                 })}
               </div>
             </Section>
+          </LazySection>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <Section title="Price — Last 60 Sessions" actions={
@@ -2726,7 +2807,7 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
               {chartType === "candles" ? (
                 <Customized component={CandlestickSeries} />
               ) : (
-                <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={2} name="Close" />
+                <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={2} name="Close" isAnimationActive animationDuration={CHART_ANIM_MS} />
               )}
             </ComposedChart>
           </ResponsiveContainer>
@@ -2772,43 +2853,46 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
                 </div>
               </Section>
             </div>
-            <Section title="Analyst Price Targets">
-              <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                <ResponsiveContainer width="100%" height={220}>
-                  <ComposedChart data={targetSeries} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                    <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
-                    <XAxis dataKey="i" hide />
-                    <YAxis domain={["auto", "auto"]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={55} />
-                    <Line dataKey="past" stroke={C.ink} dot={false} strokeWidth={2} name="Past 12 months" />
-                    <Line dataKey="targetLine" stroke="#3B82F6" dot={false} strokeWidth={2} strokeDasharray="4 4" name="12-month target" />
-                    <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-                <div style={{ display: "flex", gap: 14, marginTop: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>
-                  <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.ink, marginRight: 6 }} />Past 12 months</span>
-                  <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#3B82F6", marginRight: 6 }} />12-month price target</span>
+            <LazySection minHeight={260}>
+              <Section title="Analyst Price Targets">
+                <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <ComposedChart data={targetSeries} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                      <XAxis dataKey="i" hide />
+                      <YAxis domain={["auto", "auto"]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={55} />
+                      <Line dataKey="past" stroke={C.ink} dot={false} strokeWidth={2} name="Past 12 months" />
+                      <Line dataKey="targetLine" stroke="#3B82F6" dot={false} strokeWidth={2} strokeDasharray="4 4" name="12-month target" />
+                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                  <div style={{ display: "flex", gap: 14, marginTop: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>
+                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.ink, marginRight: 6 }} />Past 12 months</span>
+                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#3B82F6", marginRight: 6 }} />12-month price target</span>
+                  </div>
                 </div>
-              </div>
-            </Section>
-            <Section title="Company Metrics">
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-                <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Earnings Per Share</div>
-                  {epsSeries.length ? (
-                    <ResponsiveContainer width="100%" height={170}>
-                      <LineChart data={epsSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
-                        <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
-                        <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
-                        <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} />
-                        <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
-                          formatter={(v) => [`$${fmt(v, 2)}`, "EPS"]} />
-                        <Line type="monotone" dataKey="eps" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>EPS series unavailable.</div>
-                  )}
-                </div>
+              </Section>
+            </LazySection>
+            <LazySection minHeight={420}>
+              <Section title="Company Metrics">
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+                  <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                    <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Earnings Per Share</div>
+                    {epsSeries.length ? (
+                      <ResponsiveContainer width="100%" height={170}>
+                        <LineChart data={epsSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+                          <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                          <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
+                          <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} />
+                          <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
+                            formatter={(v) => [`$${fmt(v, 2)}`, "EPS"]} />
+                          <Line type="monotone" dataKey="eps" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>EPS series unavailable.</div>
+                    )}
+                  </div>
 
                 <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
                   <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Revenue</div>
@@ -2881,6 +2965,7 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
                 </div>
               </div>
             </Section>
+          </LazySection>
           </div>
         </div>
       )}
@@ -3128,7 +3213,7 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
 // ═══════════════════════════════════════════════════════════
 // CHARTS TAB
 // ═══════════════════════════════════════════════════════════
-function ChartsTab({ result, livePrice, period, interval, onReanalyze }) {
+function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze }) {
   const [show, setShow] = useState({ sma: true, bb: true, vol: true, rsi: true, macd: false, stoch: false });
   const [chartType, setChartType] = useState("line");
   const [expanded, setExpanded] = useState(null);
@@ -3137,18 +3222,19 @@ function ChartsTab({ result, livePrice, period, interval, onReanalyze }) {
   const toggle = k => setShow(p => ({ ...p, [k]: !p[k] }));
   const cd = useMemo(() => {
     if (!data || !data.length) return [];
-    return data.map((d, i) => {
-      const isLast = i === data.length - 1;
-      const live = isLast && livePrice != null ? livePrice : d.Close;
-      const high = isLast && livePrice != null ? Math.max(d.High ?? live, live) : d.High;
-      const low = isLast && livePrice != null ? Math.min(d.Low ?? live, live) : d.Low;
+    const base = applyLivePoint(data, chartLivePrice, interval || result?.interval);
+    return base.map((d, i) => {
+      const isLast = i === base.length - 1;
+      const live = isLast && chartLivePrice != null ? chartLivePrice : d.Close;
+      const high = isLast && chartLivePrice != null ? Math.max(d.High ?? live, live) : d.High;
+      const low = isLast && chartLivePrice != null ? Math.min(d.Low ?? live, live) : d.Low;
       return {
         n: d.date.slice(5), c: live, o: d.Open, h: high, l: low, v: d.Volume,
         s20: d.SMA_20, s50: d.SMA_50, s200: d.SMA_200, bu: d.BB_Upper, bl: d.BB_Lower, bm: d.BB_Middle,
         rsi: d.RSI, macd: d.MACD, ms: d.MACD_Signal, mh: d.MACD_Hist, sk: d.Stoch_K, sd: d.Stoch_D
       };
     });
-  }, [data, livePrice]);
+  }, [data, chartLivePrice, interval, result?.interval]);
   const btn = (on) => ({ padding: "5px 14px", border: `1px solid ${on ? C.ink : C.rule}`, background: on ? C.ink : "transparent", color: on ? C.cream : C.inkMuted, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.04em" });
   const h = show.rsi || show.macd || show.stoch ? 260 : 380;
   const expandBtn = { padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" };
@@ -3194,64 +3280,68 @@ function ChartsTab({ result, livePrice, period, interval, onReanalyze }) {
             <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }} />
             {show.bb && <><Line dataKey="bu" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" /><Line dataKey="bl" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" /><Line dataKey="bm" stroke={C.inkFaint} dot={false} strokeWidth={1} opacity={0.4} /></>}
             {show.sma && <><Line dataKey="s20" stroke={C.accent} dot={false} strokeWidth={1} /><Line dataKey="s50" stroke={C.chart4} dot={false} strokeWidth={1} /><Line dataKey="s200" stroke={C.down + "66"} dot={false} strokeWidth={1} /></>}
-            {chartType === "candles" ? <Customized component={CandlestickSeries} /> : <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={1.5} />}
+            {chartType === "candles" ? <Customized component={CandlestickSeries} /> : <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={1.5} isAnimationActive animationDuration={CHART_ANIM_MS} />}
             <Brush dataKey="n" height={18} stroke={C.rule} fill={C.warmWhite} travellerWidth={7} />
           </ComposedChart>
         </ResponsiveContainer>
       </Section>
       {show.vol && (
-        <Section title="Volume" actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "volume", title: `${ticker} — Volume` })}>Expand</button>}>
-          <ResponsiveContainer width="100%" height={80}>
-            <BarChart data={cd} margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
-              <XAxis dataKey="n" hide /><YAxis hide />
-              <Bar dataKey="v" fill={C.inkSoft + "25"} stroke={C.inkSoft + "40"} strokeWidth={0.5} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Section>
+        <LazySection minHeight={120}>
+          <Section title="Volume" actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "volume", title: `${ticker} — Volume` })}>Expand</button>}>
+            <ResponsiveContainer width="100%" height={80}>
+              <BarChart data={cd} margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
+                <XAxis dataKey="n" hide /><YAxis hide />
+                <Bar dataKey="v" fill={C.inkSoft + "25"} stroke={C.inkSoft + "40"} strokeWidth={0.5} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Section>
+        </LazySection>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: [show.rsi, show.macd, show.stoch].filter(Boolean).length > 1 ? "1fr 1fr" : "1fr", gap: 16 }}>
-        {show.rsi && (
-          <Section title="RSI (14)" actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "rsi", title: `${ticker} — RSI (14)` })}>Expand</button>}>
-            <ResponsiveContainer width="100%" height={110}>
-              <LineChart data={cd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
-                <XAxis dataKey="n" hide /><YAxis domain={[0, 100]} tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} ticks={[30, 70]} axisLine={false} tickLine={false} width={30} />
-                <ReferenceLine y={70} stroke={C.down + "40"} strokeDasharray="3 3" />
-                <ReferenceLine y={30} stroke={C.up + "40"} strokeDasharray="3 3" />
-                <Line dataKey="rsi" stroke={C.accent} dot={false} strokeWidth={1.5} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Section>
-        )}
-        {show.macd && (
-          <Section title="MACD" actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "macd", title: `${ticker} — MACD` })}>Expand</button>}>
-            <ResponsiveContainer width="100%" height={110}>
-              <ComposedChart data={cd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
-                <XAxis dataKey="n" hide /><YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={40} />
-                <ReferenceLine y={0} stroke={C.rule} />
-                <Bar dataKey="mh" fill={C.inkSoft + "20"} stroke={C.inkSoft + "40"} strokeWidth={0.5} />
-                <Line dataKey="macd" stroke={C.ink} dot={false} strokeWidth={1.5} />
-                <Line dataKey="ms" stroke={C.accent} dot={false} strokeWidth={1} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Section>
-        )}
-        {show.stoch && (
-          <Section title="Stochastic" actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "stoch", title: `${ticker} — Stochastic` })}>Expand</button>}>
-            <ResponsiveContainer width="100%" height={110}>
-              <LineChart data={cd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
-                <XAxis dataKey="n" hide /><YAxis domain={[0, 100]} tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} ticks={[20, 80]} axisLine={false} tickLine={false} width={30} />
-                <ReferenceLine y={80} stroke={C.down + "40"} strokeDasharray="3 3" />
-                <ReferenceLine y={20} stroke={C.up + "40"} strokeDasharray="3 3" />
-                <Line dataKey="sk" stroke={C.ink} dot={false} strokeWidth={1.5} />
-                <Line dataKey="sd" stroke={C.accent} dot={false} strokeWidth={1} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Section>
-        )}
-      </div>
+      <LazySection minHeight={180}>
+        <div style={{ display: "grid", gridTemplateColumns: [show.rsi, show.macd, show.stoch].filter(Boolean).length > 1 ? "1fr 1fr" : "1fr", gap: 16 }}>
+          {show.rsi && (
+            <Section title="RSI (14)" actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "rsi", title: `${ticker} — RSI (14)` })}>Expand</button>}>
+              <ResponsiveContainer width="100%" height={110}>
+                <LineChart data={cd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                  <XAxis dataKey="n" hide /><YAxis domain={[0, 100]} tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} ticks={[30, 70]} axisLine={false} tickLine={false} width={30} />
+                  <ReferenceLine y={70} stroke={C.down + "40"} strokeDasharray="3 3" />
+                  <ReferenceLine y={30} stroke={C.up + "40"} strokeDasharray="3 3" />
+                  <Line dataKey="rsi" stroke={C.accent} dot={false} strokeWidth={1.5} />
+                </LineChart>
+              </ResponsiveContainer>
+            </Section>
+          )}
+          {show.macd && (
+            <Section title="MACD" actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "macd", title: `${ticker} — MACD` })}>Expand</button>}>
+              <ResponsiveContainer width="100%" height={110}>
+                <ComposedChart data={cd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                  <XAxis dataKey="n" hide /><YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={40} />
+                  <ReferenceLine y={0} stroke={C.rule} />
+                  <Bar dataKey="mh" fill={C.inkSoft + "20"} stroke={C.inkSoft + "40"} strokeWidth={0.5} />
+                  <Line dataKey="macd" stroke={C.ink} dot={false} strokeWidth={1.5} />
+                  <Line dataKey="ms" stroke={C.accent} dot={false} strokeWidth={1} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </Section>
+          )}
+          {show.stoch && (
+            <Section title="Stochastic" actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "stoch", title: `${ticker} — Stochastic` })}>Expand</button>}>
+              <ResponsiveContainer width="100%" height={110}>
+                <LineChart data={cd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                  <XAxis dataKey="n" hide /><YAxis domain={[0, 100]} tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} ticks={[20, 80]} axisLine={false} tickLine={false} width={30} />
+                  <ReferenceLine y={80} stroke={C.down + "40"} strokeDasharray="3 3" />
+                  <ReferenceLine y={20} stroke={C.up + "40"} strokeDasharray="3 3" />
+                  <Line dataKey="sk" stroke={C.ink} dot={false} strokeWidth={1.5} />
+                  <Line dataKey="sd" stroke={C.accent} dot={false} strokeWidth={1} />
+                </LineChart>
+              </ResponsiveContainer>
+            </Section>
+          )}
+        </div>
+      </LazySection>
       {expanded && (
         <ExpandedChartModal
           title={expanded.title}
@@ -3316,6 +3406,7 @@ function HeatmapPanel({ indexName, universe }) {
   const [loading, setLoading] = useState(false);
   const [hover, setHover] = useState(null);
   const [progress, setProgress] = useState("");
+  const [viewRef, inView] = useInView("300px 0px");
   const containerRef = useRef(null);
   const [dims, setDims] = useState({ w: 800, h: 420 });
 
@@ -3326,7 +3417,7 @@ function HeatmapPanel({ indexName, universe }) {
     }
   }, []);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const total = universe.length;
     let completed = 0;
@@ -3351,7 +3442,13 @@ function HeatmapPanel({ indexName, universe }) {
     setStocks(results);
     setLoading(false);
     setProgress("");
-  };
+  }, [universe]);
+
+  useEffect(() => {
+    if (inView && !stocks && !loading) {
+      load();
+    }
+  }, [inView, stocks, loading, load]);
 
   const sectors = useMemo(() => {
     if (!stocks) return [];
@@ -3370,7 +3467,7 @@ function HeatmapPanel({ indexName, universe }) {
   const rects = stocks ? squarify(stocks.map(s => ({ ...s, size: s.cap })), dims.w, dims.h) : [];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div ref={viewRef} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, fontFamily: "var(--display)", letterSpacing: "-0.01em" }}>{indexName}</div>
@@ -3831,6 +3928,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [livePrice, setLivePrice] = useState(null);
+  const [chartLivePrice, setChartLivePrice] = useState(null);
   const [latency, setLatency] = useState(null);
   const [showPerf, setShowPerf] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -3840,6 +3938,7 @@ function App() {
   const searchRef = useRef(null);
   const liveRef = useRef(null);
   const prevPriceRef = useRef(null);
+  const chartTimerRef = useRef(null);
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -3910,6 +4009,19 @@ function App() {
     return () => clearInterval(micro);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result?.ticker, !!livePrice]);
+
+  // Delay chart updates until animation finishes
+  useEffect(() => {
+    if (chartTimerRef.current) clearTimeout(chartTimerRef.current);
+    if (livePrice == null) {
+      setChartLivePrice(null);
+      return;
+    }
+    chartTimerRef.current = setTimeout(() => {
+      setChartLivePrice(livePrice);
+    }, CHART_ANIM_MS);
+    return () => { if (chartTimerRef.current) clearTimeout(chartTimerRef.current); };
+  }, [livePrice]);
 
   const analyze = useCallback(async (t) => {
     const sym = (t || ticker).trim().toUpperCase();
@@ -4036,8 +4148,8 @@ function App() {
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
         {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} />}
-        {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} latency={latency} isPro={isPro} period={period} interval={interval} onReanalyze={reanalyze} />}
-        {!loading && !error && tab === "charts" && <ChartsTab result={result} livePrice={livePrice} period={period} interval={interval} onReanalyze={reanalyze} />}
+        {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} chartLivePrice={chartLivePrice} latency={latency} isPro={isPro} period={period} interval={interval} onReanalyze={reanalyze} />}
+        {!loading && !error && tab === "charts" && <ChartsTab result={result} chartLivePrice={chartLivePrice} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab /> : (
           <ProGate
             title="Heatmap Is Pro"
