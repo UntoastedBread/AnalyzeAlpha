@@ -2468,6 +2468,7 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
   const [finPeriod, setFinPeriod] = useState("LTM");
   const [assumptions, setAssumptions] = useState(null);
   const [chartType, setChartType] = useState("line");
+  const peerSeed = hashCode(result?.ticker || "PEERS");
   const price = livePrice || result?.currentPrice || 0;
   const prevAnimated = usePrevious(price) ?? price;
   const baseAssumptions = assumptions || result?.valuationModels?.assumptions;
@@ -2486,7 +2487,6 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
     }));
   }, [result]);
 
-  const peerSeed = hashCode(result?.ticker || "PEERS");
   const [peerPack, setPeerPack] = useState({ status: "idle", metrics: [], source: "Yahoo Finance" });
 
   useEffect(() => {
