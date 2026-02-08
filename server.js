@@ -120,6 +120,73 @@ app.get('/api/rss', (req, res) => {
   });
 });
 
+app.get('/api/summary/:ticker', (req, res) => {
+  const { ticker } = req.params;
+  const modules = req.query.modules || 'price,financialData,defaultKeyStatistics,summaryDetail';
+  if (!/^[A-Za-z0-9=^.\-]+$/.test(ticker)) {
+    return res.status(400).json({ error: 'Invalid ticker' });
+  }
+  if (!/^[A-Za-z0-9,]+$/.test(modules)) {
+    return res.status(400).json({ error: 'Invalid modules' });
+  }
+  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}`;
+  console.log(`[Proxy] Summary: ${ticker} modules=${modules}`);
+
+  https.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+    }
+  }, (apiRes) => {
+    let data = '';
+    apiRes.on('data', chunk => data += chunk);
+    apiRes.on('end', () => {
+      try {
+        res.setHeader('Content-Type', 'application/json');
+        res.status(apiRes.statusCode).send(data);
+        console.log(`[Proxy] ✓ Summary ${ticker} — ${apiRes.statusCode}`);
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+  }).on('error', (e) => {
+    console.error(`[Proxy] ✗ Summary ${ticker} — ${e.message}`);
+    res.status(500).json({ error: e.message });
+  });
+});
+
+app.get('/api/recommendations/:ticker', (req, res) => {
+  const { ticker } = req.params;
+  if (!/^[A-Za-z0-9=^.\-]+$/.test(ticker)) {
+    return res.status(400).json({ error: 'Invalid ticker' });
+  }
+  const url = `https://query2.finance.yahoo.com/v6/finance/recommendationsbysymbol/${encodeURIComponent(ticker)}`;
+  console.log(`[Proxy] Recommendations: ${ticker}`);
+
+  https.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+    }
+  }, (apiRes) => {
+    let data = '';
+    apiRes.on('data', chunk => data += chunk);
+    apiRes.on('end', () => {
+      try {
+        const json = JSON.parse(data);
+        const symbols = (json?.finance?.result?.[0]?.recommendedSymbols || [])
+          .map(s => s?.symbol)
+          .filter(Boolean);
+        res.json({ symbols });
+        console.log(`[Proxy] ✓ Recommendations ${ticker} — ${symbols.length} symbols`);
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+  }).on('error', (e) => {
+    console.error(`[Proxy] ✗ Recommendations ${ticker} — ${e.message}`);
+    res.status(500).json({ error: e.message });
+  });
+});
+
 const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`\n  ┌─────────────────────────────────────┐`);
