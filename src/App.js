@@ -1081,12 +1081,12 @@ function Row({ label, value, color, border = true }) {
   );
 }
 
-function Section({ title, children, style, actions }) {
+function Section({ title, children, style, actions, accentColor }) {
   const baseStyle = { minWidth: 0, ...style };
   return (
     <div style={baseStyle}>
       {title && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "var(--body)", paddingBottom: 8, borderBottom: `2px solid ${C.ink}`, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "var(--body)", paddingBottom: 8, borderBottom: `2px solid ${accentColor || C.ink}`, marginBottom: 10 }}>
           <span>{title}</span>
           {actions && <div style={{ display: "flex", alignItems: "center", gap: 6 }}>{actions}</div>}
         </div>
@@ -1510,7 +1510,7 @@ function SkeletonBlock({ width = "100%", height = 16, style }) {
   );
 }
 
-function TickerStrip({ data, loading, onAnalyze }) {
+function TickerStrip({ data, loading, onAnalyze, brandColor }) {
   const renderItem = (item, idx) => (
     <button
       key={item.symbol + "-" + idx}
@@ -1548,8 +1548,8 @@ function TickerStrip({ data, loading, onAnalyze }) {
     <div style={{ display: "flex", alignItems: "center", background: C.ink, overflow: "hidden", minWidth: 0 }}>
       {/* LIVE badge — fixed, does not scroll */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRight: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}>
-        <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "livePulse 2s ease-in-out infinite", boxShadow: "0 0 6px rgba(74,222,128,0.4)" }} />
-        <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: "#4ADE80", fontWeight: 700, letterSpacing: "0.08em" }}>LIVE</span>
+        <span style={{ width: 7, height: 7, borderRadius: "50%", background: brandColor || "#4ADE80", display: "inline-block", animation: "livePulse 2s ease-in-out infinite", boxShadow: `0 0 6px ${brandColor || "rgba(74,222,128,0.4)"}` }} />
+        <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: brandColor || "#4ADE80", fontWeight: 700, letterSpacing: "0.08em" }}>LIVE</span>
       </div>
       {/* Scrolling content */}
       <div className="ticker-strip-scroll" style={{ flex: 1, overflow: "hidden" }}>
@@ -2177,7 +2177,7 @@ function AssetRow({ section, onAnalyze }) {
 // ═══════════════════════════════════════════════════════════
 // HOME TAB
 // ═══════════════════════════════════════════════════════════
-function HomeTab({ onAnalyze }) {
+function HomeTab({ onAnalyze, brandColor }) {
   const [region, setRegion] = useState("Global");
   const [indexPage, setIndexPage] = useState(0);
   const [stripData, setStripData] = useState([]);
@@ -2345,7 +2345,7 @@ function HomeTab({ onAnalyze }) {
   return (
     <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
       {/* Ticker Strip */}
-      <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} />
+      <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} brandColor={brandColor} />
 
       {/* Region Selector + Updated timestamp */}
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
@@ -2402,7 +2402,7 @@ function HomeTab({ onAnalyze }) {
       </div>
 
       {/* Market Brief */}
-      <Section title="Market Brief">
+      <Section title="Market Brief" accentColor={brandColor}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
           <MarketCalendarCard items={MARKET_CALENDAR} />
           <SectorSnapshotCard items={SECTOR_SNAPSHOT} />
@@ -3808,6 +3808,14 @@ function App() {
     textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)",
     opacity: locked ? 0.7 : 1,
   });
+  const brandOptions = [
+    { label: "Emerald", value: "#1B6B3A" },
+    { label: "Cobalt", value: "#2458B3" },
+    { label: "Amber", value: "#B36B00" },
+    { label: "Crimson", value: "#B3262E" },
+    { label: "Slate", value: "#2F3B44" },
+  ];
+  const [brandColor, setBrandColor] = useState(brandOptions[0].value);
 
   return (
     <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", maxWidth: "70%", margin: "0 auto", width: "100%", boxShadow: "0 0 60px rgba(0,0,0,0.04)" }}>
@@ -3875,14 +3883,27 @@ function App() {
               );
             })}
           </div>
-          <LiteTools onAnalyze={analyze} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Brand</span>
+              <select
+                value={brandColor}
+                onChange={e => setBrandColor(e.target.value)}
+                style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "5px 8px", fontSize: 10, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}
+              >
+                {brandOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <span style={{ width: 10, height: 10, borderRadius: 5, background: brandColor, display: "inline-block" }} />
+            </div>
+            <LiteTools onAnalyze={analyze} />
+          </div>
         </nav>
       </header>
 
       <main style={{ flex: 1, padding: "20px 24px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1, minWidth: 0 }} key={tab + (result?.ticker || "")}>
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
-        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} />}
+        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} brandColor={brandColor} />}
         {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} latency={latency} isPro={isPro} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "charts" && <ChartsTab result={result} livePrice={livePrice} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab /> : (
