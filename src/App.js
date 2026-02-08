@@ -776,6 +776,8 @@ const FALLBACK_NEWS = [
   { title: "Retail sales preview: expectations and risks", source: "Macro Wire", pubDate: "", description: "Consumer spending data expected to show continued resilience." },
 ];
 
+const NEWS_PLACEHOLDER_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 500'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0%25' stop-color='%23EFE7DC'/><stop offset='100%25' stop-color='%23D7C8B4'/></linearGradient></defs><rect width='800' height='500' fill='url(%23g)'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Verdana' font-size='36' fill='%236B5E52'>Market%20News</text></svg>";
+
 const CHANGELOG = [
   {
     version: "0.3.12",
@@ -1638,31 +1640,65 @@ function NewsSection({ news, loading }) {
       </div>
     );
   }
+  if (!news || news.length === 0) {
+    return (
+      <div style={{ padding: "16px", background: C.warmWhite, border: `1px solid ${C.rule}`, fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>
+        No headlines available right now.
+      </div>
+    );
+  }
+  const hero = news[0];
+  const heroImage = hero.image || NEWS_PLACEHOLDER_IMAGE;
+  const rest = news.slice(1);
   return (
-    <div style={{ display: "grid", gap: 1 }}>
-      {news.map((n, i) => (
-        <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
-          style={{ display: "flex", gap: 12, padding: "14px 16px", background: C.warmWhite, borderLeft: `2px solid ${i === 0 ? C.ink : "transparent"}`, borderRight: `1px solid ${C.rule}`, borderTop: `1px solid ${C.rule}`, borderBottom: `1px solid ${C.rule}`, textDecoration: "none", transition: "background 0.15s" }}
-          onMouseEnter={e => e.currentTarget.style.background = C.paper}
-          onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}>
-          {n.image && (
-            <img src={n.image} alt="" style={{ width: 80, height: 60, objectFit: "cover", flexShrink: 0, background: C.paper }} onError={e => e.currentTarget.style.display = "none"} />
-          )}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{n.title}</div>
-            {n.description && (
-              <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.4, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.description}</div>
+    <div style={{ display: "grid", gap: 10 }}>
+      <a href={hero.link || "#"} target="_blank" rel="noopener noreferrer"
+        style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", minHeight: 220, background: C.warmWhite, border: `1px solid ${C.rule}`, textDecoration: "none", color: C.ink, overflow: "hidden" }}>
+        <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ fontSize: 10, fontFamily: "var(--mono)", letterSpacing: "0.2em", textTransform: "uppercase", color: C.inkFaint }}>Top Story</div>
+          <div>
+            <div style={{ fontSize: 18, fontFamily: "var(--display)", lineHeight: 1.3 }}>{hero.title}</div>
+            {hero.description && (
+              <div style={{ fontSize: 12, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.5, marginTop: 8 }}>{hero.description}</div>
             )}
-            <div style={{ marginTop: 6, display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
-              <span style={{ fontWeight: 600 }}>{n.source || "Yahoo Finance"}</span>
-              {n.pubDate && <>
-                <span style={{ color: C.ruleFaint }}>|</span>
-                <span>{timeAgo(n.pubDate)}</span>
-              </>}
-            </div>
           </div>
-        </a>
-      ))}
+          <div style={{ display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
+            <span style={{ fontWeight: 600 }}>{hero.source || "Yahoo Finance"}</span>
+            {hero.pubDate && <>
+              <span style={{ color: C.ruleFaint }}>|</span>
+              <span>{timeAgo(hero.pubDate)}</span>
+            </>}
+          </div>
+        </div>
+        <div style={{ position: "relative" }}>
+          <img src={heroImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = NEWS_PLACEHOLDER_IMAGE; }} />
+        </div>
+      </a>
+      <div style={{ display: "grid", gap: 1 }}>
+        {rest.map((n, i) => (
+          <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
+            style={{ display: "flex", gap: 12, padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, textDecoration: "none", transition: "background 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.background = C.paper}
+            onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}>
+            {n.image && (
+              <img src={n.image} alt="" style={{ width: 70, height: 54, objectFit: "cover", flexShrink: 0, background: C.paper }} onError={e => e.currentTarget.style.display = "none"} />
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{n.title}</div>
+              {n.description && (
+                <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.4, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.description}</div>
+              )}
+              <div style={{ marginTop: 6, display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
+                <span style={{ fontWeight: 600 }}>{n.source || "Yahoo Finance"}</span>
+                {n.pubDate && <>
+                  <span style={{ color: C.ruleFaint }}>|</span>
+                  <span>{timeAgo(n.pubDate)}</span>
+                </>}
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1750,6 +1786,7 @@ function ChangelogBanner() {
 function AssetRow({ section, onAnalyze }) {
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1766,12 +1803,18 @@ function AssetRow({ section, onAnalyze }) {
     return () => { cancelled = true; };
   }, [section]);
 
+  const scrollRight = () => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollBy({ left: 220, behavior: "smooth" });
+  };
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0" }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)", minWidth: 100, flexShrink: 0 }}>
         {section.title}
       </div>
-      <div style={{ display: "flex", gap: 8, flex: 1, overflowX: "auto" }}>
+      <div style={{ position: "relative", flex: 1 }}>
+        <div ref={scrollRef} style={{ display: "flex", gap: 8, overflowX: "auto", paddingRight: 34 }}>
         {!loaded ? (
           Array.from({ length: section.symbols.length }).map((_, i) => (
             <div key={i} style={{ padding: "8px 12px", background: C.warmWhite, border: `1px solid ${C.rule}`, minWidth: 130 }}>
@@ -1811,6 +1854,35 @@ function AssetRow({ section, onAnalyze }) {
             </button>
           ))
         )}
+        </div>
+        <button
+          type="button"
+          onClick={scrollRight}
+          aria-label={`Scroll ${section.title}`}
+          style={{
+            position: "absolute",
+            right: 0,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            border: `1px solid ${C.rule}`,
+            background: C.cream,
+            color: C.inkMuted,
+            cursor: "pointer",
+            fontSize: 12,
+            fontFamily: "var(--mono)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = C.ink; e.currentTarget.style.borderColor = C.ink; }}
+          onMouseLeave={e => { e.currentTarget.style.color = C.inkMuted; e.currentTarget.style.borderColor = C.rule; }}
+        >
+          →
+        </button>
       </div>
     </div>
   );
@@ -1982,23 +2054,18 @@ function HomeTab({ onAnalyze, liveTickers }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
         <MoverColumn title="Top Gainers" stocks={movers?.gainers} allStocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
         <MoverColumn title="Top Losers" stocks={movers?.losers} allStocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
-        <MoverColumn title="Most Active" stocks={movers?.mostActive} allStocks={movers?.mostActive} loading={moversLoading} onAnalyze={onAnalyze} />
+        <MoverColumn title="Trending Stocks" stocks={trending} allStocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
       </div>
 
-      {/* Asset Class Sections */}
-      <div style={{ display: "grid", gap: 4 }}>
-        {ASSET_SECTIONS.map(section => (
-          <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
-        ))}
+      {/* Asset Class Sections + What's New */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+        <div style={{ display: "grid", gap: 4 }}>
+          {ASSET_SECTIONS.map(section => (
+            <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
+          ))}
+        </div>
+        <ChangelogBanner />
       </div>
-
-      {/* Trending */}
-      <Section title="Trending Stocks">
-        <TrendingWatchlist stocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
-      </Section>
-
-      {/* Changelog Banner */}
-      <ChangelogBanner />
     </div>
   );
 }
