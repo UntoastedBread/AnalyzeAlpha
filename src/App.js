@@ -1516,6 +1516,7 @@ function MiniIntradayChart({ data, label, loading, onAnalyze, ticker }) {
   const change = lastPrice - prevClose;
   const changePct = prevClose ? (change / prevClose) * 100 : 0;
   const color = lastPrice >= prevClose ? C.up : C.down;
+  const changeBg = lastPrice >= prevClose ? C.upBg : C.downBg;
   const safeLabel = label.replace(/[^a-zA-Z0-9]/g, "");
   const clickable = !!onAnalyze && !!ticker;
   return (
@@ -1534,9 +1535,9 @@ function MiniIntradayChart({ data, label, loading, onAnalyze, ticker }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
         <div>
           <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600 }}>{label}</span>
-          <span style={{ fontSize: 26, fontFamily: "var(--display)", color: C.ink, fontWeight: 400, marginLeft: 12 }}>{fmt(lastPrice)}</span>
+          <span style={{ fontSize: 30, fontFamily: "var(--display)", color: C.inkSoft, fontWeight: 600, marginLeft: 12 }}>{fmt(lastPrice)}</span>
         </div>
-        <span style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 700, color }}>
+        <span style={{ fontSize: 14, fontFamily: "var(--mono)", fontWeight: 800, color, background: changeBg, padding: "4px 8px", borderRadius: 10 }}>
           {change >= 0 ? "+" : ""}{fmt(change)} ({changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%)
         </span>
       </div>
@@ -1587,7 +1588,9 @@ function MoverPopup({ title, stocks, onAnalyze, onClose }) {
                 <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
                 <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
               </div>
-              {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
+              <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+                {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
+              </div>
               <div style={{ textAlign: "right", minWidth: 80 }}>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: s.changePct >= 0 ? C.up : C.down, marginLeft: 8 }}>
@@ -1635,7 +1638,9 @@ function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
                 <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
                 <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
               </div>
-              {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
+              <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+                {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
+              </div>
               <div style={{ textAlign: "right", minWidth: 80 }}>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: s.changePct >= 0 ? C.up : C.down, marginLeft: 8 }}>
@@ -1773,7 +1778,7 @@ function WatchlistSummary({ items, onAnalyze }) {
             onClick={() => onAnalyze?.(it.ticker)}
             style={{
               display: "flex",
-              alignItems: "center",
+              alignItems: "stretch",
               justifyContent: "space-between",
               gap: 10,
               padding: "12px 8px",
@@ -1786,16 +1791,20 @@ function WatchlistSummary({ items, onAnalyze }) {
             onMouseEnter={e => e.currentTarget.style.background = C.paper}
             onMouseLeave={e => e.currentTarget.style.background = "transparent"}
           >
-            <div style={{ display: "grid", gap: 2 }}>
-              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 14, color: C.ink }}>{it.ticker}</span>
-              <span style={{ fontSize: 12, color: C.inkFaint, fontFamily: "var(--body)" }}>{it.name}</span>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700, color: C.ink }}>${fmt(it.price)}</div>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: it.changePct >= 0 ? C.up : C.down }}>
-                {it.changePct >= 0 ? "+" : ""}{it.changePct.toFixed(2)}%
+            <div style={{ display: "grid", gap: 6, width: "100%" }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+                  <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 16, color: C.ink }}>{it.ticker}</span>
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 16, fontWeight: 700, color: C.ink }}>${fmt(it.price)}</span>
+                </div>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: it.changePct >= 0 ? C.up : C.down, background: it.changePct >= 0 ? C.upBg : C.downBg, padding: "4px 8px", borderRadius: 12 }}>
+                  {it.changePct >= 0 ? "+" : ""}{it.changePct.toFixed(2)}%
+                </span>
               </div>
-              <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 4 }}>{it.note}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontSize: 12, color: C.inkFaint, fontFamily: "var(--body)" }}>{it.name}</span>
+                <span style={{ fontSize: 12, color: C.inkFaint, fontFamily: "var(--body)" }}>{it.note}</span>
+              </div>
             </div>
           </button>
         ))}
@@ -1812,18 +1821,24 @@ function MarketCalendarCard({ items }) {
   };
   return (
     <MiniCard title="Market Calendar">
-      <div style={{ display: "grid", gap: 6 }}>
+      <div style={{ display: "grid", gap: 10 }}>
         {items.map((e, i) => {
           const c = impactColor(e.impact);
           return (
-            <div key={`${e.event}-${i}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-              <div>
-                <div style={{ fontSize: 11, fontFamily: "var(--mono)", color: C.ink }}>{e.date} · {e.time}</div>
-                <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>{e.event}</div>
+            <div key={`${e.event}-${i}`} style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: 10, padding: "8px 10px", background: C.cream, border: `1px solid ${C.ruleFaint}`, borderRadius: 12 }}>
+              <div style={{ display: "grid", gap: 4, justifyItems: "center" }}>
+                <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted, letterSpacing: "0.04em" }}>{e.time}</div>
+                <div style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 700, color: C.ink }}>{e.date}</div>
               </div>
-              <span style={{ fontSize: 9, fontFamily: "var(--mono)", padding: "2px 6px", borderRadius: 10, background: c.bg, color: c.color }}>
-                {e.impact}
-              </span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <div style={{ fontSize: 12, fontFamily: "var(--body)", color: C.ink }}>{e.event}</div>
+                  <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>Macro event</div>
+                </div>
+                <span style={{ fontSize: 9, fontFamily: "var(--mono)", padding: "3px 8px", borderRadius: 10, background: c.bg, color: c.color, fontWeight: 700 }}>
+                  {e.impact}
+                </span>
+              </div>
             </div>
           );
         })}
@@ -1840,13 +1855,19 @@ function SectorSnapshotCard({ items }) {
   }));
   const renderTreemap = (props) => {
     if (!props) return null;
-    const { x, y, width, height, payload } = props;
+    const { x, y, width, height, payload, depth } = props;
+    if (depth === 0) return null;
     if (width <= 0 || height <= 0) return null;
-    const change = payload?.change ?? 0;
-    const name = payload?.name || "";
-    const fill = change >= 0 ? C.upBg : C.downBg;
+    const data = payload?.payload || payload || {};
+    const change = data.change ?? 0;
+    const name = data.name || "";
+    const intensity = Math.min(0.9, Math.max(0.2, Math.abs(change) / 2));
+    const fill = change >= 0
+      ? `rgba(27,107,58,${0.12 + intensity * 0.35})`
+      : `rgba(155,27,27,${0.12 + intensity * 0.35})`;
     const stroke = change >= 0 ? C.up : C.down;
-    const showLabel = width > 70 && height > 35 && name;
+    const showLabel = width > 55 && height > 28 && name;
+    const showMini = width > 32 && height > 20 && name;
     return (
       <g>
         <rect x={x} y={y} width={width} height={height} fill={fill} stroke={stroke} strokeWidth={1} />
@@ -1859,6 +1880,11 @@ function SectorSnapshotCard({ items }) {
               {change >= 0 ? "+" : ""}{change.toFixed(2)}%
             </text>
           </>
+        )}
+        {!showLabel && showMini && (
+          <text x={x + 6} y={y + 16} fill={C.ink} fontFamily="var(--mono)" fontSize="9" fontWeight="700">
+            {name.slice(0, 3).toUpperCase()}
+          </text>
         )}
       </g>
     );
@@ -1875,17 +1901,28 @@ function SectorSnapshotCard({ items }) {
 }
 
 function AnalystFeedCard({ items }) {
+  const actionStyle = (action) => {
+    if (action === "Upgrade") return { color: C.up, bg: C.upBg, border: C.up };
+    if (action === "Downgrade") return { color: C.down, bg: C.downBg, border: C.down };
+    return { color: C.hold, bg: C.holdBg, border: C.hold };
+  };
   return (
     <MiniCard title="Analyst Notes">
-      <div style={{ display: "grid", gap: 8 }}>
+      <div style={{ display: "grid", gap: 10 }}>
         {items.map((a, i) => (
-          <div key={`${a.ticker}-${i}`} style={{ display: "grid", gap: 2 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 11, color: C.ink }}>{a.ticker}</span>
-              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>{a.target}</span>
+          <div key={`${a.ticker}-${i}`} style={{ display: "grid", gap: 6, padding: "10px 12px", background: C.cream, border: `1px solid ${C.ruleFaint}`, borderRadius: 12, borderLeft: `3px solid ${actionStyle(a.action).border}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{a.ticker}</span>
+                <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>{a.firm}</span>
+              </div>
+              <span style={{ fontSize: 9, fontFamily: "var(--mono)", padding: "3px 8px", borderRadius: 10, background: actionStyle(a.action).bg, color: actionStyle(a.action).color, fontWeight: 700 }}>
+                {a.action}
+              </span>
             </div>
-            <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>
-              {a.action} · {a.firm} · {a.rating}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>{a.rating}</span>
+              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.ink }}>{a.target}</span>
             </div>
           </div>
         ))}
@@ -1895,17 +1932,27 @@ function AnalystFeedCard({ items }) {
 }
 
 function InsiderFeedCard({ items }) {
+  const actionStyle = (action) => {
+    if (action === "Buy") return { color: C.up, bg: C.upBg, border: C.up };
+    return { color: C.down, bg: C.downBg, border: C.down };
+  };
   return (
     <MiniCard title="Insider Tape">
-      <div style={{ display: "grid", gap: 8 }}>
+      <div style={{ display: "grid", gap: 10 }}>
         {items.map((t, i) => (
-          <div key={`${t.ticker}-${i}`} style={{ display: "grid", gap: 2 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 11, color: C.ink }}>{t.ticker}</span>
-              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>{t.value}</span>
+          <div key={`${t.ticker}-${i}`} style={{ display: "grid", gap: 6, padding: "10px 12px", background: C.cream, border: `1px solid ${C.ruleFaint}`, borderRadius: 12, borderLeft: `3px solid ${actionStyle(t.action).border}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{t.ticker}</span>
+                <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>{t.name}</span>
+              </div>
+              <span style={{ fontSize: 9, fontFamily: "var(--mono)", padding: "3px 8px", borderRadius: 10, background: actionStyle(t.action).bg, color: actionStyle(t.action).color, fontWeight: 700 }}>
+                {t.action}
+              </span>
             </div>
-            <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>
-              {t.name} · {t.action}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>Insider transaction</span>
+              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.ink }}>{t.value}</span>
             </div>
           </div>
         ))}
@@ -2242,9 +2289,12 @@ function HomeTab({ onAnalyze, liveTickers }) {
 
       {/* Headlines + Indexes */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-        <Section title="Market News">
-          <NewsSection news={news} loading={newsLoading} />
-        </Section>
+        <div style={{ display: "grid", gap: 16 }}>
+          <Section title="Market News">
+            <NewsSection news={news} loading={newsLoading} />
+          </Section>
+          <PortfolioTileCard data={PORTFOLIO_TILE} />
+        </div>
         <Section title="Indexes">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             {cfg.charts.map((c, i) => (
@@ -2285,7 +2335,6 @@ function HomeTab({ onAnalyze, liveTickers }) {
           <SectorSnapshotCard items={SECTOR_SNAPSHOT} />
           <AnalystFeedCard items={ANALYST_FEED} />
           <InsiderFeedCard items={INSIDER_FEED} />
-          <PortfolioTileCard data={PORTFOLIO_TILE} />
         </div>
       </Section>
 
