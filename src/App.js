@@ -1387,9 +1387,27 @@ function SkeletonBlock({ width = "100%", height = 16, style }) {
   );
 }
 
-function TickerStrip({ data, loading }) {
+function TickerStrip({ data, loading, onAnalyze }) {
   const renderItem = (item, idx) => (
-    <div key={item.symbol + "-" + idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", minWidth: 140, borderRight: `1px solid rgba(255,255,255,0.08)`, whiteSpace: "nowrap" }}>
+    <button
+      key={item.symbol + "-" + idx}
+      onClick={() => onAnalyze?.(item.symbol)}
+      type="button"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 20px",
+        minWidth: 140,
+        borderRight: `1px solid rgba(255,255,255,0.08)`,
+        whiteSpace: "nowrap",
+        background: "transparent",
+        border: "none",
+        color: "inherit",
+        cursor: "pointer",
+        textAlign: "left",
+      }}
+    >
       <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", fontWeight: 600 }}>{item.label}</span>
       <span style={{ fontSize: 12, fontFamily: "var(--mono)", color: "#fff", fontWeight: 600 }}>
         {item.loaded ? (item.price >= 1000 ? item.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : item.price.toFixed(2)) : "—"}
@@ -1397,7 +1415,7 @@ function TickerStrip({ data, loading }) {
       <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: item.changePct > 0 ? "#4ADE80" : item.changePct < 0 ? "#F87171" : "rgba(255,255,255,0.5)" }}>
         {item.loaded ? `${item.changePct >= 0 ? "+" : ""}${item.changePct.toFixed(2)}%` : ""}
       </span>
-    </div>
+    </button>
   );
 
   return (
@@ -1429,7 +1447,7 @@ function TickerStrip({ data, loading }) {
   );
 }
 
-function MiniIntradayChart({ data, label, loading }) {
+function MiniIntradayChart({ data, label, loading, onAnalyze, ticker }) {
   if (loading || !data) {
     return (
       <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}`, minHeight: 180 }}>
@@ -1451,8 +1469,20 @@ function MiniIntradayChart({ data, label, loading }) {
   const changePct = prevClose ? (change / prevClose) * 100 : 0;
   const color = lastPrice >= prevClose ? C.up : C.down;
   const safeLabel = label.replace(/[^a-zA-Z0-9]/g, "");
+  const clickable = !!onAnalyze && !!ticker;
   return (
-    <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+    <button
+      type="button"
+      onClick={() => clickable && onAnalyze?.(ticker)}
+      style={{
+        padding: "16px 20px",
+        background: C.warmWhite,
+        border: `1px solid ${C.rule}`,
+        cursor: clickable ? "pointer" : "default",
+        textAlign: "left",
+        width: "100%",
+      }}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
         <div>
           <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600 }}>{label}</span>
@@ -1487,7 +1517,7 @@ function MiniIntradayChart({ data, label, loading }) {
           />
         </ComposedChart>
       </ResponsiveContainer>
-    </div>
+    </button>
   );
 }
 
@@ -1717,7 +1747,7 @@ function ChangelogBanner() {
   );
 }
 
-function AssetRow({ section }) {
+function AssetRow({ section, onAnalyze }) {
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -1751,7 +1781,25 @@ function AssetRow({ section }) {
           ))
         ) : (
           data.filter(d => d.ok).map(d => (
-            <div key={d.symbol} style={{ padding: "8px 12px", background: C.warmWhite, border: `1px solid ${C.rule}`, minWidth: 130, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <button
+              key={d.symbol}
+              type="button"
+              onClick={() => onAnalyze?.(d.symbol)}
+              style={{
+                padding: "8px 12px",
+                background: C.warmWhite,
+                border: `1px solid ${C.rule}`,
+                minWidth: 130,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexShrink: 0,
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = C.paper}
+              onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}
+            >
               <div>
                 <div style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>{d.label}</div>
                 <div style={{ fontSize: 13, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>{d.price >= 100 ? d.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : d.price.toFixed(2)}</div>
@@ -1760,7 +1808,7 @@ function AssetRow({ section }) {
                 </div>
               </div>
               {d.spark && d.spark.length > 1 && <Sparkline data={d.spark} color={d.changePct >= 0 ? C.up : C.down} />}
-            </div>
+            </button>
           ))
         )}
       </div>
@@ -1896,7 +1944,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
   return (
     <div style={{ display: "grid", gap: 16, overflow: "hidden" }}>
       {/* Ticker Strip */}
-      <TickerStrip data={stripData} loading={stripLoading} />
+      <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} />
 
       {/* Region Selector + Updated timestamp */}
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -1913,7 +1961,14 @@ function HomeTab({ onAnalyze, liveTickers }) {
       {/* Intraday Charts — 3×2 for Global, 1×2 for regions */}
       <div style={{ display: "grid", gridTemplateColumns: isGlobal ? "1fr 1fr 1fr" : "1fr 1fr", gap: 16 }}>
         {cfg.charts.map((c, i) => (
-          <MiniIntradayChart key={c.symbol} data={charts[i]?.data} label={c.label} loading={chartsLoading && !charts[i]?.data} />
+          <MiniIntradayChart
+            key={c.symbol}
+            data={charts[i]?.data}
+            label={c.label}
+            loading={chartsLoading && !charts[i]?.data}
+            onAnalyze={onAnalyze}
+            ticker={c.symbol}
+          />
         ))}
       </div>
 
@@ -1927,7 +1982,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
       {/* Asset Class Sections */}
       <div style={{ display: "grid", gap: 4 }}>
         {ASSET_SECTIONS.map(section => (
-          <AssetRow key={section.title} section={section} />
+          <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
         ))}
       </div>
 
