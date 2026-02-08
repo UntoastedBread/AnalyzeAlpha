@@ -2319,7 +2319,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
   });
 
   return (
-    <div style={{ width: "clamp(320px, 70%, 1200px)", margin: "0 auto", display: "grid", gap: 16, overflow: "hidden" }}>
+    <div style={{ display: "grid", gap: 16, overflow: "hidden" }}>
       {/* Ticker Strip */}
       <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} />
 
@@ -3565,81 +3565,90 @@ function App() {
     textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)",
     opacity: locked ? 0.7 : 1,
   });
+  const homeWrap = tab === "home"
+    ? { width: "clamp(320px, 70vw, 1200px)", margin: "0 auto" }
+    : {};
 
   return (
     <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
       <header style={{ padding: "16px 32px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 1 }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
-            <BrandMark size={24} pro={isPro} />
-            <span style={{ width: 1, height: 16, background: C.rule, display: "inline-block", margin: "0 2px" }} />
-            <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>Quantitative Analysis</span>
+        <div style={homeWrap}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
+              <BrandMark size={24} pro={isPro} />
+              <span style={{ width: 1, height: 16, background: C.rule, display: "inline-block", margin: "0 2px" }} />
+              <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>Quantitative Analysis</span>
+            </div>
+            <div ref={searchRef} style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+              <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }} placeholder="Search stocks, crypto, forex..."
+                style={{ width: 260, background: "transparent", border: `1px solid ${C.rule}`, padding: "7px 12px", color: C.ink, fontSize: 13, fontFamily: "var(--body)", outline: "none" }}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    const sym = searchQuery.trim().toUpperCase();
+                    if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); }
+                  }
+                  if (e.key === "Escape") setShowSearchDropdown(false);
+                }}
+                onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
+              />
+              {showSearchDropdown && searchResults.length > 0 && (
+                <div style={{ position: "absolute", top: "100%", left: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
+                  {searchResults.map((r) => (
+                    <button key={r.symbol} onClick={() => { analyze(r.symbol); setSearchQuery(""); setShowSearchDropdown(false); }}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 14px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = C.paper}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                      <div>
+                        <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 13, color: C.ink }}>{r.symbol}</span>
+                        <span style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginLeft: 8 }}>{r.shortname || r.longname || ""}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, fontSize: 9, color: C.inkFaint, fontFamily: "var(--mono)" }}>
+                        {r.exchDisp && <span>{r.exchDisp}</span>}
+                        {r.typeDisp && <span style={{ background: C.paper, padding: "1px 4px" }}>{r.typeDisp}</span>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button onClick={() => { const sym = searchQuery.trim().toUpperCase(); if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); } }} disabled={loading || !searchQuery.trim()}
+                style={{ padding: "7px 20px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: loading ? "wait" : "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
+                {loading ? "Running…" : "Analyze"}
+              </button>
+            </div>
           </div>
-          <div ref={searchRef} style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
-            <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }} placeholder="Search stocks, crypto, forex..."
-              style={{ width: 260, background: "transparent", border: `1px solid ${C.rule}`, padding: "7px 12px", color: C.ink, fontSize: 13, fontFamily: "var(--body)", outline: "none" }}
-              onKeyDown={e => {
-                if (e.key === "Enter") {
-                  const sym = searchQuery.trim().toUpperCase();
-                  if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); }
-                }
-                if (e.key === "Escape") setShowSearchDropdown(false);
-              }}
-              onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
-            />
-            {showSearchDropdown && searchResults.length > 0 && (
-              <div style={{ position: "absolute", top: "100%", left: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
-                {searchResults.map((r) => (
-                  <button key={r.symbol} onClick={() => { analyze(r.symbol); setSearchQuery(""); setShowSearchDropdown(false); }}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 14px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
-                    onMouseEnter={e => e.currentTarget.style.background = C.paper}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                    <div>
-                      <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 13, color: C.ink }}>{r.symbol}</span>
-                      <span style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginLeft: 8 }}>{r.shortname || r.longname || ""}</span>
-                    </div>
-                    <div style={{ display: "flex", gap: 6, fontSize: 9, color: C.inkFaint, fontFamily: "var(--mono)" }}>
-                      {r.exchDisp && <span>{r.exchDisp}</span>}
-                      {r.typeDisp && <span style={{ background: C.paper, padding: "1px 4px" }}>{r.typeDisp}</span>}
-                    </div>
+          <nav style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+            <div style={{ display: "flex" }}>
+              {[
+                { key: "home", label: "Home" },
+                { key: "analysis", label: "Analysis" },
+                { key: "charts", label: "Charts" },
+                { key: "heatmap", label: "Heatmap", pro: true },
+                { key: "comparison", label: "Comparison", pro: true },
+              ].map(({ key, label, pro }) => {
+                const locked = !!pro && !isPro;
+                return (
+                  <button key={key} onClick={() => setTab(key)} style={tabStyle(key, locked)}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <span>{label}</span>
+                      {locked && <ProTag small />}
+                    </span>
                   </button>
-                ))}
-              </div>
-            )}
-            <button onClick={() => { const sym = searchQuery.trim().toUpperCase(); if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); } }} disabled={loading || !searchQuery.trim()}
-              style={{ padding: "7px 20px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: loading ? "wait" : "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
-              {loading ? "Running…" : "Analyze"}
-            </button>
-          </div>
+                );
+              })}
+            </div>
+            <LiteTools onAnalyze={analyze} />
+          </nav>
         </div>
-        <nav style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-          <div style={{ display: "flex" }}>
-            {[
-              { key: "home", label: "Home" },
-              { key: "analysis", label: "Analysis" },
-              { key: "charts", label: "Charts" },
-              { key: "heatmap", label: "Heatmap", pro: true },
-              { key: "comparison", label: "Comparison", pro: true },
-            ].map(({ key, label, pro }) => {
-              const locked = !!pro && !isPro;
-              return (
-                <button key={key} onClick={() => setTab(key)} style={tabStyle(key, locked)}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span>{label}</span>
-                    {locked && <ProTag small />}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <LiteTools onAnalyze={analyze} />
-        </nav>
       </header>
 
       <main style={{ flex: 1, padding: "24px 32px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1 }} key={tab + (result?.ticker || "")}>
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
-        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} liveTickers={liveTickers} />}
+        {!loading && !error && tab === "home" && (
+          <div style={homeWrap}>
+            <HomeTab onAnalyze={analyze} liveTickers={liveTickers} />
+          </div>
+        )}
         {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} latency={latency} isPro={isPro} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "charts" && <ChartsTab result={result} livePrice={livePrice} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab /> : (
@@ -3658,22 +3667,24 @@ function App() {
         ))}
       </main>
 
-      <footer style={{ padding: "8px 32px", borderTop: `1px solid ${C.rule}`, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.04em", position: "relative", zIndex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <LogoIcon size={12} color={C.inkFaint} />
-          <span>For educational purposes only — not financial advice</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={() => setIsPro(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
-            DEV: {isPro ? "DISABLE" : "ENABLE"} PRO
-          </button>
-          <button onClick={() => setLiveTickers(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: liveTickers ? C.ink : "transparent", color: liveTickers ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
-            DEV: LIVE TICKERS {liveTickers ? "ON" : "OFF"}
-          </button>
-          <button onClick={() => setShowPerf(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: showPerf ? C.ink : "transparent", color: showPerf ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
-            DEV: PERF
-          </button>
-          <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v0.3.12</span>
+      <footer style={{ padding: "8px 32px", borderTop: `1px solid ${C.rule}`, position: "relative", zIndex: 1 }}>
+        <div style={{ ...homeWrap, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.04em" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <LogoIcon size={12} color={C.inkFaint} />
+            <span>For educational purposes only — not financial advice</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button onClick={() => setIsPro(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
+              DEV: {isPro ? "DISABLE" : "ENABLE"} PRO
+            </button>
+            <button onClick={() => setLiveTickers(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: liveTickers ? C.ink : "transparent", color: liveTickers ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
+              DEV: LIVE TICKERS {liveTickers ? "ON" : "OFF"}
+            </button>
+            <button onClick={() => setShowPerf(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: showPerf ? C.ink : "transparent", color: showPerf ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
+              DEV: PERF
+            </button>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v0.3.12</span>
+          </div>
         </div>
       </footer>
 
