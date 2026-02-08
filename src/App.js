@@ -2543,12 +2543,12 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
           return {
             symbol: price.symbol || symbols[idx],
             name: price.shortName || price.longName || symbols[idx],
-            epsGrowth: valueRaw(f.earningsGrowth),
-            revenueGrowth: valueRaw(f.revenueGrowth),
+            epsGrowth: valueRaw(f.earningsGrowth ?? k.earningsQuarterlyGrowth),
+            revenueGrowth: valueRaw(f.revenueGrowth ?? k.revenueQuarterlyGrowth),
             profitMargin: valueRaw(f.profitMargins ?? s.profitMargins),
             operatingMargin: valueRaw(f.operatingMargins ?? s.operatingMargins),
             grossMargin: valueRaw(f.grossMargins ?? s.grossMargins),
-            currentRatio: valueRaw(f.currentRatio),
+            currentRatio: valueRaw(f.currentRatio ?? k.currentRatio),
             quickRatio: valueRaw(f.quickRatio),
             debtToEquity: valueRaw(f.debtToEquity ?? k.debtToEquity),
             roe: valueRaw(f.returnOnEquity ?? k.returnOnEquity),
@@ -2762,6 +2762,70 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
               <Row label="Sharpe" value={fmt(risk.sharpe)} color={risk.sharpe > 1 ? C.up : risk.sharpe > 0 ? C.hold : C.down} />
               <Row label="Sortino" value={fmt(risk.sortino)} />
               <Row label="VaR 95%" value={fmtPct(risk.var95)} color={C.down} border={false} />
+            </Section>
+            <Section title="Statistical Signals">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+                {[
+                  { key: "zscore", label: "Z-Score", desc: "Price deviation from 20-period mean", value: statSignals.zscore.zscore, unit: "σ", range: [-3, 3] },
+                  { key: "momentum", label: "Momentum", desc: "Avg return across 5, 10, 20, 50-day periods", value: statSignals.momentum.avgMomentum, unit: "%", range: [-10, 10] },
+                  { key: "volume", label: "Volume", desc: "Current volume vs 20-period avg", value: statSignals.volume.volumeZscore, unit: "σ", range: [-3, 3] },
+                  { key: "aggregate", label: "Composite", desc: "Weighted combination of all signals", value: statSignals.aggregate.score, unit: "", range: [-2, 2] },
+                ].map(({ key, label, desc, value, unit, range }) => {
+                  const sig = statSignals[key];
+                  const pct = Math.min(100, Math.max(0, ((value - range[0]) / (range[1] - range[0])) * 100));
+                  const gaugeColor = sig.signal.includes("BUY") ? C.up : sig.signal.includes("SELL") ? C.down : C.hold;
+                  return (
+                    <div key={key} style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, fontFamily: "var(--body)" }}>{label}</div>
+                          <div style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 1 }}>{desc}</div>
+                        </div>
+                        <Signal value={sig.signal} />
+                      </div>
+                      <div style={{ position: "relative", height: 8, background: C.paper, borderRadius: 4, overflow: "hidden", marginBottom: 6 }}>
+                        <div style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, background: `linear-gradient(90deg, ${C.up}33, ${C.holdBg}, ${C.down}33)` }} />
+                        <div style={{ position: "absolute", left: `calc(${pct}% - 5px)`, top: -1, width: 10, height: 10, borderRadius: "50%", background: gaugeColor, border: `2px solid ${C.cream}`, boxShadow: `0 0 6px ${gaugeColor}44` }} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: "var(--mono)" }}>
+                        <span style={{ color: C.up, fontWeight: 600 }}>Buy</span>
+                        <span style={{ color: C.inkSoft, fontWeight: 700 }}>{fmt(value, 2)}{unit}</span>
+                        <span style={{ color: C.down, fontWeight: 600 }}>Sell</span>
+                      </div>
+                      {key === "momentum" && sig.byPeriod && (
+                        <div style={{ display: "flex", gap: 8, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}` }}>
+                          {Object.entries(sig.byPeriod).map(([period, val]) => (
+                            <div key={period} style={{ flex: 1, textAlign: "center" }}>
+                              <div style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)" }}>{period}</div>
+                              <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--mono)", color: val >= 0 ? C.up : C.down }}>
+                                {val >= 0 ? "+" : ""}{fmt(val, 1)}%
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {key === "volume" && (
+                        <div style={{ display: "flex", gap: 12, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}`, fontSize: 10, fontFamily: "var(--mono)" }}>
+                          <div><span style={{ color: C.inkFaint }}>Current </span><span style={{ color: C.ink, fontWeight: 600 }}>{sig.currentVolume ? (sig.currentVolume / 1e6).toFixed(1) + "M" : "—"}</span></div>
+                          <div><span style={{ color: C.inkFaint }}>Avg </span><span style={{ color: C.ink, fontWeight: 600 }}>{sig.avgVolume ? (sig.avgVolume / 1e6).toFixed(1) + "M" : "—"}</span></div>
+                        </div>
+                      )}
+                      {key === "aggregate" && (
+                        <div style={{ display: "flex", gap: 8, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}` }}>
+                          <div style={{ flex: 1, textAlign: "center", padding: "4px 0", background: C.paper, fontSize: 9, fontFamily: "var(--body)" }}>
+                            <div style={{ color: C.inkFaint }}>Confidence</div>
+                            <div style={{ fontWeight: 700, color: C.ink, fontFamily: "var(--mono)", fontSize: 13 }}>{fmtPct(sig.confidence * 100, 0)}</div>
+                          </div>
+                          <div style={{ flex: 1, textAlign: "center", padding: "4px 0", background: C.paper, fontSize: 9, fontFamily: "var(--body)" }}>
+                            <div style={{ color: C.inkFaint }}>Direction</div>
+                            <div style={{ fontWeight: 700, color: gaugeColor, fontFamily: "var(--mono)", fontSize: 11 }}>{sig.signal.replace("STRONG_", "").replace("_", " ")}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </Section>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -2985,70 +3049,6 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
                     {renderPeerBar(buildPeerSeries("roe", true), "ROE", (v) => `${fmt(v, 1)}%`)}
                   </div>
                 </div>
-              </div>
-            </Section>
-            <Section title="Statistical Signals">
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                {[
-                  { key: "zscore", label: "Z-Score", desc: "Price deviation from 20-period mean", value: statSignals.zscore.zscore, unit: "σ", range: [-3, 3], zones: [{ min: -3, max: -2, color: C.up }, { min: -2, max: -1, color: C.up + "66" }, { min: -1, max: 1, color: C.holdBg }, { min: 1, max: 2, color: C.down + "66" }, { min: 2, max: 3, color: C.down }] },
-                  { key: "momentum", label: "Momentum", desc: "Avg return across 5, 10, 20, 50-day periods", value: statSignals.momentum.avgMomentum, unit: "%", range: [-10, 10] },
-                  { key: "volume", label: "Volume", desc: "Current volume vs 20-period avg", value: statSignals.volume.volumeZscore, unit: "σ", range: [-3, 3] },
-                  { key: "aggregate", label: "Composite", desc: "Weighted combination of all signals", value: statSignals.aggregate.score, unit: "", range: [-2, 2] },
-                ].map(({ key, label, desc, value, unit, range }) => {
-                  const sig = statSignals[key];
-                  const pct = Math.min(100, Math.max(0, ((value - range[0]) / (range[1] - range[0])) * 100));
-                  const gaugeColor = sig.signal.includes("BUY") ? C.up : sig.signal.includes("SELL") ? C.down : C.hold;
-                  return (
-                    <div key={key} style={{ padding: "14px 16px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                        <div>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, fontFamily: "var(--body)" }}>{label}</div>
-                          <div style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 1 }}>{desc}</div>
-                        </div>
-                        <Signal value={sig.signal} />
-                      </div>
-                      <div style={{ position: "relative", height: 8, background: C.paper, borderRadius: 4, overflow: "hidden", marginBottom: 6 }}>
-                        <div style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, background: `linear-gradient(90deg, ${C.up}33, ${C.holdBg}, ${C.down}33)` }} />
-                        <div style={{ position: "absolute", left: `calc(${pct}% - 5px)`, top: -1, width: 10, height: 10, borderRadius: "50%", background: gaugeColor, border: `2px solid ${C.cream}`, boxShadow: `0 0 6px ${gaugeColor}44` }} />
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: "var(--mono)" }}>
-                        <span style={{ color: C.up, fontWeight: 600 }}>Buy</span>
-                        <span style={{ color: C.inkSoft, fontWeight: 700 }}>{fmt(value, 2)}{unit}</span>
-                        <span style={{ color: C.down, fontWeight: 600 }}>Sell</span>
-                      </div>
-                      {key === "momentum" && sig.byPeriod && (
-                        <div style={{ display: "flex", gap: 8, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}` }}>
-                          {Object.entries(sig.byPeriod).map(([period, val]) => (
-                            <div key={period} style={{ flex: 1, textAlign: "center" }}>
-                              <div style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)" }}>{period}</div>
-                              <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--mono)", color: val >= 0 ? C.up : C.down }}>
-                                {val >= 0 ? "+" : ""}{fmt(val, 1)}%
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {key === "volume" && (
-                        <div style={{ display: "flex", gap: 12, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}`, fontSize: 10, fontFamily: "var(--mono)" }}>
-                          <div><span style={{ color: C.inkFaint }}>Current </span><span style={{ color: C.ink, fontWeight: 600 }}>{sig.currentVolume ? (sig.currentVolume / 1e6).toFixed(1) + "M" : "—"}</span></div>
-                          <div><span style={{ color: C.inkFaint }}>Avg </span><span style={{ color: C.ink, fontWeight: 600 }}>{sig.avgVolume ? (sig.avgVolume / 1e6).toFixed(1) + "M" : "—"}</span></div>
-                        </div>
-                      )}
-                      {key === "aggregate" && (
-                        <div style={{ display: "flex", gap: 8, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}` }}>
-                          <div style={{ flex: 1, textAlign: "center", padding: "4px 0", background: C.paper, fontSize: 9, fontFamily: "var(--body)" }}>
-                            <div style={{ color: C.inkFaint }}>Confidence</div>
-                            <div style={{ fontWeight: 700, color: C.ink, fontFamily: "var(--mono)", fontSize: 13 }}>{fmtPct(sig.confidence * 100, 0)}</div>
-                          </div>
-                          <div style={{ flex: 1, textAlign: "center", padding: "4px 0", background: C.paper, fontSize: 9, fontFamily: "var(--body)" }}>
-                            <div style={{ color: C.inkFaint }}>Direction</div>
-                            <div style={{ fontWeight: 700, color: gaugeColor, fontFamily: "var(--mono)", fontSize: 11 }}>{sig.signal.replace("STRONG_", "").replace("_", " ")}</div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
               </div>
             </Section>
           </div>
