@@ -2151,6 +2151,7 @@ function AssetRow({ section, onAnalyze }) {
 // ═══════════════════════════════════════════════════════════
 function HomeTab({ onAnalyze, liveTickers }) {
   const [region, setRegion] = useState("Global");
+  const [indexPage, setIndexPage] = useState(0);
   const [stripData, setStripData] = useState([]);
   const [stripLoading, setStripLoading] = useState(true);
   const [charts, setCharts] = useState([]);
@@ -2256,12 +2257,59 @@ function HomeTab({ onAnalyze, liveTickers }) {
   const handleRegionChange = (rgn) => {
     if (rgn === region) return;
     setRegion(rgn);
+    setIndexPage(0);
     setCharts([]);
     setMovers(null);
     setMoversLoading(true);
   };
 
   const cfg = MARKET_REGIONS[region];
+  const INDEXES_PER_PAGE = 3;
+  const totalIndexPages = Math.max(1, Math.ceil(cfg.charts.length / INDEXES_PER_PAGE));
+  const safeIndexPage = Math.min(indexPage, totalIndexPages - 1);
+  const pageCharts = cfg.charts.slice(
+    safeIndexPage * INDEXES_PER_PAGE,
+    safeIndexPage * INDEXES_PER_PAGE + INDEXES_PER_PAGE
+  );
+  const indexActions = totalIndexPages > 1 ? (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <button
+        type="button"
+        onClick={() => setIndexPage(p => Math.max(0, p - 1))}
+        disabled={safeIndexPage === 0}
+        style={{
+          padding: "2px 8px",
+          border: `1px solid ${C.rule}`,
+          background: "transparent",
+          color: safeIndexPage === 0 ? C.inkFaint : C.ink,
+          cursor: safeIndexPage === 0 ? "not-allowed" : "pointer",
+          fontFamily: "var(--mono)",
+          fontSize: 10,
+        }}
+      >
+        ←
+      </button>
+      <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>
+        {safeIndexPage + 1}/{totalIndexPages}
+      </span>
+      <button
+        type="button"
+        onClick={() => setIndexPage(p => Math.min(totalIndexPages - 1, p + 1))}
+        disabled={safeIndexPage >= totalIndexPages - 1}
+        style={{
+          padding: "2px 8px",
+          border: `1px solid ${C.rule}`,
+          background: "transparent",
+          color: safeIndexPage >= totalIndexPages - 1 ? C.inkFaint : C.ink,
+          cursor: safeIndexPage >= totalIndexPages - 1 ? "not-allowed" : "pointer",
+          fontFamily: "var(--mono)",
+          fontSize: 10,
+        }}
+      >
+        →
+      </button>
+    </div>
+  ) : null;
   const regionTabStyle = (r) => ({
     padding: "6px 16px", border: `1px solid ${C.rule}`, borderRadius: 20,
     background: region === r ? C.ink : "transparent",
@@ -2288,25 +2336,28 @@ function HomeTab({ onAnalyze, liveTickers }) {
       </div>
 
       {/* Headlines + Indexes */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 16, alignItems: "start" }}>
         <div style={{ display: "grid", gap: 16 }}>
           <Section title="Market News">
             <NewsSection news={news} loading={newsLoading} />
           </Section>
           <PortfolioTileCard data={PORTFOLIO_TILE} />
         </div>
-        <Section title="Indexes">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            {cfg.charts.map((c, i) => (
-              <MiniIntradayChart
-                key={c.symbol}
-                data={charts[i]?.data}
-                label={c.label}
-                loading={chartsLoading && !charts[i]?.data}
-                onAnalyze={onAnalyze}
-                ticker={c.symbol}
-              />
-            ))}
+        <Section title="Indexes" actions={indexActions}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+            {pageCharts.map((c) => {
+              const idx = cfg.charts.findIndex(x => x.symbol === c.symbol);
+              return (
+                <MiniIntradayChart
+                  key={c.symbol}
+                  data={charts[idx]?.data}
+                  label={c.label}
+                  loading={chartsLoading && !charts[idx]?.data}
+                  onAnalyze={onAnalyze}
+                  ticker={c.symbol}
+                />
+              );
+            })}
           </div>
         </Section>
       </div>
