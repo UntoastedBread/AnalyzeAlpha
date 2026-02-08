@@ -2066,43 +2066,6 @@ function PortfolioTileCard({ data }) {
   );
 }
 
-function TrendingWatchlist({ stocks, loading, onAnalyze }) {
-  if (loading) {
-    return (
-      <div style={{ display: "grid", gap: 1 }}>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-            <SkeletonBlock width={50} height={12} />
-            <SkeletonBlock width={70} height={12} />
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return (
-    <div style={{ display: "grid", gap: 1 }}>
-      {stocks.map((s) => (
-        <button key={s.ticker} onClick={() => onAnalyze?.(s.ticker)}
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, cursor: "pointer", width: "100%", textAlign: "left", transition: "background 0.15s" }}
-          onMouseEnter={e => e.currentTarget.style.background = C.paper}
-          onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}>
-          <div style={{ display: "grid", gap: 2, minWidth: 60 }}>
-            <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
-            <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
-          </div>
-          {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
-          <div style={{ textAlign: "right", minWidth: 56 }}>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 600, color: s.changePct >= 0 ? C.up : C.down }}>
-              {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
-            </div>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function ChangelogBanner() {
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem("changelog_dismissed_1.0.0") === "true"; } catch { return false; }
