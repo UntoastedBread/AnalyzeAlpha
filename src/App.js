@@ -2178,7 +2178,6 @@ function AssetRow({ section, onAnalyze }) {
 // HOME TAB
 // ═══════════════════════════════════════════════════════════
 function HomeTab({ onAnalyze }) {
-  const liveTickers = true;
   const [region, setRegion] = useState("Global");
   const [indexPage, setIndexPage] = useState(0);
   const [stripData, setStripData] = useState([]);
@@ -2271,14 +2270,13 @@ function HomeTab({ onAnalyze }) {
 
   // Live tickers polling — refreshes only strip + charts every 30s (lightweight)
   useEffect(() => {
-    if (!liveTickers) return;
     const cancelled = { current: false };
     const poll = () => {
       loadRegionData(region, cancelled, false);
     };
     const id = setInterval(poll, 30000);
     return () => { cancelled.current = true; clearInterval(id); };
-  }, [liveTickers, region, loadRegionData]);
+  }, [region, loadRegionData]);
 
   const handleRegionChange = (rgn) => {
     if (rgn === region) return;
@@ -3680,7 +3678,6 @@ function App() {
   const [error, setError] = useState(null);
   const [livePrice, setLivePrice] = useState(null);
   const [latency, setLatency] = useState(null);
-  const liveTickers = true;
   const [showPerf, setShowPerf] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
