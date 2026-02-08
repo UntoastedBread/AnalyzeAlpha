@@ -188,49 +188,6 @@ async function fetchSearch(query) {
   return json.quotes || [];
 }
 
-function valueRaw(v) {
-  if (v == null) return null;
-  if (typeof v === "object") return v.raw ?? v.value ?? null;
-  return v;
-}
-
-function summaryResult(json) {
-  return json?.quoteSummary?.result?.[0] || null;
-}
-
-async function fetchYahooSummary(ticker, modules) {
-  const encodedTicker = encodeURIComponent(ticker);
-  const mod = modules || "price,financialData,defaultKeyStatistics,summaryDetail";
-  try {
-    const resp = await fetchWithTimeout(`/api/summary/${encodedTicker}?modules=${mod}`);
-    if (!resp.ok) throw new Error(`Proxy HTTP ${resp.status}`);
-    return await resp.json();
-  } catch {
-    const yahooUrl = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodedTicker}?modules=${mod}`;
-    const resp = await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`);
-    if (!resp.ok) throw new Error(`CORS proxy HTTP ${resp.status}`);
-    return await resp.json();
-  }
-}
-
-async function fetchYahooRecommendations(ticker) {
-  const encodedTicker = encodeURIComponent(ticker);
-  try {
-    const resp = await fetchWithTimeout(`/api/recommendations/${encodedTicker}`);
-    if (!resp.ok) throw new Error(`Proxy HTTP ${resp.status}`);
-    return await resp.json();
-  } catch {
-    const yahooUrl = `https://query2.finance.yahoo.com/v6/finance/recommendationsbysymbol/${encodedTicker}`;
-    const resp = await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`);
-    if (!resp.ok) throw new Error(`CORS proxy HTTP ${resp.status}`);
-    const json = await resp.json();
-    const symbols = (json?.finance?.result?.[0]?.recommendedSymbols || [])
-      .map(s => s?.symbol)
-      .filter(Boolean);
-    return { symbols };
-  }
-}
-
 // ═══════════════════════════════════════════════════════════
 // ANALYSIS ENGINE
 // ═══════════════════════════════════════════════════════════
@@ -2487,7 +2444,6 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
     }));
   }, [result]);
 
-  const [peerPack, setPeerPack] = useState({ status: "idle", metrics: [], source: "Yahoo Finance" });
   const epsSeries = useMemo(() => {
     const shares = result?.fundamentals?.shares || 0;
     if (!shares) return [];
@@ -2509,64 +2465,17 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
     }));
   }, [peerSeed, result?.fundamentals?.ratios?.currentRatio, result?.fundamentals?.debtToEquity, result?.fundamentals?.ratios?.roe]);
 
-  useEffect(() => {
-    if (!result?.ticker) return;
-    let active = true;
-    setPeerPack({ status: "loading", metrics: [], source: "Yahoo Finance" });
-    (async () => {
-      try {
-        const base = await fetchYahooSummary(result.ticker, "price,financialData,defaultKeyStatistics,summaryDetail,peerPerformance");
-        const baseSummary = summaryResult(base);
-        const peersFromSummary = (baseSummary?.peerPerformance?.peers || [])
-          .map(p => p?.symbol || p)
-          .filter(Boolean);
-        let peerSymbols = peersFromSummary;
-        if (peerSymbols.length < 3) {
-          const recs = await fetchYahooRecommendations(result.ticker);
-          peerSymbols = (recs?.symbols || []).filter(Boolean);
-        }
-        const symbols = [result.ticker, ...peerSymbols]
-          .map(s => String(s).toUpperCase())
-          .filter((s, i, arr) => arr.indexOf(s) === i)
-          .slice(0, 5);
-        const metricResults = await Promise.allSettled(
-          symbols.map(sym => fetchYahooSummary(sym, "price,financialData,defaultKeyStatistics,summaryDetail"))
-        );
-        const metrics = metricResults.map((res, idx) => {
-          if (res.status !== "fulfilled") return null;
-          const sum = summaryResult(res.value);
-          if (!sum) return null;
-          const price = sum.price || {};
-          const f = sum.financialData || {};
-          const k = sum.defaultKeyStatistics || {};
-          const s = sum.summaryDetail || {};
-          return {
-            symbol: price.symbol || symbols[idx],
-            name: price.shortName || price.longName || symbols[idx],
-            epsGrowth: valueRaw(f.earningsGrowth ?? k.earningsQuarterlyGrowth),
-            revenueGrowth: valueRaw(f.revenueGrowth ?? k.revenueQuarterlyGrowth),
-            profitMargin: valueRaw(f.profitMargins ?? s.profitMargins),
-            operatingMargin: valueRaw(f.operatingMargins ?? s.operatingMargins),
-            grossMargin: valueRaw(f.grossMargins ?? s.grossMargins),
-            currentRatio: valueRaw(f.currentRatio ?? k.currentRatio),
-            quickRatio: valueRaw(f.quickRatio),
-            debtToEquity: valueRaw(f.debtToEquity ?? k.debtToEquity),
-            roe: valueRaw(f.returnOnEquity ?? k.returnOnEquity),
-            roa: valueRaw(f.returnOnAssets ?? k.returnOnAssets),
-          };
-        }).filter(Boolean);
-        if (!active) return;
-        setPeerPack({ status: "ready", metrics, source: "Yahoo Finance" });
-      } catch {
-        if (!active) return;
-        setPeerPack({ status: "error", metrics: [], source: "Yahoo Finance" });
-      }
-    })();
-    return () => { active = false; };
-  }, [result?.ticker]);
 
   const targetSeries = useMemo(() => {
-    const tail = (result?.data || []).slice(-12);
+    const raw = result?.data || [];
+    if (!raw.length) return [];
+    const byDay = new Map();
+    raw.forEach(d => {
+      const day = d.date.slice(0, 10);
+      byDay.set(day, d);
+    });
+    const daily = Array.from(byDay.values());
+    const tail = daily.slice(-252);
     if (!tail.length) return [];
     const last = tail[tail.length - 1].Close;
     const target = last * seededRange(peerSeed, 88, 1.1, 1.35);
@@ -2655,49 +2564,6 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
     fontFamily: "var(--mono)",
     color: C.ink,
     outline: "none",
-  };
-  const buildPeerSeries = (key, percent = false) => {
-    const rows = (peerPack.metrics || [])
-      .filter(m => Number.isFinite(m[key]))
-      .map(m => ({
-        name: m.symbol,
-        value: percent ? m[key] * 100 : m[key],
-        isPrimary: m.symbol === result?.ticker,
-      }));
-    const peerOnly = rows.filter(r => r.name !== result?.ticker);
-    const base = peerOnly.length ? peerOnly : rows;
-    const avg = base.length ? base.reduce((s, r) => s + r.value, 0) / base.length : 0;
-    return { rows, avg };
-  };
-  const renderPeerBar = (series, label, formatValue) => {
-    if (peerPack.status === "loading") {
-      return <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>Loading Yahoo peers…</div>;
-    }
-    if (!series.rows.length) {
-      return <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>Peer data unavailable.</div>;
-    }
-    return (
-      <>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={series.rows} layout="vertical" margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
-            <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} horizontal={false} />
-            <XAxis type="number" domain={["auto", "auto"]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} />
-            <YAxis dataKey="name" type="category" tick={{ fill: C.ink, fontSize: 12, fontFamily: "var(--mono)", fontWeight: 700 }} axisLine={false} tickLine={false} width={60} />
-            <ReferenceLine x={series.avg} stroke="#A855F7" strokeWidth={2} />
-            <Bar dataKey="value" radius={[4, 4, 4, 4]}>
-              {series.rows.map((entry, idx) => (
-                <Cell key={`cell-${idx}`} fill={entry.isPrimary ? "#2563EB" : "#4B5563"} />
-              ))}
-            </Bar>
-            <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }}
-              formatter={(v) => [formatValue(v), label]} />
-          </BarChart>
-        </ResponsiveContainer>
-        <div style={{ marginTop: 6, fontSize: 11, fontFamily: "var(--mono)", color: "#A855F7", textAlign: "right" }}>
-          Peer Avg {formatValue(series.avg)}
-        </div>
-      </>
-    );
   };
 
   return (
@@ -2924,130 +2790,94 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
                 </div>
               </div>
             </Section>
-            <Section title="Company Metrics vs Peers">
-              <div style={{ display: "grid", gap: 16 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 8 }}>Earnings Per Share</div>
-                    {epsSeries.length ? (
-                      <ResponsiveContainer width="100%" height={200}>
-                        <LineChart data={epsSeries} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
-                          <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
-                          <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
-                          <YAxis tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={40} />
-                          <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }}
-                            formatter={(v) => [`$${fmt(v, 2)}`, "EPS"]} />
-                          <Line type="monotone" dataKey="eps" stroke="#2563EB" dot={{ fill: "#2563EB", r: 3 }} strokeWidth={2} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>EPS series unavailable.</div>
-                    )}
-                  </div>
-                  <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 8 }}>EPS Growth vs Peers</div>
-                    {renderPeerBar(buildPeerSeries("epsGrowth", true), "EPS Growth", (v) => `${fmt(v, 1)}%`)}
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 8 }}>Revenue</div>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={finSeries} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
+            <Section title="Company Metrics">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+                <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Earnings Per Share</div>
+                  {epsSeries.length ? (
+                    <ResponsiveContainer width="100%" height={170}>
+                      <LineChart data={epsSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                         <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
-                        <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
-                        <YAxis tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={44} tickFormatter={(v) => `${fmt(v, 0)}B`} />
-                        <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }}
-                          formatter={(v) => [`$${fmt(v, 2)}B`, "Revenue"]} />
-                        <Line type="monotone" dataKey="revenue" stroke="#2563EB" dot={{ fill: "#2563EB", r: 3 }} strokeWidth={2} />
+                        <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
+                        <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} />
+                        <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
+                          formatter={(v) => [`$${fmt(v, 2)}`, "EPS"]} />
+                        <Line type="monotone" dataKey="eps" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
                       </LineChart>
                     </ResponsiveContainer>
-                  </div>
-                  <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 8 }}>Revenue Growth vs Peers</div>
-                    {renderPeerBar(buildPeerSeries("revenueGrowth", true), "Revenue Growth", (v) => `${fmt(v, 1)}%`)}
-                  </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>EPS series unavailable.</div>
+                  )}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 8 }}>Net Profit Margin</div>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={finSeries} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
-                        <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
-                        <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
-                        <YAxis tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} tickFormatter={(v) => `${fmt(v, 0)}%`} />
-                        <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }}
-                          formatter={(v) => [`${fmt(v, 1)}%`, "Net Margin"]} />
-                        <Line type="monotone" dataKey="netMargin" stroke="#2563EB" dot={{ fill: "#2563EB", r: 3 }} strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 8 }}>Net Profit Margin vs Peers</div>
-                    {renderPeerBar(buildPeerSeries("profitMargin", true), "Profit Margin", (v) => `${fmt(v, 1)}%`)}
-                  </div>
+                <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Revenue</div>
+                  <ResponsiveContainer width="100%" height={170}>
+                    <LineChart data={finSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                      <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
+                      <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${fmt(v, 0)}B`} />
+                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
+                        formatter={(v) => [`$${fmt(v, 2)}B`, "Revenue"]} />
+                      <Line type="monotone" dataKey="revenue" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 8 }}>Current Ratio</div>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={ratioSeries} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
-                        <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
-                        <XAxis dataKey="label" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
-                        <YAxis tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} />
-                        <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }}
-                          formatter={(v) => [`${fmt(v, 2)}`, "Current Ratio"]} />
-                        <Line type="monotone" dataKey="currentRatio" stroke="#2563EB" dot={{ fill: "#2563EB", r: 3 }} strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 8 }}>Current Ratio vs Peers</div>
-                    {renderPeerBar(buildPeerSeries("currentRatio", false), "Current Ratio", (v) => `${fmt(v, 2)}`)}
-                  </div>
+                <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Net Profit Margin</div>
+                  <ResponsiveContainer width="100%" height={170}>
+                    <LineChart data={finSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                      <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
+                      <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={32} tickFormatter={(v) => `${fmt(v, 0)}%`} />
+                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
+                        formatter={(v) => [`${fmt(v, 1)}%`, "Net Margin"]} />
+                      <Line type="monotone" dataKey="netMargin" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 8 }}>Debt to Equity</div>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={ratioSeries} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
-                        <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
-                        <XAxis dataKey="label" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
-                        <YAxis tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} />
-                        <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }}
-                          formatter={(v) => [`${fmt(v, 2)}`, "Debt / Equity"]} />
-                        <Line type="monotone" dataKey="debtToEquity" stroke="#2563EB" dot={{ fill: "#2563EB", r: 3 }} strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 8 }}>Debt to Equity vs Peers</div>
-                    {renderPeerBar(buildPeerSeries("debtToEquity", false), "Debt to Equity", (v) => `${fmt(v, 2)}`)}
-                  </div>
+                <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Current Ratio</div>
+                  <ResponsiveContainer width="100%" height={170}>
+                    <LineChart data={ratioSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                      <XAxis dataKey="label" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
+                      <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={32} />
+                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
+                        formatter={(v) => [`${fmt(v, 2)}`, "Current Ratio"]} />
+                      <Line type="monotone" dataKey="currentRatio" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 8 }}>Return on Equity (TTM)</div>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={ratioSeries} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
-                        <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
-                        <XAxis dataKey="label" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
-                        <YAxis tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} tickFormatter={(v) => `${fmt(v, 0)}%`} />
-                        <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }}
-                          formatter={(v) => [`${fmt(v, 2)}%`, "ROE"]} />
-                        <Line type="monotone" dataKey="roe" stroke="#2563EB" dot={{ fill: "#2563EB", r: 3 }} strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 8 }}>Return on Equity vs Peers</div>
-                    {renderPeerBar(buildPeerSeries("roe", true), "ROE", (v) => `${fmt(v, 1)}%`)}
-                  </div>
+                <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Debt to Equity</div>
+                  <ResponsiveContainer width="100%" height={170}>
+                    <LineChart data={ratioSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                      <XAxis dataKey="label" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
+                      <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={32} />
+                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
+                        formatter={(v) => [`${fmt(v, 2)}`, "Debt / Equity"]} />
+                      <Line type="monotone" dataKey="debtToEquity" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Return on Equity (TTM)</div>
+                  <ResponsiveContainer width="100%" height={170}>
+                    <LineChart data={ratioSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                      <XAxis dataKey="label" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
+                      <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={32} tickFormatter={(v) => `${fmt(v, 0)}%`} />
+                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
+                        formatter={(v) => [`${fmt(v, 2)}%`, "ROE"]} />
+                      <Line type="monotone" dataKey="roe" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </Section>
