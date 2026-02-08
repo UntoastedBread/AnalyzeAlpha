@@ -1089,8 +1089,9 @@ function Row({ label, value, color, border = true }) {
 }
 
 function Section({ title, children, style, actions }) {
+  const baseStyle = { minWidth: 0, ...style };
   return (
-    <div style={style}>
+    <div style={baseStyle}>
       {title && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "var(--body)", paddingBottom: 8, borderBottom: `2px solid ${C.ink}`, marginBottom: 10 }}>
           <span>{title}</span>
@@ -1690,7 +1691,7 @@ function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
 
   if (loading) {
     return (
-      <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+      <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}`, minWidth: 0, width: "100%" }}>
         <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600, marginBottom: 12 }}>{title}</div>
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
@@ -1702,7 +1703,7 @@ function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
     );
   }
   return (
-    <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+    <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}`, minWidth: 0, width: "100%" }}>
       <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600, marginBottom: 12 }}>{title}</div>
       {(!display || display.length === 0) ? (
         <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)", padding: "12px 0" }}>No data available</div>
@@ -2393,7 +2394,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
   });
 
   return (
-    <div style={{ display: "grid", gap: 16, overflow: "hidden", minWidth: 0 }}>
+    <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
       {/* Ticker Strip */}
       <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} />
 
@@ -2437,14 +2438,14 @@ function HomeTab({ onAnalyze, liveTickers }) {
       </div>
 
       {/* Market Movers — 3 columns */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
         <MoverColumn title="Top Gainers" stocks={movers?.gainers} allStocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
         <MoverColumn title="Top Losers" stocks={movers?.losers} allStocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
         <MoverColumn title="Trending Stocks" stocks={trending} allStocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
       </div>
 
       {/* Asset Class Sections + Watchlist */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, alignItems: "start" }}>
         <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
           {ASSET_SECTIONS.map(section => (
             <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
@@ -2455,7 +2456,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
 
       {/* Market Brief */}
       <Section title="Market Brief">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
           <MarketCalendarCard items={MARKET_CALENDAR} />
           <SectorSnapshotCard items={SECTOR_SNAPSHOT} />
           <AnalystFeedCard items={ANALYST_FEED} />
