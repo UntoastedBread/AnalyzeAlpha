@@ -1932,7 +1932,6 @@ function HomeTab({ onAnalyze, liveTickers }) {
   };
 
   const cfg = MARKET_REGIONS[region];
-  const isGlobal = region === "Global";
   const regionTabStyle = (r) => ({
     padding: "6px 16px", border: `1px solid ${C.rule}`, borderRadius: 20,
     background: region === r ? C.ink : "transparent",
@@ -1958,18 +1957,25 @@ function HomeTab({ onAnalyze, liveTickers }) {
         )}
       </div>
 
-      {/* Intraday Charts — 3×2 for Global, 1×2 for regions */}
-      <div style={{ display: "grid", gridTemplateColumns: isGlobal ? "1fr 1fr 1fr" : "1fr 1fr", gap: 16 }}>
-        {cfg.charts.map((c, i) => (
-          <MiniIntradayChart
-            key={c.symbol}
-            data={charts[i]?.data}
-            label={c.label}
-            loading={chartsLoading && !charts[i]?.data}
-            onAnalyze={onAnalyze}
-            ticker={c.symbol}
-          />
-        ))}
+      {/* Headlines + Indexes */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+        <Section title="Market News">
+          <NewsSection news={news} loading={newsLoading} />
+        </Section>
+        <Section title="Indexes">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            {cfg.charts.map((c, i) => (
+              <MiniIntradayChart
+                key={c.symbol}
+                data={charts[i]?.data}
+                label={c.label}
+                loading={chartsLoading && !charts[i]?.data}
+                onAnalyze={onAnalyze}
+                ticker={c.symbol}
+              />
+            ))}
+          </div>
+        </Section>
       </div>
 
       {/* Market Movers — 3 columns with show-more */}
@@ -1986,15 +1992,10 @@ function HomeTab({ onAnalyze, liveTickers }) {
         ))}
       </div>
 
-      {/* News + Trending */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.7fr", gap: 16 }}>
-        <Section title="Market News">
-          <NewsSection news={news} loading={newsLoading} />
-        </Section>
-        <Section title="Trending Stocks">
-          <TrendingWatchlist stocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
-        </Section>
-      </div>
+      {/* Trending */}
+      <Section title="Trending Stocks">
+        <TrendingWatchlist stocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
+      </Section>
 
       {/* Changelog Banner */}
       <ChangelogBanner />
