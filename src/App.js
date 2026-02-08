@@ -3,7 +3,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ComposedChart, ReferenceLine, Brush, Customized,
   PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  Area
+  Area, Treemap
 } from "recharts";
 import "./App.css";
 
@@ -1696,54 +1696,54 @@ function NewsSection({ news, loading }) {
   const hero = news[0];
   const heroImage = hero.image || NEWS_PLACEHOLDER_IMAGE;
   const rest = news.slice(1);
+  const cards = rest.slice(0, 6);
+  const publishedText = hero.pubDate ? `Published ${timeAgo(hero.pubDate)}` : "Published recently";
   return (
-    <div style={{ display: "grid", gap: 10 }}>
+    <div style={{ display: "grid", gap: 14 }}>
       <a href={hero.link || "#"} target="_blank" rel="noopener noreferrer"
-        style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", minHeight: 220, background: C.warmWhite, border: `1px solid ${C.rule}`, textDecoration: "none", color: C.ink, overflow: "hidden" }}>
-        <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 10 }}>
-          <div style={{ fontSize: 10, fontFamily: "var(--mono)", letterSpacing: "0.2em", textTransform: "uppercase", color: C.inkFaint }}>Top Story</div>
+        style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", minHeight: 260, background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 16, textDecoration: "none", color: C.ink, overflow: "hidden" }}>
+        <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 14 }}>
+          <div style={{ fontSize: 10, fontFamily: "var(--mono)", letterSpacing: "0.24em", textTransform: "uppercase", color: C.inkFaint }}>Top Story</div>
           <div>
-            <div style={{ fontSize: 18, fontFamily: "var(--display)", lineHeight: 1.3 }}>{hero.title}</div>
+            <div style={{ fontSize: 28, fontFamily: "var(--display)", lineHeight: 1.2, color: C.inkSoft }}>{hero.title}</div>
             {hero.description && (
-              <div style={{ fontSize: 12, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.5, marginTop: 8 }}>{hero.description}</div>
+              <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.6, marginTop: 10 }}>{hero.description}</div>
             )}
           </div>
-          <div style={{ display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
+            <span>{publishedText}</span>
+            <span style={{ color: C.ruleFaint }}>·</span>
             <span style={{ fontWeight: 600 }}>{hero.source || "Yahoo Finance"}</span>
-            {hero.pubDate && <>
-              <span style={{ color: C.ruleFaint }}>|</span>
-              <span>{timeAgo(hero.pubDate)}</span>
-            </>}
           </div>
         </div>
-        <div style={{ position: "relative" }}>
+        <div style={{ position: "relative", background: C.paper }}>
           <img src={heroImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = NEWS_PLACEHOLDER_IMAGE; }} />
         </div>
       </a>
-      <div style={{ display: "grid", gap: 1 }}>
-        {rest.map((n, i) => (
-          <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
-            style={{ display: "flex", gap: 12, padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, textDecoration: "none", transition: "background 0.15s" }}
-            onMouseEnter={e => e.currentTarget.style.background = C.paper}
-            onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}>
-            {n.image && (
-              <img src={n.image} alt="" style={{ width: 70, height: 54, objectFit: "cover", flexShrink: 0, background: C.paper }} onError={e => e.currentTarget.style.display = "none"} />
-            )}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{n.title}</div>
-              {n.description && (
-                <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.4, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.description}</div>
-              )}
-              <div style={{ marginTop: 6, display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
-                <span style={{ fontWeight: 600 }}>{n.source || "Yahoo Finance"}</span>
-                {n.pubDate && <>
-                  <span style={{ color: C.ruleFaint }}>|</span>
-                  <span>{timeAgo(n.pubDate)}</span>
-                </>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+        {cards.map((n, i) => {
+          const cardImage = n.image || NEWS_PLACEHOLDER_IMAGE;
+          return (
+            <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
+              style={{ display: "grid", gridTemplateRows: "120px auto", background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 14, textDecoration: "none", color: C.ink, overflow: "hidden", transition: "transform 0.15s" }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}>
+              <div style={{ position: "relative", background: C.paper }}>
+                <img src={cardImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = NEWS_PLACEHOLDER_IMAGE; }} />
               </div>
-            </div>
-          </a>
-        ))}
+              <div style={{ padding: "12px 14px", display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{n.title}</div>
+                <div style={{ display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
+                  <span style={{ fontWeight: 600 }}>{n.source || "Yahoo Finance"}</span>
+                  {n.pubDate && <>
+                    <span style={{ color: C.ruleFaint }}>|</span>
+                    <span>{timeAgo(n.pubDate)}</span>
+                  </>}
+                </div>
+              </div>
+            </a>
+          );
+        })}
       </div>
     </div>
   );
@@ -1776,7 +1776,7 @@ function WatchlistSummary({ items, onAnalyze }) {
               alignItems: "center",
               justifyContent: "space-between",
               gap: 10,
-              padding: "8px 6px",
+              padding: "12px 8px",
               background: "transparent",
               border: "none",
               borderBottom: `1px solid ${C.ruleFaint}`,
@@ -1787,15 +1787,15 @@ function WatchlistSummary({ items, onAnalyze }) {
             onMouseLeave={e => e.currentTarget.style.background = "transparent"}
           >
             <div style={{ display: "grid", gap: 2 }}>
-              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{it.ticker}</span>
-              <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{it.name}</span>
+              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 14, color: C.ink }}>{it.ticker}</span>
+              <span style={{ fontSize: 12, color: C.inkFaint, fontFamily: "var(--body)" }}>{it.name}</span>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 600, color: C.ink }}>${fmt(it.price)}</div>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: it.changePct >= 0 ? C.up : C.down }}>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700, color: C.ink }}>${fmt(it.price)}</div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: it.changePct >= 0 ? C.up : C.down }}>
                 {it.changePct >= 0 ? "+" : ""}{it.changePct.toFixed(2)}%
               </div>
-              <div style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 2 }}>{it.note}</div>
+              <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 4 }}>{it.note}</div>
             </div>
           </button>
         ))}
@@ -1833,24 +1833,40 @@ function MarketCalendarCard({ items }) {
 }
 
 function SectorSnapshotCard({ items }) {
+  const data = items.map((s) => ({
+    name: s.sector,
+    size: Math.max(10, Math.round(Math.abs(s.changePct) * 120)),
+    change: s.changePct,
+  }));
+  const renderTreemap = (props) => {
+    const { x, y, width, height, payload } = props;
+    if (width <= 0 || height <= 0) return null;
+    const change = payload?.change ?? 0;
+    const fill = change >= 0 ? C.upBg : C.downBg;
+    const stroke = change >= 0 ? C.up : C.down;
+    const showLabel = width > 70 && height > 35;
+    return (
+      <g>
+        <rect x={x} y={y} width={width} height={height} fill={fill} stroke={stroke} strokeWidth={1} />
+        {showLabel && (
+          <>
+            <text x={x + 8} y={y + 18} fill={C.ink} fontFamily="var(--mono)" fontSize="10" fontWeight="700">
+              {payload.name}
+            </text>
+            <text x={x + 8} y={y + 34} fill={stroke} fontFamily="var(--mono)" fontSize="10">
+              {change >= 0 ? "+" : ""}{change.toFixed(2)}%
+            </text>
+          </>
+        )}
+      </g>
+    );
+  };
   return (
-    <MiniCard title="Sector Snapshot">
-      <div style={{ display: "grid", gap: 8 }}>
-        {items.map((s) => {
-          const width = Math.min(100, Math.max(12, Math.abs(s.changePct) * 20));
-          const color = s.changePct >= 0 ? C.up : C.down;
-          return (
-            <div key={s.sector} style={{ display: "grid", gap: 4 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: "var(--mono)", color: C.ink }}>
-                <span>{s.sector}</span>
-                <span style={{ color }}>{s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%</span>
-              </div>
-              <div style={{ height: 6, background: C.paper, position: "relative" }}>
-                <div style={{ width: `${width}%`, height: "100%", background: color }} />
-              </div>
-            </div>
-          );
-        })}
+    <MiniCard title="Sector Snapshot" style={{ padding: "12px 12px 14px" }}>
+      <div style={{ width: "100%", height: 140 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <Treemap data={data} dataKey="size" stroke={C.cream} content={renderTreemap} />
+        </ResponsiveContainer>
       </div>
     </MiniCard>
   );
@@ -1902,28 +1918,28 @@ function PortfolioTileCard({ data }) {
     <MiniCard title="Portfolio Snapshot" style={{ gridColumn: "1 / -1" }}>
       <div style={{ display: "grid", gap: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <div style={{ fontSize: 24, fontFamily: "var(--display)", color: C.ink }}>{fmtMoney(data.value)}</div>
-          <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: changeColor }}>
+          <div style={{ fontSize: 30, fontFamily: "var(--display)", color: C.ink }}>{fmtMoney(data.value)}</div>
+          <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700, color: changeColor }}>
             {data.dayChangePct >= 0 ? "+" : ""}{data.dayChangePct.toFixed(2)}% today
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
           <div>
-            <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>YTD</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: C.up }}>{data.ytdPct.toFixed(2)}%</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>YTD</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700, color: C.up }}>{data.ytdPct.toFixed(2)}%</div>
           </div>
           <div>
-            <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Cash</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700 }}>{fmtMoney(data.cash)}</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Cash</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700 }}>{fmtMoney(data.cash)}</div>
           </div>
           <div>
-            <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Risk</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700 }}>{data.risk}</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Risk</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700 }}>{data.risk}</div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {data.top.map(t => (
-            <span key={t} style={{ fontSize: 10, fontFamily: "var(--mono)", padding: "2px 6px", border: `1px solid ${C.rule}`, color: C.inkMuted }}>
+            <span key={t} style={{ fontSize: 11, fontFamily: "var(--mono)", padding: "3px 8px", border: `1px solid ${C.rule}`, color: C.inkMuted }}>
               {t}
             </span>
           ))}
@@ -2262,7 +2278,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
 
       {/* Market Brief */}
       <Section title="Market Brief">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
           <MarketCalendarCard items={MARKET_CALENDAR} />
           <SectorSnapshotCard items={SECTOR_SNAPSHOT} />
           <AnalystFeedCard items={ANALYST_FEED} />
