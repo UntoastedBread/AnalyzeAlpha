@@ -2564,6 +2564,11 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
     }));
   }, [result?.data, peerSeed]);
 
+  const chartBase = useMemo(
+    () => applyLivePoint(result?.data || [], chartLivePrice, interval || result?.interval),
+    [result?.data, chartLivePrice, interval, result?.interval]
+  );
+
   useEffect(() => {
     if (!result) return;
     setSubTab("stock");
@@ -2585,10 +2590,6 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
   const { ticker, recommendation: rec, techSignals, regime, statSignals, risk, target, stopLoss, data, valuation: marketValuation, fundamentals, valuationModels } = result;
   const strat = STRATEGIES[regime.overall] || STRATEGIES.TRANSITIONING;
   const stretchPos = Math.min(100, Math.max(0, marketValuation?.stretch || 0));
-  const chartBase = useMemo(
-    () => applyLivePoint(data || [], chartLivePrice, interval || result?.interval),
-    [data, chartLivePrice, interval, result?.interval]
-  );
   const prevClose = chartBase.length > 1 ? chartBase[chartBase.length - 2].Close : price;
   const change = price - prevClose, pctChange = (change / prevClose) * 100;
   const chartSlice = chartBase.slice(-60);
