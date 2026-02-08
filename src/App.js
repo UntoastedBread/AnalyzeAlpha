@@ -1839,19 +1839,21 @@ function SectorSnapshotCard({ items }) {
     change: s.changePct,
   }));
   const renderTreemap = (props) => {
+    if (!props) return null;
     const { x, y, width, height, payload } = props;
     if (width <= 0 || height <= 0) return null;
     const change = payload?.change ?? 0;
+    const name = payload?.name || "";
     const fill = change >= 0 ? C.upBg : C.downBg;
     const stroke = change >= 0 ? C.up : C.down;
-    const showLabel = width > 70 && height > 35;
+    const showLabel = width > 70 && height > 35 && name;
     return (
       <g>
         <rect x={x} y={y} width={width} height={height} fill={fill} stroke={stroke} strokeWidth={1} />
         {showLabel && (
           <>
             <text x={x + 8} y={y + 18} fill={C.ink} fontFamily="var(--mono)" fontSize="10" fontWeight="700">
-              {payload.name}
+              {name}
             </text>
             <text x={x + 8} y={y + 34} fill={stroke} fontFamily="var(--mono)" fontSize="10">
               {change >= 0 ? "+" : ""}{change.toFixed(2)}%
