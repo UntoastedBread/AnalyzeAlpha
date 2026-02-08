@@ -1307,7 +1307,7 @@ function TickerStrip({ data, loading }) {
   );
 
   return (
-    <div style={{ display: "flex", alignItems: "center", background: C.ink }}>
+    <div style={{ display: "flex", alignItems: "center", background: C.ink, overflow: "hidden", minWidth: 0 }}>
       {/* LIVE badge — fixed, does not scroll */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRight: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}>
         <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "livePulse 2s ease-in-out infinite", boxShadow: "0 0 6px rgba(74,222,128,0.4)" }} />
@@ -1678,7 +1678,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
   });
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div style={{ display: "grid", gap: 16, overflow: "hidden" }}>
       {/* Ticker Strip */}
       <TickerStrip data={stripData} loading={stripLoading} />
 
