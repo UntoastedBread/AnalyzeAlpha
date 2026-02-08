@@ -3,7 +3,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ComposedChart, ReferenceLine, Brush, Customized,
   PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  Area, Treemap
+  Area
 } from "recharts";
 import "./App.css";
 
@@ -12,6 +12,14 @@ import "./App.css";
 // ═══════════════════════════════════════════════════════════
 let apiCallCount = 0;
 let lastApiLatency = 0;
+
+function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timeout));
+}
+
 function formatDateLabel(ts, interval) {
   const iso = new Date(ts * 1000).toISOString();
   const day = iso.slice(0, 10);
@@ -29,7 +37,7 @@ async function fetchStockData(ticker, period = "1y", interval = "1d") {
   try {
     const s = performance.now();
     const url = `/api/chart/${encodeURIComponent(ticker)}?range=${period}&interval=${interval}`;
-    const resp = await fetch(url);
+    const resp = await fetchWithTimeout(url);
     if (!resp.ok) throw new Error(`Proxy HTTP ${resp.status}`);
     const json = await resp.json();
     const r = json?.chart?.result?.[0];
@@ -58,7 +66,7 @@ async function fetchStockData(ticker, period = "1y", interval = "1d") {
   try {
     const s = performance.now();
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${period}&interval=${interval}&includePrePost=false`;
-    const resp = await fetch(`https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`);
+    const resp = await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`);
     if (!resp.ok) throw new Error(`CORS proxy HTTP ${resp.status}`);
     const json = await resp.json();
     const r = json?.chart?.result?.[0];
@@ -93,7 +101,7 @@ async function fetchQuickQuote(ticker) {
   const t0 = performance.now();
   apiCallCount++;
   const url = `/api/chart/${encodeURIComponent(ticker)}?range=1mo&interval=1d`;
-  const resp = await fetch(url);
+  const resp = await fetchWithTimeout(url);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const json = await resp.json();
   lastApiLatency = Math.round(performance.now() - t0);
@@ -114,7 +122,7 @@ async function fetchIntradayData(ticker) {
   const t0 = performance.now();
   apiCallCount++;
   const url = `/api/chart/${encodeURIComponent(ticker)}?range=1d&interval=5m`;
-  const resp = await fetch(url);
+  const resp = await fetchWithTimeout(url);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const json = await resp.json();
   lastApiLatency = Math.round(performance.now() - t0);
@@ -148,7 +156,7 @@ async function fetchMarketMovers(universe) {
 
 async function fetchRSSNews() {
   try {
-    const resp = await fetch("/api/rss");
+    const resp = await fetchWithTimeout("/api/rss");
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const json = await resp.json();
     if (json.items && json.items.length > 0) return json.items.slice(0, 20);
@@ -174,7 +182,7 @@ async function fetchTickerStrip(symbols) {
 
 async function fetchSearch(query) {
   if (!query || query.length < 1) return [];
-  const resp = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+  const resp = await fetchWithTimeout(`/api/search?q=${encodeURIComponent(query)}`, {}, 5000);
   if (!resp.ok) return [];
   const json = await resp.json();
   return json.quotes || [];
@@ -656,6 +664,79 @@ const HEATMAP_UNIVERSE = [
   { ticker: "ADBE", name: "Adobe", cap: 220 }, { ticker: "PEP", name: "PepsiCo", cap: 210 },
 ];
 
+const SECTOR_COLORS = {
+  Technology: "#4A90D9", "Consumer Discretionary": "#E8913A", Healthcare: "#50B87A",
+  Financials: "#8B6BB5", Energy: "#D4534E", "Consumer Staples": "#6DBFB8",
+  Industrials: "#7A8B99", Communication: "#E06B9F", Materials: "#B8A038",
+  "Real Estate": "#5C9EAD", Utilities: "#8FAA6E",
+};
+
+const HEATMAP_INDEXES = {
+  "S&P 500": [
+    { ticker: "AAPL", name: "Apple", cap: 3800, sector: "Technology" },
+    { ticker: "MSFT", name: "Microsoft", cap: 3200, sector: "Technology" },
+    { ticker: "NVDA", name: "NVIDIA", cap: 3100, sector: "Technology" },
+    { ticker: "GOOGL", name: "Alphabet", cap: 2300, sector: "Technology" },
+    { ticker: "META", name: "Meta", cap: 1600, sector: "Technology" },
+    { ticker: "AMD", name: "AMD", cap: 280, sector: "Technology" },
+    { ticker: "CRM", name: "Salesforce", cap: 260, sector: "Technology" },
+    { ticker: "ADBE", name: "Adobe", cap: 220, sector: "Technology" },
+    { ticker: "AMZN", name: "Amazon", cap: 2200, sector: "Consumer Discretionary" },
+    { ticker: "TSLA", name: "Tesla", cap: 1200, sector: "Consumer Discretionary" },
+    { ticker: "NFLX", name: "Netflix", cap: 380, sector: "Consumer Discretionary" },
+    { ticker: "COST", name: "Costco", cap: 380, sector: "Consumer Staples" },
+    { ticker: "WMT", name: "Walmart", cap: 550, sector: "Consumer Staples" },
+    { ticker: "PEP", name: "PepsiCo", cap: 210, sector: "Consumer Staples" },
+    { ticker: "BRK-B", name: "Berkshire", cap: 1000, sector: "Financials" },
+    { ticker: "JPM", name: "JPMorgan", cap: 580, sector: "Financials" },
+    { ticker: "V", name: "Visa", cap: 600, sector: "Financials" },
+    { ticker: "GS", name: "Goldman Sachs", cap: 180, sector: "Financials" },
+    { ticker: "LLY", name: "Eli Lilly", cap: 780, sector: "Healthcare" },
+    { ticker: "UNH", name: "UnitedHealth", cap: 520, sector: "Healthcare" },
+    { ticker: "JNJ", name: "Johnson & Johnson", cap: 380, sector: "Healthcare" },
+    { ticker: "XOM", name: "ExxonMobil", cap: 480, sector: "Energy" },
+    { ticker: "CVX", name: "Chevron", cap: 280, sector: "Energy" },
+    { ticker: "CAT", name: "Caterpillar", cap: 180, sector: "Industrials" },
+    { ticker: "UPS", name: "UPS", cap: 110, sector: "Industrials" },
+  ],
+  "Nasdaq 100": [
+    { ticker: "AAPL", name: "Apple", cap: 3800, sector: "Technology" },
+    { ticker: "MSFT", name: "Microsoft", cap: 3200, sector: "Technology" },
+    { ticker: "NVDA", name: "NVIDIA", cap: 3100, sector: "Technology" },
+    { ticker: "GOOGL", name: "Alphabet", cap: 2300, sector: "Technology" },
+    { ticker: "META", name: "Meta", cap: 1600, sector: "Technology" },
+    { ticker: "AMD", name: "AMD", cap: 280, sector: "Technology" },
+    { ticker: "CRM", name: "Salesforce", cap: 260, sector: "Technology" },
+    { ticker: "ADBE", name: "Adobe", cap: 220, sector: "Technology" },
+    { ticker: "INTC", name: "Intel", cap: 120, sector: "Technology" },
+    { ticker: "AMZN", name: "Amazon", cap: 2200, sector: "Consumer Discretionary" },
+    { ticker: "TSLA", name: "Tesla", cap: 1200, sector: "Consumer Discretionary" },
+    { ticker: "NFLX", name: "Netflix", cap: 380, sector: "Consumer Discretionary" },
+    { ticker: "COST", name: "Costco", cap: 380, sector: "Consumer Staples" },
+    { ticker: "PEP", name: "PepsiCo", cap: 210, sector: "Consumer Staples" },
+    { ticker: "LLY", name: "Eli Lilly", cap: 780, sector: "Healthcare" },
+    { ticker: "AMGN", name: "Amgen", cap: 150, sector: "Healthcare" },
+    { ticker: "GILD", name: "Gilead", cap: 100, sector: "Healthcare" },
+  ],
+  "Dow 30": [
+    { ticker: "AAPL", name: "Apple", cap: 3800, sector: "Technology" },
+    { ticker: "MSFT", name: "Microsoft", cap: 3200, sector: "Technology" },
+    { ticker: "CRM", name: "Salesforce", cap: 260, sector: "Technology" },
+    { ticker: "AMZN", name: "Amazon", cap: 2200, sector: "Consumer Discretionary" },
+    { ticker: "WMT", name: "Walmart", cap: 550, sector: "Consumer Staples" },
+    { ticker: "JPM", name: "JPMorgan", cap: 580, sector: "Financials" },
+    { ticker: "V", name: "Visa", cap: 600, sector: "Financials" },
+    { ticker: "GS", name: "Goldman Sachs", cap: 180, sector: "Financials" },
+    { ticker: "UNH", name: "UnitedHealth", cap: 520, sector: "Healthcare" },
+    { ticker: "JNJ", name: "Johnson & Johnson", cap: 380, sector: "Healthcare" },
+    { ticker: "XOM", name: "ExxonMobil", cap: 480, sector: "Energy" },
+    { ticker: "CVX", name: "Chevron", cap: 280, sector: "Energy" },
+    { ticker: "CAT", name: "Caterpillar", cap: 180, sector: "Industrials" },
+    { ticker: "BA", name: "Boeing", cap: 130, sector: "Industrials" },
+    { ticker: "DIS", name: "Disney", cap: 170, sector: "Communication" },
+  ],
+};
+
 const TICKER_STRIP_SYMBOLS = [
   { symbol: "^GSPC", label: "S&P 500" },
   { symbol: "^IXIC", label: "Nasdaq" },
@@ -776,92 +857,35 @@ const FALLBACK_NEWS = [
   { title: "Retail sales preview: expectations and risks", source: "Macro Wire", pubDate: "", description: "Consumer spending data expected to show continued resilience." },
 ];
 
-const NEWS_PLACEHOLDER_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 500'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0%25' stop-color='%23EFE7DC'/><stop offset='100%25' stop-color='%23D7C8B4'/></linearGradient></defs><rect width='800' height='500' fill='url(%23g)'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Verdana' font-size='36' fill='%236B5E52'>Market%20News</text></svg>";
-
-const WATCHLIST_SUMMARY = [
-  { ticker: "AAPL", name: "Apple", price: 196.32, changePct: 1.12, note: "Target 205" },
-  { ticker: "NVDA", name: "NVIDIA", price: 722.84, changePct: -0.84, note: "Alert 700" },
-  { ticker: "MSFT", name: "Microsoft", price: 412.15, changePct: 0.44, note: "Earnings soon" },
-  { ticker: "TSLA", name: "Tesla", price: 248.05, changePct: -1.6, note: "Trim zone" },
-  { ticker: "AMZN", name: "Amazon", price: 171.52, changePct: 0.9, note: "Add on dip" },
-];
-
-const MARKET_CALENDAR = [
-  { date: "Feb 12", time: "08:30", event: "CPI (YoY)", impact: "High" },
-  { date: "Feb 13", time: "08:30", event: "Retail Sales", impact: "Medium" },
-  { date: "Feb 14", time: "10:00", event: "Consumer Sentiment", impact: "Low" },
-  { date: "Feb 18", time: "14:00", event: "FOMC Minutes", impact: "High" },
-];
-
-const SECTOR_SNAPSHOT = [
-  { sector: "Technology", changePct: 1.4 },
-  { sector: "Financials", changePct: -0.3 },
-  { sector: "Energy", changePct: 0.7 },
-  { sector: "Healthcare", changePct: -0.2 },
-  { sector: "Industrials", changePct: 0.5 },
-];
-
-const ANALYST_FEED = [
-  { ticker: "NVDA", action: "Upgrade", firm: "Bernstein", rating: "Outperform", target: "$980" },
-  { ticker: "AAPL", action: "Maintain", firm: "Piper", rating: "Overweight", target: "$210" },
-  { ticker: "AMZN", action: "Upgrade", firm: "Truist", rating: "Buy", target: "$205" },
-  { ticker: "META", action: "Downgrade", firm: "Citi", rating: "Neutral", target: "$445" },
-];
-
-const INSIDER_FEED = [
-  { ticker: "MSFT", name: "Satya Nadella", action: "Sell", value: "$4.2M" },
-  { ticker: "TSLA", name: "Robyn Denholm", action: "Buy", value: "$1.1M" },
-  { ticker: "NFLX", name: "Greg Peters", action: "Sell", value: "$820K" },
-  { ticker: "CRM", name: "Amy Weaver", action: "Buy", value: "$540K" },
-];
-
-const PORTFOLIO_TILE = {
-  value: 248300,
-  dayChangePct: 1.12,
-  ytdPct: 8.6,
-  cash: 12400,
-  risk: "Moderate",
-  top: ["AAPL", "NVDA", "MSFT", "AMZN", "META"],
-};
-
 const CHANGELOG = [
   {
-    version: "0.3.12",
+    version: "1.0.0",
     date: "Feb 8, 2026",
     items: [
-      "GitHub Pages deployment support with gh-pages and homepage config",
-      "Global markets grid with region movers and show-more popups",
-      "Search bar with Yahoo Finance autocomplete and /api/search support",
-      "Asset class sections (crypto, rates, commodities, FX) with live prices",
-      "News cards now include images and expanded to 20 items",
-      "Live ticker refresh runs immediately and avoids UI skeleton flashes",
+      "GitHub Pages deployment support with gh-pages",
+      "Added deploy and predeploy scripts for one-command publishing",
+      "Configured homepage for GitHub Pages hosting",
     ],
   },
   {
-    version: "0.3.11",
-    date: "Feb 8, 2026",
+    version: "0.9.1",
+    date: "Feb 7, 2026",
     items: [
       "Brand refresh: logo icon, refined typography, ambient glow",
       "Home page hero section with live market status",
-      "Auto-scrolling marquee ticker strip with LIVE pulse badge",
-      "Market region cycling with split red/green intraday charts",
-      "DEV toggles for live tickers and performance monitor",
-      "Longer sparklines and clearer mover/trending layouts",
+      "Consistent branding across loading, error, and empty states",
     ],
   },
   {
-    version: "0.3.10",
-    date: "Feb 8, 2026",
+    version: "0.9.0",
+    date: "Feb 2026",
     items: [
       "Home dashboard with news, market snapshot, and popular tickers",
       "Financials visuals refresh with radar + cash/debt views",
-      "Homepage overhaul into a live market dashboard",
-      "Real-time ticker strip, intraday charts, movers, and trending sparklines",
-      "RSS news feed, skeleton loading states, and collapsible changelog banner",
     ],
   },
   {
-    version: "0.3.9",
+    version: "0.8.0",
     date: "Feb 2026",
     items: [
       "Stock vs Financials analysis split",
@@ -1435,27 +1459,9 @@ function SkeletonBlock({ width = "100%", height = 16, style }) {
   );
 }
 
-function TickerStrip({ data, loading, onAnalyze }) {
+function TickerStrip({ data, loading }) {
   const renderItem = (item, idx) => (
-    <button
-      key={item.symbol + "-" + idx}
-      onClick={() => onAnalyze?.(item.symbol)}
-      type="button"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "10px 20px",
-        minWidth: 140,
-        borderRight: `1px solid rgba(255,255,255,0.08)`,
-        whiteSpace: "nowrap",
-        background: "transparent",
-        border: "none",
-        color: "inherit",
-        cursor: "pointer",
-        textAlign: "left",
-      }}
-    >
+    <div key={item.symbol + "-" + idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", minWidth: 140, borderRight: `1px solid rgba(255,255,255,0.08)`, whiteSpace: "nowrap" }}>
       <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", fontWeight: 600 }}>{item.label}</span>
       <span style={{ fontSize: 12, fontFamily: "var(--mono)", color: "#fff", fontWeight: 600 }}>
         {item.loaded ? (item.price >= 1000 ? item.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : item.price.toFixed(2)) : "—"}
@@ -1463,7 +1469,7 @@ function TickerStrip({ data, loading, onAnalyze }) {
       <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: item.changePct > 0 ? "#4ADE80" : item.changePct < 0 ? "#F87171" : "rgba(255,255,255,0.5)" }}>
         {item.loaded ? `${item.changePct >= 0 ? "+" : ""}${item.changePct.toFixed(2)}%` : ""}
       </span>
-    </button>
+    </div>
   );
 
   return (
@@ -1495,7 +1501,7 @@ function TickerStrip({ data, loading, onAnalyze }) {
   );
 }
 
-function MiniIntradayChart({ data, label, loading, onAnalyze, ticker }) {
+function MiniIntradayChart({ data, label, loading }) {
   if (loading || !data) {
     return (
       <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}`, minHeight: 180 }}>
@@ -1516,28 +1522,15 @@ function MiniIntradayChart({ data, label, loading, onAnalyze, ticker }) {
   const change = lastPrice - prevClose;
   const changePct = prevClose ? (change / prevClose) * 100 : 0;
   const color = lastPrice >= prevClose ? C.up : C.down;
-  const changeBg = lastPrice >= prevClose ? C.upBg : C.downBg;
   const safeLabel = label.replace(/[^a-zA-Z0-9]/g, "");
-  const clickable = !!onAnalyze && !!ticker;
   return (
-    <button
-      type="button"
-      onClick={() => clickable && onAnalyze?.(ticker)}
-      style={{
-        padding: "16px 20px",
-        background: C.warmWhite,
-        border: `1px solid ${C.rule}`,
-        cursor: clickable ? "pointer" : "default",
-        textAlign: "left",
-        width: "100%",
-      }}
-    >
+    <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
         <div>
           <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600 }}>{label}</span>
-          <span style={{ fontSize: 30, fontFamily: "var(--display)", color: C.inkSoft, fontWeight: 600, marginLeft: 12 }}>{fmt(lastPrice)}</span>
+          <span style={{ fontSize: 26, fontFamily: "var(--display)", color: C.ink, fontWeight: 400, marginLeft: 12 }}>{fmt(lastPrice)}</span>
         </div>
-        <span style={{ fontSize: 14, fontFamily: "var(--mono)", fontWeight: 800, color, background: changeBg, padding: "4px 8px", borderRadius: 10 }}>
+        <span style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 700, color }}>
           {change >= 0 ? "+" : ""}{fmt(change)} ({changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%)
         </span>
       </div>
@@ -1566,7 +1559,7 @@ function MiniIntradayChart({ data, label, loading, onAnalyze, ticker }) {
           />
         </ComposedChart>
       </ResponsiveContainer>
-    </button>
+    </div>
   );
 }
 
@@ -1588,9 +1581,7 @@ function MoverPopup({ title, stocks, onAnalyze, onClose }) {
                 <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
                 <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
               </div>
-              <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-                {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
-              </div>
+              {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
               <div style={{ textAlign: "right", minWidth: 80 }}>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: s.changePct >= 0 ? C.up : C.down, marginLeft: 8 }}>
@@ -1638,9 +1629,7 @@ function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
                 <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
                 <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
               </div>
-              <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-                {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
-              </div>
+              {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
               <div style={{ textAlign: "right", minWidth: 80 }}>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: s.changePct >= 0 ? C.up : C.down, marginLeft: 8 }}>
@@ -1691,316 +1680,75 @@ function NewsSection({ news, loading }) {
       </div>
     );
   }
-  if (!news || news.length === 0) {
+  return (
+    <div style={{ display: "grid", gap: 1 }}>
+      {news.map((n, i) => (
+        <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
+          style={{ display: "flex", gap: 12, padding: "14px 16px", background: C.warmWhite, borderLeft: `2px solid ${i === 0 ? C.ink : "transparent"}`, borderRight: `1px solid ${C.rule}`, borderTop: `1px solid ${C.rule}`, borderBottom: `1px solid ${C.rule}`, textDecoration: "none", transition: "background 0.15s" }}
+          onMouseEnter={e => e.currentTarget.style.background = C.paper}
+          onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}>
+          {n.image && (
+            <img src={n.image} alt="" style={{ width: 80, height: 60, objectFit: "cover", flexShrink: 0, background: C.paper }} onError={e => e.currentTarget.style.display = "none"} />
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{n.title}</div>
+            {n.description && (
+              <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.4, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.description}</div>
+            )}
+            <div style={{ marginTop: 6, display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
+              <span style={{ fontWeight: 600 }}>{n.source || "Yahoo Finance"}</span>
+              {n.pubDate && <>
+                <span style={{ color: C.ruleFaint }}>|</span>
+                <span>{timeAgo(n.pubDate)}</span>
+              </>}
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function TrendingWatchlist({ stocks, loading, onAnalyze }) {
+  if (loading) {
     return (
-      <div style={{ padding: "16px", background: C.warmWhite, border: `1px solid ${C.rule}`, fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>
-        No headlines available right now.
+      <div style={{ display: "grid", gap: 1 }}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+            <SkeletonBlock width={50} height={12} />
+            <SkeletonBlock width={70} height={12} />
+          </div>
+        ))}
       </div>
     );
   }
-  const hero = news[0];
-  const heroImage = hero.image || NEWS_PLACEHOLDER_IMAGE;
-  const rest = news.slice(1);
-  const cards = rest.slice(0, 6);
-  const publishedText = hero.pubDate ? `Published ${timeAgo(hero.pubDate)}` : "Published recently";
   return (
-    <div style={{ display: "grid", gap: 14 }}>
-      <a href={hero.link || "#"} target="_blank" rel="noopener noreferrer"
-        style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", minHeight: 260, background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 16, textDecoration: "none", color: C.ink, overflow: "hidden" }}>
-        <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 14 }}>
-          <div style={{ fontSize: 10, fontFamily: "var(--mono)", letterSpacing: "0.24em", textTransform: "uppercase", color: C.inkFaint }}>Top Story</div>
-          <div>
-            <div style={{ fontSize: 28, fontFamily: "var(--display)", lineHeight: 1.2, color: C.inkSoft }}>{hero.title}</div>
-            {hero.description && (
-              <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.6, marginTop: 10 }}>{hero.description}</div>
-            )}
+    <div style={{ display: "grid", gap: 1 }}>
+      {stocks.map((s) => (
+        <button key={s.ticker} onClick={() => onAnalyze?.(s.ticker)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, cursor: "pointer", width: "100%", textAlign: "left", transition: "background 0.15s" }}
+          onMouseEnter={e => e.currentTarget.style.background = C.paper}
+          onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}>
+          <div style={{ display: "grid", gap: 2, minWidth: 60 }}>
+            <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
+            <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
-            <span>{publishedText}</span>
-            <span style={{ color: C.ruleFaint }}>·</span>
-            <span style={{ fontWeight: 600 }}>{hero.source || "Yahoo Finance"}</span>
+          {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
+          <div style={{ textAlign: "right", minWidth: 56 }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 600, color: s.changePct >= 0 ? C.up : C.down }}>
+              {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
+            </div>
           </div>
-        </div>
-        <div style={{ position: "relative", background: C.paper }}>
-          <img src={heroImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = NEWS_PLACEHOLDER_IMAGE; }} />
-        </div>
-      </a>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
-        {cards.map((n, i) => {
-          const cardImage = n.image || NEWS_PLACEHOLDER_IMAGE;
-          return (
-            <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
-              style={{ display: "grid", gridTemplateRows: "120px auto", background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 14, textDecoration: "none", color: C.ink, overflow: "hidden", transition: "transform 0.15s" }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}>
-              <div style={{ position: "relative", background: C.paper }}>
-                <img src={cardImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = NEWS_PLACEHOLDER_IMAGE; }} />
-              </div>
-              <div style={{ padding: "12px 14px", display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{n.title}</div>
-                <div style={{ display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
-                  <span style={{ fontWeight: 600 }}>{n.source || "Yahoo Finance"}</span>
-                  {n.pubDate && <>
-                    <span style={{ color: C.ruleFaint }}>|</span>
-                    <span>{timeAgo(n.pubDate)}</span>
-                  </>}
-                </div>
-              </div>
-            </a>
-          );
-        })}
-      </div>
+        </button>
+      ))}
     </div>
-  );
-}
-
-function MiniCard({ title, children, style }) {
-  return (
-    <div style={{ background: C.warmWhite, border: `1px solid ${C.rule}`, padding: "14px 16px", display: "grid", gap: 10, ...style }}>
-      {title && (
-        <div style={{ fontSize: 10, fontFamily: "var(--body)", letterSpacing: "0.14em", textTransform: "uppercase", color: C.inkFaint, fontWeight: 700 }}>
-          {title}
-        </div>
-      )}
-      {children}
-    </div>
-  );
-}
-
-function WatchlistSummary({ items, onAnalyze }) {
-  return (
-    <MiniCard title="Watchlist Summary">
-      <div style={{ display: "grid", gap: 1 }}>
-        {items.map((it) => (
-          <button
-            key={it.ticker}
-            type="button"
-            onClick={() => onAnalyze?.(it.ticker)}
-            style={{
-              display: "flex",
-              alignItems: "stretch",
-              justifyContent: "space-between",
-              gap: 10,
-              padding: "12px 8px",
-              background: "transparent",
-              border: "none",
-              borderBottom: `1px solid ${C.ruleFaint}`,
-              cursor: "pointer",
-              textAlign: "left",
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = C.paper}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-          >
-            <div style={{ display: "grid", gap: 6, width: "100%" }}>
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-                  <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 16, color: C.ink }}>{it.ticker}</span>
-                  <span style={{ fontFamily: "var(--mono)", fontSize: 16, fontWeight: 700, color: C.ink }}>${fmt(it.price)}</span>
-                </div>
-                <span style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: it.changePct >= 0 ? C.up : C.down, background: it.changePct >= 0 ? C.upBg : C.downBg, padding: "4px 8px", borderRadius: 12 }}>
-                  {it.changePct >= 0 ? "+" : ""}{it.changePct.toFixed(2)}%
-                </span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 12, color: C.inkFaint, fontFamily: "var(--body)" }}>{it.name}</span>
-                <span style={{ fontSize: 12, color: C.inkFaint, fontFamily: "var(--body)" }}>{it.note}</span>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </MiniCard>
-  );
-}
-
-function MarketCalendarCard({ items }) {
-  const impactColor = (impact) => {
-    if (impact === "High") return { color: C.down, bg: C.downBg };
-    if (impact === "Medium") return { color: C.hold, bg: C.holdBg };
-    return { color: C.up, bg: C.upBg };
-  };
-  return (
-    <MiniCard title="Market Calendar">
-      <div style={{ display: "grid", gap: 10 }}>
-        {items.map((e, i) => {
-          const c = impactColor(e.impact);
-          return (
-            <div key={`${e.event}-${i}`} style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: 10, padding: "8px 10px", background: C.cream, border: `1px solid ${C.ruleFaint}`, borderRadius: 12 }}>
-              <div style={{ display: "grid", gap: 4, justifyItems: "center" }}>
-                <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted, letterSpacing: "0.04em" }}>{e.time}</div>
-                <div style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 700, color: C.ink }}>{e.date}</div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div style={{ fontSize: 12, fontFamily: "var(--body)", color: C.ink }}>{e.event}</div>
-                  <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>Macro event</div>
-                </div>
-                <span style={{ fontSize: 9, fontFamily: "var(--mono)", padding: "3px 8px", borderRadius: 10, background: c.bg, color: c.color, fontWeight: 700 }}>
-                  {e.impact}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </MiniCard>
-  );
-}
-
-function SectorSnapshotCard({ items }) {
-  const data = items.map((s) => ({
-    name: s.sector,
-    size: Math.max(10, Math.round(Math.abs(s.changePct) * 120)),
-    change: s.changePct,
-  }));
-  const renderTreemap = (props) => {
-    if (!props) return null;
-    const { x, y, width, height, payload, depth } = props;
-    if (depth === 0) return null;
-    if (width <= 0 || height <= 0) return null;
-    const data = payload?.payload || payload || {};
-    const change = data.change ?? 0;
-    const name = data.name || "";
-    const intensity = Math.min(0.9, Math.max(0.2, Math.abs(change) / 2));
-    const fill = change >= 0
-      ? `rgba(27,107,58,${0.12 + intensity * 0.35})`
-      : `rgba(155,27,27,${0.12 + intensity * 0.35})`;
-    const stroke = change >= 0 ? C.up : C.down;
-    const showLabel = width > 55 && height > 28 && name;
-    const showMini = width > 32 && height > 20 && name;
-    return (
-      <g>
-        <rect x={x} y={y} width={width} height={height} fill={fill} stroke={stroke} strokeWidth={1} />
-        {showLabel && (
-          <>
-            <text x={x + 8} y={y + 18} fill={C.ink} fontFamily="var(--mono)" fontSize="10" fontWeight="700">
-              {name}
-            </text>
-            <text x={x + 8} y={y + 34} fill={stroke} fontFamily="var(--mono)" fontSize="10">
-              {change >= 0 ? "+" : ""}{change.toFixed(2)}%
-            </text>
-          </>
-        )}
-        {!showLabel && showMini && (
-          <text x={x + 6} y={y + 16} fill={C.ink} fontFamily="var(--mono)" fontSize="9" fontWeight="700">
-            {name.slice(0, 3).toUpperCase()}
-          </text>
-        )}
-      </g>
-    );
-  };
-  return (
-    <MiniCard title="Sector Snapshot" style={{ padding: "12px 12px 14px" }}>
-      <div style={{ width: "100%", height: 140 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <Treemap data={data} dataKey="size" stroke={C.cream} content={renderTreemap} />
-        </ResponsiveContainer>
-      </div>
-    </MiniCard>
-  );
-}
-
-function AnalystFeedCard({ items }) {
-  const actionStyle = (action) => {
-    if (action === "Upgrade") return { color: C.up, bg: C.upBg, border: C.up };
-    if (action === "Downgrade") return { color: C.down, bg: C.downBg, border: C.down };
-    return { color: C.hold, bg: C.holdBg, border: C.hold };
-  };
-  return (
-    <MiniCard title="Analyst Notes">
-      <div style={{ display: "grid", gap: 10 }}>
-        {items.map((a, i) => (
-          <div key={`${a.ticker}-${i}`} style={{ display: "grid", gap: 6, padding: "10px 12px", background: C.cream, border: `1px solid ${C.ruleFaint}`, borderRadius: 12, borderLeft: `3px solid ${actionStyle(a.action).border}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{a.ticker}</span>
-                <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>{a.firm}</span>
-              </div>
-              <span style={{ fontSize: 9, fontFamily: "var(--mono)", padding: "3px 8px", borderRadius: 10, background: actionStyle(a.action).bg, color: actionStyle(a.action).color, fontWeight: 700 }}>
-                {a.action}
-              </span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>{a.rating}</span>
-              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.ink }}>{a.target}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </MiniCard>
-  );
-}
-
-function InsiderFeedCard({ items }) {
-  const actionStyle = (action) => {
-    if (action === "Buy") return { color: C.up, bg: C.upBg, border: C.up };
-    return { color: C.down, bg: C.downBg, border: C.down };
-  };
-  return (
-    <MiniCard title="Insider Tape">
-      <div style={{ display: "grid", gap: 10 }}>
-        {items.map((t, i) => (
-          <div key={`${t.ticker}-${i}`} style={{ display: "grid", gap: 6, padding: "10px 12px", background: C.cream, border: `1px solid ${C.ruleFaint}`, borderRadius: 12, borderLeft: `3px solid ${actionStyle(t.action).border}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{t.ticker}</span>
-                <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>{t.name}</span>
-              </div>
-              <span style={{ fontSize: 9, fontFamily: "var(--mono)", padding: "3px 8px", borderRadius: 10, background: actionStyle(t.action).bg, color: actionStyle(t.action).color, fontWeight: 700 }}>
-                {t.action}
-              </span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>Insider transaction</span>
-              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.ink }}>{t.value}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </MiniCard>
-  );
-}
-
-function PortfolioTileCard({ data }) {
-  const changeColor = data.dayChangePct >= 0 ? C.up : C.down;
-  return (
-    <MiniCard title="Portfolio Snapshot" style={{ gridColumn: "1 / -1" }}>
-      <div style={{ display: "grid", gap: 10 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <div style={{ fontSize: 30, fontFamily: "var(--display)", color: C.ink }}>{fmtMoney(data.value)}</div>
-          <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700, color: changeColor }}>
-            {data.dayChangePct >= 0 ? "+" : ""}{data.dayChangePct.toFixed(2)}% today
-          </div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>YTD</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700, color: C.up }}>{data.ytdPct.toFixed(2)}%</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Cash</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700 }}>{fmtMoney(data.cash)}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Risk</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700 }}>{data.risk}</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {data.top.map(t => (
-            <span key={t} style={{ fontSize: 11, fontFamily: "var(--mono)", padding: "3px 8px", border: `1px solid ${C.rule}`, color: C.inkMuted }}>
-              {t}
-            </span>
-          ))}
-        </div>
-      </div>
-    </MiniCard>
   );
 }
 
 function ChangelogBanner() {
   const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem("changelog_dismissed_0.3.12") === "true"; } catch { return false; }
+    try { return localStorage.getItem("changelog_dismissed_1.0.0") === "true"; } catch { return false; }
   });
   const [expanded, setExpanded] = useState(false);
 
@@ -2011,10 +1759,10 @@ function ChangelogBanner() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
         <button onClick={() => setExpanded(!expanded)}
           style={{ display: "flex", alignItems: "center", gap: 8, background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-          <span style={{ fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>What's New v0.3.12</span>
+          <span style={{ fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>What's New v1.0.0</span>
           <span style={{ fontSize: 10, color: C.inkFaint, transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
         </button>
-        <button onClick={() => { setDismissed(true); try { localStorage.setItem("changelog_dismissed_0.3.12", "true"); } catch {} }}
+        <button onClick={() => { setDismissed(true); try { localStorage.setItem("changelog_dismissed_1.0.0", "true"); } catch {} }}
           style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 14, color: C.inkFaint, padding: "0 4px", lineHeight: 1 }}>×</button>
       </div>
       {expanded && (
@@ -2041,10 +1789,9 @@ function ChangelogBanner() {
   );
 }
 
-function AssetRow({ section, onAnalyze }) {
+function AssetRow({ section }) {
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
-  const scrollRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -2061,86 +1808,32 @@ function AssetRow({ section, onAnalyze }) {
     return () => { cancelled = true; };
   }, [section]);
 
-  const scrollRight = () => {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollBy({ left: 220, behavior: "smooth" });
-  };
-
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0" }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)", minWidth: 100, flexShrink: 0 }}>
+    <div style={{ background: C.warmWhite, border: `1px solid ${C.rule}`, padding: "12px 16px" }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)", marginBottom: 10 }}>
         {section.title}
       </div>
-      <div style={{ position: "relative", flex: 1 }}>
-        <div ref={scrollRef} style={{ display: "flex", gap: 8, overflowX: "auto", paddingRight: 34 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(section.symbols.length, 3)}, 1fr)`, gap: 8 }}>
         {!loaded ? (
-          Array.from({ length: section.symbols.length }).map((_, i) => (
-            <div key={i} style={{ padding: "8px 12px", background: C.warmWhite, border: `1px solid ${C.rule}`, minWidth: 130 }}>
+          Array.from({ length: Math.min(section.symbols.length, 3) }).map((_, i) => (
+            <div key={i} style={{ padding: "6px 0" }}>
               <SkeletonBlock width={60} height={10} style={{ marginBottom: 4 }} />
               <SkeletonBlock width={80} height={14} />
             </div>
           ))
         ) : (
           data.filter(d => d.ok).map(d => (
-            <button
-              key={d.symbol}
-              type="button"
-              onClick={() => onAnalyze?.(d.symbol)}
-              style={{
-                padding: "8px 12px",
-                background: C.warmWhite,
-                border: `1px solid ${C.rule}`,
-                minWidth: 130,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                flexShrink: 0,
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = C.paper}
-              onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}
-            >
+            <div key={d.symbol} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
               <div>
                 <div style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>{d.label}</div>
                 <div style={{ fontSize: 13, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>{d.price >= 100 ? d.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : d.price.toFixed(2)}</div>
-                <div style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: d.changePct >= 0 ? C.up : C.down }}>
-                  {d.changePct >= 0 ? "+" : ""}{d.changePct.toFixed(2)}%
-                </div>
               </div>
-              {d.spark && d.spark.length > 1 && <Sparkline data={d.spark} color={d.changePct >= 0 ? C.up : C.down} />}
-            </button>
+              <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: d.changePct >= 0 ? C.up : C.down }}>
+                {d.changePct >= 0 ? "+" : ""}{d.changePct.toFixed(2)}%
+              </span>
+            </div>
           ))
         )}
-        </div>
-        <button
-          type="button"
-          onClick={scrollRight}
-          aria-label={`Scroll ${section.title}`}
-          style={{
-            position: "absolute",
-            right: 0,
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: 28,
-            height: 28,
-            borderRadius: 14,
-            border: `1px solid ${C.rule}`,
-            background: C.cream,
-            color: C.inkMuted,
-            cursor: "pointer",
-            fontSize: 12,
-            fontFamily: "var(--mono)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.color = C.ink; e.currentTarget.style.borderColor = C.ink; }}
-          onMouseLeave={e => { e.currentTarget.style.color = C.inkMuted; e.currentTarget.style.borderColor = C.rule; }}
-        >
-          →
-        </button>
       </div>
     </div>
   );
@@ -2151,7 +1844,6 @@ function AssetRow({ section, onAnalyze }) {
 // ═══════════════════════════════════════════════════════════
 function HomeTab({ onAnalyze, liveTickers }) {
   const [region, setRegion] = useState("Global");
-  const [indexPage, setIndexPage] = useState(0);
   const [stripData, setStripData] = useState([]);
   const [stripLoading, setStripLoading] = useState(true);
   const [charts, setCharts] = useState([]);
@@ -2240,76 +1932,26 @@ function HomeTab({ onAnalyze, liveTickers }) {
     return () => { cancelled.current = true; clearInterval(refreshInterval); };
   }, [region, loadRegionData, loadMovers, loadTrending]);
 
-  // Live tickers polling — refreshes strip, charts, movers, trending every 30s
+  // Live tickers polling — refreshes only strip + charts every 30s (lightweight)
   useEffect(() => {
     if (!liveTickers) return;
     const cancelled = { current: false };
     const poll = () => {
       loadRegionData(region, cancelled, false);
-      loadMovers(region, cancelled);
-      loadTrending(cancelled);
     };
-    poll();
     const id = setInterval(poll, 30000);
     return () => { cancelled.current = true; clearInterval(id); };
-  }, [liveTickers, region, loadRegionData, loadMovers, loadTrending]);
+  }, [liveTickers, region, loadRegionData]);
 
   const handleRegionChange = (rgn) => {
     if (rgn === region) return;
     setRegion(rgn);
-    setIndexPage(0);
     setCharts([]);
     setMovers(null);
     setMoversLoading(true);
   };
 
   const cfg = MARKET_REGIONS[region];
-  const INDEXES_PER_PAGE = 3;
-  const totalIndexPages = Math.max(1, Math.ceil(cfg.charts.length / INDEXES_PER_PAGE));
-  const safeIndexPage = Math.min(indexPage, totalIndexPages - 1);
-  const pageCharts = cfg.charts.slice(
-    safeIndexPage * INDEXES_PER_PAGE,
-    safeIndexPage * INDEXES_PER_PAGE + INDEXES_PER_PAGE
-  );
-  const indexActions = totalIndexPages > 1 ? (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <button
-        type="button"
-        onClick={() => setIndexPage(p => Math.max(0, p - 1))}
-        disabled={safeIndexPage === 0}
-        style={{
-          padding: "2px 8px",
-          border: `1px solid ${C.rule}`,
-          background: "transparent",
-          color: safeIndexPage === 0 ? C.inkFaint : C.ink,
-          cursor: safeIndexPage === 0 ? "not-allowed" : "pointer",
-          fontFamily: "var(--mono)",
-          fontSize: 10,
-        }}
-      >
-        ←
-      </button>
-      <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>
-        {safeIndexPage + 1}/{totalIndexPages}
-      </span>
-      <button
-        type="button"
-        onClick={() => setIndexPage(p => Math.min(totalIndexPages - 1, p + 1))}
-        disabled={safeIndexPage >= totalIndexPages - 1}
-        style={{
-          padding: "2px 8px",
-          border: `1px solid ${C.rule}`,
-          background: "transparent",
-          color: safeIndexPage >= totalIndexPages - 1 ? C.inkFaint : C.ink,
-          cursor: safeIndexPage >= totalIndexPages - 1 ? "not-allowed" : "pointer",
-          fontFamily: "var(--mono)",
-          fontSize: 10,
-        }}
-      >
-        →
-      </button>
-    </div>
-  ) : null;
   const regionTabStyle = (r) => ({
     padding: "6px 16px", border: `1px solid ${C.rule}`, borderRadius: 20,
     background: region === r ? C.ink : "transparent",
@@ -2319,12 +1961,12 @@ function HomeTab({ onAnalyze, liveTickers }) {
   });
 
   return (
-    <div style={{ display: "grid", gap: 16, overflow: "hidden" }}>
+    <div style={{ display: "grid", gap: 16, overflow: "hidden", minWidth: 0 }}>
       {/* Ticker Strip */}
-      <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} />
+      <TickerStrip data={stripData} loading={stripLoading} />
 
       {/* Region Selector + Updated timestamp */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         {Object.keys(MARKET_REGIONS).map((r) => (
           <button key={r} onClick={() => handleRegionChange(r)} style={regionTabStyle(r)}>{r}</button>
         ))}
@@ -2335,59 +1977,36 @@ function HomeTab({ onAnalyze, liveTickers }) {
         )}
       </div>
 
-      {/* Headlines + Indexes */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 16, alignItems: "start" }}>
-        <div style={{ display: "grid", gap: 16 }}>
-          <Section title="Market News">
-            <NewsSection news={news} loading={newsLoading} />
-          </Section>
-          <PortfolioTileCard data={PORTFOLIO_TILE} />
-        </div>
-        <Section title="Indexes" actions={indexActions}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
-            {pageCharts.map((c) => {
-              const idx = cfg.charts.findIndex(x => x.symbol === c.symbol);
-              return (
-                <MiniIntradayChart
-                  key={c.symbol}
-                  data={charts[idx]?.data}
-                  label={c.label}
-                  loading={chartsLoading && !charts[idx]?.data}
-                  onAnalyze={onAnalyze}
-                  ticker={c.symbol}
-                />
-              );
-            })}
-          </div>
-        </Section>
+      {/* Intraday Charts — 2 columns always, wraps naturally */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {cfg.charts.map((c, i) => (
+          <MiniIntradayChart key={c.symbol} data={charts[i]?.data} label={c.label} loading={chartsLoading && !charts[i]?.data} />
+        ))}
       </div>
 
-      {/* Market Movers — 3 columns with show-more */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+      {/* Market Movers — 3 columns, compact */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
         <MoverColumn title="Top Gainers" stocks={movers?.gainers} allStocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
         <MoverColumn title="Top Losers" stocks={movers?.losers} allStocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
-        <MoverColumn title="Trending Stocks" stocks={trending} allStocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
+        <MoverColumn title="Most Active" stocks={movers?.mostActive} allStocks={movers?.mostActive} loading={moversLoading} onAnalyze={onAnalyze} />
       </div>
 
-      {/* Asset Class Sections + Watchlist */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-        <div style={{ display: "grid", gap: 4 }}>
-          {ASSET_SECTIONS.map(section => (
-            <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
-          ))}
-        </div>
-        <WatchlistSummary items={WATCHLIST_SUMMARY} onAnalyze={onAnalyze} />
+      {/* Asset Class Sections — 2-column grid of cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {ASSET_SECTIONS.map(section => (
+          <AssetRow key={section.title} section={section} />
+        ))}
       </div>
 
-      {/* Market Brief */}
-      <Section title="Market Brief">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
-          <MarketCalendarCard items={MARKET_CALENDAR} />
-          <SectorSnapshotCard items={SECTOR_SNAPSHOT} />
-          <AnalystFeedCard items={ANALYST_FEED} />
-          <InsiderFeedCard items={INSIDER_FEED} />
-        </div>
-      </Section>
+      {/* News + Trending */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 12 }}>
+        <Section title="Market News">
+          <NewsSection news={news} loading={newsLoading} />
+        </Section>
+        <Section title="Trending Stocks">
+          <TrendingWatchlist stocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
+        </Section>
+      </div>
 
       {/* Changelog Banner */}
       <ChangelogBanner />
@@ -2512,7 +2131,7 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
       </div>
 
       {subTab === "stock" && (
-        <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 28 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 20 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
@@ -2642,16 +2261,67 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
               </Section>
             </div>
             <Section title="Statistical Signals">
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }}>
-                {["zscore", "momentum", "volume", "aggregate"].map(k => (
-                  <div key={k} style={{ padding: "8px 0" }}>
-                    <div style={{ fontSize: 10, color: C.inkMuted, textTransform: "capitalize", fontFamily: "var(--body)", marginBottom: 4 }}>{k === "aggregate" ? "Composite" : k}</div>
-                    <Signal value={statSignals[k].signal} />
-                    <div style={{ fontSize: 11, fontFamily: "var(--mono)", color: C.inkSoft, marginTop: 2 }}>
-                      {k === "zscore" ? fmt(statSignals[k].zscore) : k === "momentum" ? fmtPct(statSignals[k].avgMomentum) : k === "volume" ? fmt(statSignals[k].volumeZscore) : fmt(statSignals[k].score)}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                {[
+                  { key: "zscore", label: "Z-Score", desc: "Price deviation from 20-period mean", value: statSignals.zscore.zscore, unit: "σ", range: [-3, 3], zones: [{ min: -3, max: -2, color: C.up }, { min: -2, max: -1, color: C.up + "66" }, { min: -1, max: 1, color: C.holdBg }, { min: 1, max: 2, color: C.down + "66" }, { min: 2, max: 3, color: C.down }] },
+                  { key: "momentum", label: "Momentum", desc: "Avg return across 5, 10, 20, 50-day periods", value: statSignals.momentum.avgMomentum, unit: "%", range: [-10, 10] },
+                  { key: "volume", label: "Volume", desc: "Current volume vs 20-period avg", value: statSignals.volume.volumeZscore, unit: "σ", range: [-3, 3] },
+                  { key: "aggregate", label: "Composite", desc: "Weighted combination of all signals", value: statSignals.aggregate.score, unit: "", range: [-2, 2] },
+                ].map(({ key, label, desc, value, unit, range }) => {
+                  const sig = statSignals[key];
+                  const pct = Math.min(100, Math.max(0, ((value - range[0]) / (range[1] - range[0])) * 100));
+                  const gaugeColor = sig.signal.includes("BUY") ? C.up : sig.signal.includes("SELL") ? C.down : C.hold;
+                  return (
+                    <div key={key} style={{ padding: "14px 16px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, fontFamily: "var(--body)" }}>{label}</div>
+                          <div style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 1 }}>{desc}</div>
+                        </div>
+                        <Signal value={sig.signal} />
+                      </div>
+                      <div style={{ position: "relative", height: 8, background: C.paper, borderRadius: 4, overflow: "hidden", marginBottom: 6 }}>
+                        <div style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, background: `linear-gradient(90deg, ${C.up}33, ${C.holdBg}, ${C.down}33)` }} />
+                        <div style={{ position: "absolute", left: `calc(${pct}% - 5px)`, top: -1, width: 10, height: 10, borderRadius: "50%", background: gaugeColor, border: `2px solid ${C.cream}`, boxShadow: `0 0 6px ${gaugeColor}44` }} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: "var(--mono)" }}>
+                        <span style={{ color: C.up, fontWeight: 600 }}>Buy</span>
+                        <span style={{ color: C.inkSoft, fontWeight: 700 }}>{fmt(value, 2)}{unit}</span>
+                        <span style={{ color: C.down, fontWeight: 600 }}>Sell</span>
+                      </div>
+                      {key === "momentum" && sig.byPeriod && (
+                        <div style={{ display: "flex", gap: 8, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}` }}>
+                          {Object.entries(sig.byPeriod).map(([period, val]) => (
+                            <div key={period} style={{ flex: 1, textAlign: "center" }}>
+                              <div style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)" }}>{period}</div>
+                              <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--mono)", color: val >= 0 ? C.up : C.down }}>
+                                {val >= 0 ? "+" : ""}{fmt(val, 1)}%
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {key === "volume" && (
+                        <div style={{ display: "flex", gap: 12, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}`, fontSize: 10, fontFamily: "var(--mono)" }}>
+                          <div><span style={{ color: C.inkFaint }}>Current </span><span style={{ color: C.ink, fontWeight: 600 }}>{sig.currentVolume ? (sig.currentVolume / 1e6).toFixed(1) + "M" : "—"}</span></div>
+                          <div><span style={{ color: C.inkFaint }}>Avg </span><span style={{ color: C.ink, fontWeight: 600 }}>{sig.avgVolume ? (sig.avgVolume / 1e6).toFixed(1) + "M" : "—"}</span></div>
+                        </div>
+                      )}
+                      {key === "aggregate" && (
+                        <div style={{ display: "flex", gap: 8, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}` }}>
+                          <div style={{ flex: 1, textAlign: "center", padding: "4px 0", background: C.paper, fontSize: 9, fontFamily: "var(--body)" }}>
+                            <div style={{ color: C.inkFaint }}>Confidence</div>
+                            <div style={{ fontWeight: 700, color: C.ink, fontFamily: "var(--mono)", fontSize: 13 }}>{fmtPct(sig.confidence * 100, 0)}</div>
+                          </div>
+                          <div style={{ flex: 1, textAlign: "center", padding: "4px 0", background: C.paper, fontSize: 9, fontFamily: "var(--body)" }}>
+                            <div style={{ color: C.inkFaint }}>Direction</div>
+                            <div style={{ fontWeight: 700, color: gaugeColor, fontFamily: "var(--mono)", fontSize: 11 }}>{sig.signal.replace("STRONG_", "").replace("_", " ")}</div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Section>
           </div>
@@ -2667,8 +2337,8 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
       )}
 
       {subTab === "financials" && isPro && (
-        <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 28 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 20 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <Section title="Fundamental Snapshot">
               <Row label="Market Cap" value={fmtMoney(fundamentals?.marketCap)} />
               <Row label="Revenue" value={fmtMoney(finData?.revenue)} />
@@ -2690,13 +2360,19 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
               <Row label="FCF / Share" value={`$${fmt(fundamentals?.perShare?.fcfPerShare, 2)}`} />
               <Row label="Dividend / Share" value={`$${fmt(fundamentals?.perShare?.dividendPerShare, 2)}`} border={false} />
             </Section>
+            <Section title="Key Ratios">
+              <Row label="ROE" value={fmtPct((fundamentals?.ratios?.roe || 0) * 100, 1)} color={(fundamentals?.ratios?.roe || 0) > 0.15 ? C.up : C.hold} />
+              <Row label="ROA" value={fmtPct((fundamentals?.ratios?.roa || 0) * 100, 1)} />
+              <Row label="P/E" value={fundamentals?.perShare?.eps > 0 ? fmt(price / fundamentals.perShare.eps, 1) : "—"} />
+              <Row label="P/FCF" value={fundamentals?.perShare?.fcfPerShare > 0 ? fmt(price / fundamentals.perShare.fcfPerShare, 1) : "—"} border={false} />
+            </Section>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <Section title="Financials Overview">
-              <div style={{ display: "grid", gridTemplateColumns: "1.25fr 0.85fr", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div style={{ padding: 12, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)" }}>Revenue + FCF Margin</div>
-                  <ResponsiveContainer width="100%" height={220}>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>Revenue + FCF Margin</div>
+                  <ResponsiveContainer width="100%" height={200}>
                     <ComposedChart data={finSeries} margin={{ top: 8, right: 14, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                       <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
@@ -2708,38 +2384,78 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
                         formatter={(v, name) => [name === "FCF Margin" ? `${fmt(v, 1)}%` : `$${fmt(v, 2)}B`, name]} />
                       <Bar yAxisId="left" dataKey="revenue" name="Revenue" fill={C.inkSoft + "AA"} radius={[2, 2, 0, 0]} />
                       <Bar yAxisId="left" dataKey="fcf" name="FCF" fill={C.accent + "AA"} radius={[2, 2, 0, 0]} />
-                      <Line yAxisId="right" type="monotone" dataKey="fcfMargin" name="FCF Margin" stroke={C.up} dot={false} strokeWidth={2} />
+                      <Line yAxisId="right" type="monotone" dataKey="fcfMargin" name="FCF Margin" stroke={C.up} dot={{ fill: C.up, r: 3 }} strokeWidth={2} />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
-                <div style={{ display: "grid", gap: 16 }}>
-                  <div style={{ padding: 12, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)" }}>Margin Radar</div>
-                    <ResponsiveContainer width="100%" height={160}>
-                      <RadarChart data={marginRadar}>
-                        <PolarGrid stroke={C.ruleFaint} />
-                        <PolarAngleAxis dataKey="metric" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} />
-                        <PolarRadiusAxis angle={90} domain={[0, radarMax]} tick={{ fill: C.inkFaint, fontSize: 8, fontFamily: "var(--mono)" }} />
-                        <Radar dataKey="value" stroke={C.ink} fill={C.accent + "55"} strokeWidth={1.5} />
-                      </RadarChart>
-                    </ResponsiveContainer>
+                <div style={{ padding: 12, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>Margin Trends</div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={finSeries} margin={{ top: 8, right: 14, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                      <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
+                      <YAxis tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} tickFormatter={v => `${v}%`} />
+                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }}
+                        formatter={(v) => [`${fmt(v, 1)}%`]} />
+                      <Line type="monotone" dataKey="grossMargin" name="Gross" stroke={C.up} dot={{ fill: C.up, r: 3 }} strokeWidth={2} />
+                      <Line type="monotone" dataKey="opMargin" name="Operating" stroke={C.accent} dot={{ fill: C.accent, r: 3 }} strokeWidth={2} />
+                      <Line type="monotone" dataKey="netMargin" name="Net" stroke={C.chart4} dot={{ fill: C.chart4, r: 3 }} strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 4, fontSize: 9, fontFamily: "var(--mono)" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 3, background: C.up }} />Gross</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 3, background: C.accent }} />Operating</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 3, background: C.chart4 }} />Net</span>
                   </div>
-                  <div style={{ padding: 12, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)" }}>Cash vs Debt</div>
-                    <ResponsiveContainer width="100%" height={140}>
-                      <PieChart>
-                        <Pie data={cashDebt} dataKey="value" nameKey="name" innerRadius={36} outerRadius={56} paddingAngle={2} stroke="none">
-                          {cashDebt.map((entry, idx) => (
-                            <Cell key={`cell-${idx}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted }}>
-                      <span>Net Cash</span>
-                      <span style={{ color: netCash >= 0 ? C.up : C.down }}>{fmtMoney(netCash)}</span>
-                    </div>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginTop: 12 }}>
+                <div style={{ padding: 12, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>Margin Radar</div>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <RadarChart data={marginRadar}>
+                      <PolarGrid stroke={C.ruleFaint} />
+                      <PolarAngleAxis dataKey="metric" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} />
+                      <PolarRadiusAxis angle={90} domain={[0, radarMax]} tick={{ fill: C.inkFaint, fontSize: 8, fontFamily: "var(--mono)" }} />
+                      <Radar dataKey="value" stroke={C.ink} fill={C.accent + "55"} strokeWidth={1.5} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{ padding: 12, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>Cash vs Debt</div>
+                  <ResponsiveContainer width="100%" height={130}>
+                    <PieChart>
+                      <Pie data={cashDebt} dataKey="value" nameKey="name" innerRadius={32} outerRadius={50} paddingAngle={2} stroke="none">
+                        {cashDebt.map((entry, idx) => (
+                          <Cell key={`cell-${idx}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
+                        formatter={(v) => [fmtMoney(v)]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted }}>
+                    <span>Net Cash</span>
+                    <span style={{ color: netCash >= 0 ? C.up : C.down, fontWeight: 700 }}>{fmtMoney(netCash)}</span>
                   </div>
+                  <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 6, fontSize: 9, fontFamily: "var(--mono)" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, background: C.up, borderRadius: 2 }} />Cash {fmtMoney(fundamentals?.cash)}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, background: C.down, borderRadius: 2 }} />Debt {fmtMoney(fundamentals?.debt)}</span>
+                  </div>
+                </div>
+                <div style={{ padding: 12, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>Earnings Per Share</div>
+                  <ResponsiveContainer width="100%" height={130}>
+                    <BarChart data={finSeries} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                      <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
+                      <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={30} tickFormatter={v => `$${v.toFixed(0)}B`} />
+                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
+                        formatter={(v) => [`$${fmt(v, 2)}B`]} />
+                      <Bar dataKey="netIncome" name="Net Income" fill={C.chart4 + "BB"} radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div style={{ textAlign: "center", fontSize: 9, fontFamily: "var(--mono)", color: C.inkFaint, marginTop: 4 }}>Net Income by Period</div>
                 </div>
               </div>
             </Section>
@@ -3038,27 +2754,27 @@ function sharpeToColor(s) {
   return "#9B1B1B";
 }
 
-function HeatmapTab() {
+function HeatmapPanel({ indexName, universe }) {
   const [stocks, setStocks] = useState(null);
   const [loading, setLoading] = useState(false);
   const [hover, setHover] = useState(null);
   const [progress, setProgress] = useState("");
   const containerRef = useRef(null);
-  const [dims, setDims] = useState({ w: 800, h: 500 });
+  const [dims, setDims] = useState({ w: 800, h: 420 });
 
   useEffect(() => {
     if (containerRef.current) {
       const r = containerRef.current.getBoundingClientRect();
-      setDims({ w: r.width || 800, h: 500 });
+      setDims({ w: r.width || 800, h: 420 });
     }
   }, []);
 
   const load = async () => {
     setLoading(true);
-    const total = HEATMAP_UNIVERSE.length;
+    const total = universe.length;
     let completed = 0;
     setProgress(`0/${total}`);
-    const tasks = HEATMAP_UNIVERSE.map(async (s) => {
+    const tasks = universe.map(async (s) => {
       try {
         const fd = await fetchStockData(s.ticker, "6mo");
         if (fd.data) {
@@ -3080,53 +2796,116 @@ function HeatmapTab() {
     setProgress("");
   };
 
+  const sectors = useMemo(() => {
+    if (!stocks) return [];
+    const sectorMap = {};
+    stocks.forEach(s => {
+      if (!sectorMap[s.sector]) sectorMap[s.sector] = [];
+      sectorMap[s.sector].push(s);
+    });
+    return Object.entries(sectorMap).sort((a, b) => {
+      const capA = a[1].reduce((sum, s) => sum + s.cap, 0);
+      const capB = b[1].reduce((sum, s) => sum + s.cap, 0);
+      return capB - capA;
+    });
+  }, [stocks]);
+
   const rects = stocks ? squarify(stocks.map(s => ({ ...s, size: s.cap })), dims.w, dims.h) : [];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "var(--body)" }}>Market Heatmap — S&P 20</div>
-          <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 2 }}>Size: market cap · Color: Sharpe ratio (6mo)</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, fontFamily: "var(--display)", letterSpacing: "-0.01em" }}>{indexName}</div>
+          <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 1 }}>{universe.length} stocks · Size: market cap · Color: Sharpe (6mo)</div>
         </div>
-        <button onClick={load} disabled={loading} style={{ padding: "8px 24px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
-          {loading ? "Loading…" : stocks ? "Refresh" : "Load Heatmap"}
-        </button>
       </div>
-      <div ref={containerRef} style={{ position: "relative", width: "100%", height: 500, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-        {!stocks && !loading && <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: C.inkMuted, fontFamily: "var(--display)", fontSize: 20 }}>Click "Load Heatmap" to fetch data</div>}
-        {loading && (
+      <div ref={containerRef} style={{ position: "relative", width: "100%", height: 420, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+        {!stocks && !loading && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12 }}>
-            <BrandMark size={20} muted />
-            <span style={{ fontFamily: "var(--display)", color: C.inkMuted, fontSize: 16 }}>Fetching {HEATMAP_UNIVERSE.length} stocks…</span>
+            <button onClick={load} style={{ padding: "10px 28px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              Load Heatmap
+            </button>
+            <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>Fetches {universe.length} stocks from Yahoo Finance</span>
+          </div>
+        )}
+        {loading && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 10 }}>
+            <BrandMark size={18} muted />
+            <span style={{ fontFamily: "var(--display)", color: C.inkMuted, fontSize: 14 }}>Fetching {universe.length} stocks…</span>
             <span style={{ fontFamily: "var(--mono)", color: C.inkFaint, fontSize: 11 }}>{progress}</span>
           </div>
         )}
         {rects.map((r) => (
           <div key={r.ticker} onMouseEnter={() => setHover(r)} onMouseLeave={() => setHover(null)}
             style={{ position: "absolute", left: r.x, top: r.y, width: r.w - 1, height: r.h - 1, background: sharpeToColor(r.sharpe), display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", border: `1px solid ${C.cream}33`, transition: "opacity 0.15s", opacity: hover && hover.ticker !== r.ticker ? 0.7 : 1 }}>
-            {r.w > 50 && r.h > 30 && <span style={{ fontSize: Math.min(16, r.w / 5), fontWeight: 700, color: "#fff", fontFamily: "var(--mono)", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>{r.ticker}</span>}
-            {r.w > 70 && r.h > 50 && <span style={{ fontSize: Math.min(11, r.w / 8), color: "#ffffffCC", fontFamily: "var(--mono)", marginTop: 2 }}>{r.ret > 0 ? "+" : ""}{fmt(r.ret, 1)}%</span>}
+            {r.w > 40 && r.h > 25 && <span style={{ fontSize: Math.min(14, r.w / 5), fontWeight: 700, color: "#fff", fontFamily: "var(--mono)", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>{r.ticker}</span>}
+            {r.w > 60 && r.h > 40 && <span style={{ fontSize: Math.min(10, r.w / 8), color: "#ffffffCC", fontFamily: "var(--mono)", marginTop: 2 }}>{r.ret > 0 ? "+" : ""}{fmt(r.ret, 1)}%</span>}
+            {r.w > 80 && r.h > 55 && <span style={{ fontSize: 8, color: "#ffffff88", fontFamily: "var(--body)", marginTop: 1 }}>{r.sector}</span>}
           </div>
         ))}
         {hover && (
           <div style={{ position: "absolute", bottom: 8, left: 8, background: C.cream + "F0", border: `1px solid ${C.rule}`, padding: "8px 12px", fontFamily: "var(--mono)", fontSize: 11, lineHeight: 1.6, zIndex: 10, boxShadow: "2px 4px 12px rgba(0,0,0,0.06)" }}>
             <strong>{hover.ticker}</strong> — {hover.name}<br />
-            ${fmt(hover.price)} · Sharpe {fmt(hover.sharpe)} · {fmtPct(hover.ret)} 6mo · {hover.rec}
+            <span style={{ color: C.inkMuted }}>Sector:</span> {hover.sector} · ${fmt(hover.price)} · Sharpe {fmt(hover.sharpe)} · {fmtPct(hover.ret)} 6mo · {hover.rec}
           </div>
+        )}
+        {stocks && (
+          <button onClick={load} style={{ position: "absolute", top: 8, right: 8, padding: "4px 12px", background: C.cream + "E0", border: `1px solid ${C.rule}`, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted, cursor: "pointer", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            Refresh
+          </button>
         )}
       </div>
       {stocks && (
-        <div style={{ display: "flex", gap: 12, fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted, alignItems: "center" }}>
-          <span>Color scale:</span>
-          {[[-1, "< -1"], [-0.5, "-0.5"], [0, "0"], [0.5, "0.5"], [1, "1"], [1.5, "> 1.5"]].map(([v, l]) => (
-            <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-              <span style={{ width: 10, height: 10, background: sharpeToColor(v) }} />{l}
-            </span>
-          ))}
-          <span style={{ marginLeft: 4 }}>Sharpe</span>
-        </div>
+        <>
+          <div style={{ display: "flex", gap: 10, fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 600 }}>Sharpe:</span>
+            {[[-1, "< -1"], [-0.5, "-0.5"], [0, "0"], [0.5, "0.5"], [1, "1"], [1.5, "> 1.5"]].map(([v, l]) => (
+              <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                <span style={{ width: 10, height: 10, background: sharpeToColor(v) }} />{l}
+              </span>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
+            {sectors.map(([sectorName, sectorStocks]) => (
+              <div key={sectorName} style={{ background: C.warmWhite, border: `1px solid ${C.rule}`, padding: "10px 12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: SECTOR_COLORS[sectorName] || C.inkMuted, flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)" }}>{sectorName}</span>
+                  <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--mono)", marginLeft: "auto" }}>{sectorStocks.length}</span>
+                </div>
+                {sectorStocks.sort((a, b) => b.cap - a.cap).map(s => (
+                  <div key={s.ticker} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontFamily: "var(--mono)", fontSize: 11, fontWeight: 700, color: C.ink }}>{s.ticker}</span>
+                      <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
+                    </div>
+                    <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: s.ret >= 0 ? C.up : C.down }}>
+                      {s.ret >= 0 ? "+" : ""}{fmt(s.ret, 1)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </>
       )}
+    </div>
+  );
+}
+
+function HeatmapTab() {
+  const indexNames = Object.keys(HEATMAP_INDEXES);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "var(--body)", marginBottom: 4 }}>Market Heatmaps</div>
+        <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)" }}>Treemap visualizations by index, sized by market cap, colored by 6-month Sharpe ratio. Stocks sorted by sector.</div>
+      </div>
+      {indexNames.map(name => (
+        <HeatmapPanel key={name} indexName={name} universe={HEATMAP_INDEXES[name]} />
+      ))}
     </div>
   );
 }
@@ -3134,9 +2913,12 @@ function HeatmapTab() {
 // ═══════════════════════════════════════════════════════════
 // COMPARISON TAB
 // ═══════════════════════════════════════════════════════════
+const COMP_LINE_COLORS = ["#1A1612", "#8B2500", "#5B4A8A", "#1B6B3A", "#D4A017", "#2E86AB", "#A23B72", "#C73E1D"];
+
 function ComparisonTab() {
   const [tickers, setTickers] = useState("AAPL, MSFT, GOOGL, AMZN");
   const [results, setResults] = useState(null);
+  const [rawData, setRawData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [sortCol, setSortCol] = useState(null);
   const [sortDir, setSortDir] = useState(1);
@@ -3145,11 +2927,13 @@ function ComparisonTab() {
   const run = async () => {
     setLoading(true); setError(null);
     const list = tickers.split(",").map(t => t.trim().toUpperCase()).filter(Boolean);
+    const dataMap = {};
     const tasks = list.map(async (t) => {
       try {
         const fd = await fetchStockData(t, "6mo");
         if (fd.data) {
           const a = runAnalysis(t, fd.data);
+          dataMap[t] = fd.data;
           return { ticker: t, price: a.currentPrice, rec: a.recommendation.action, conf: a.recommendation.confidence, regime: a.regime.overall, risk: a.risk.riskLevel, sharpe: a.risk.sharpe, vol: a.risk.volatility, maxDD: a.risk.maxDrawdown, mom: a.statSignals.momentum.avgMomentum, stretch: a.valuation.stretch };
         }
         return { ticker: t, price: 0, rec: "N/A", conf: 0, regime: "N/A", risk: "N/A", sharpe: 0, vol: 0, maxDD: 0, mom: 0, stretch: 0 };
@@ -3159,7 +2943,9 @@ function ComparisonTab() {
       }
     });
     const res = await Promise.all(tasks);
-    setResults(res); setLoading(false);
+    setResults(res);
+    setRawData(dataMap);
+    setLoading(false);
   };
 
   const sorted = useMemo(() => {
@@ -3167,29 +2953,71 @@ function ComparisonTab() {
     return [...results].sort((a, b) => ((a[sortCol] > b[sortCol] ? 1 : -1) * sortDir));
   }, [results, sortCol, sortDir]);
 
+  const overlayData = useMemo(() => {
+    if (!rawData || !results) return null;
+    const validTickers = results.filter(r => rawData[r.ticker] && rawData[r.ticker].length > 10).map(r => r.ticker);
+    if (validTickers.length < 2) return null;
+    const minLen = Math.min(...validTickers.map(t => rawData[t].length));
+    const chartPoints = [];
+    for (let i = 0; i < minLen; i++) {
+      const point = { date: rawData[validTickers[0]][i].date.slice(5) };
+      validTickers.forEach(t => {
+        const base = rawData[t][0].Close;
+        point[t] = base > 0 ? ((rawData[t][i].Close - base) / base) * 100 : 0;
+      });
+      chartPoints.push(point);
+    }
+    return { data: chartPoints, tickers: validTickers };
+  }, [rawData, results]);
+
   const doSort = col => { if (sortCol === col) setSortDir(-sortDir); else { setSortCol(col); setSortDir(1); } };
 
   const thStyle = (col) => ({
-    padding: "8px 10px", textAlign: "right", cursor: "pointer",
-    color: sortCol === col ? C.ink : C.inkMuted, fontSize: 10, fontWeight: 700,
-    textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)",
+    padding: "6px 8px", textAlign: "right", cursor: "pointer",
+    color: sortCol === col ? C.ink : C.inkMuted, fontSize: 9, fontWeight: 700,
+    textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "var(--body)",
     borderBottom: `2px solid ${C.ink}`, userSelect: "none", whiteSpace: "nowrap",
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
         <input value={tickers} onChange={e => setTickers(e.target.value)} placeholder="AAPL, MSFT, GOOGL..."
-          style={{ flex: 1, background: "transparent", border: `1px solid ${C.rule}`, padding: "10px 14px", color: C.ink, fontSize: 14, fontFamily: "var(--mono)", letterSpacing: "0.06em", outline: "none" }}
+          style={{ flex: 1, background: "transparent", border: `1px solid ${C.rule}`, padding: "8px 12px", color: C.ink, fontSize: 13, fontFamily: "var(--mono)", letterSpacing: "0.06em", outline: "none" }}
           onKeyDown={e => e.key === "Enter" && run()} />
         <button onClick={run} disabled={loading}
-          style={{ padding: "10px 28px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
+          style={{ padding: "8px 24px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
           {loading ? "Running…" : "Compare"}
         </button>
       </div>
       {error && <div style={{ padding: "6px 12px", background: C.downBg, color: C.down, fontSize: 11, fontFamily: "var(--mono)" }}>{error}</div>}
       {sorted && (
         <>
+          {overlayData && (
+            <Section title="Normalized Performance (6mo)">
+              <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
+                {overlayData.tickers.map((t, i) => (
+                  <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700 }}>
+                    <span style={{ width: 12, height: 3, background: COMP_LINE_COLORS[i % COMP_LINE_COLORS.length] }} />
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={overlayData.data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} interval={Math.floor(overlayData.data.length / 10)} />
+                  <YAxis tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={45} tickFormatter={v => `${v > 0 ? "+" : ""}${v.toFixed(0)}%`} />
+                  <ReferenceLine y={0} stroke={C.rule} strokeDasharray="3 3" />
+                  <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }}
+                    formatter={(v, name) => [`${v > 0 ? "+" : ""}${Number(v).toFixed(2)}%`, name]} />
+                  {overlayData.tickers.map((t, i) => (
+                    <Line key={t} dataKey={t} stroke={COMP_LINE_COLORS[i % COMP_LINE_COLORS.length]} dot={false} strokeWidth={1.8} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </Section>
+          )}
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -3208,32 +3036,45 @@ function ComparisonTab() {
               <tbody>
                 {sorted.map((r, i) => (
                   <tr key={r.ticker} style={{ borderBottom: `1px solid ${C.ruleFaint}`, background: i % 2 ? C.warmWhite + "80" : "transparent" }}>
-                    <td style={{ padding: "10px", fontWeight: 700, color: C.ink, fontFamily: "var(--mono)", fontSize: 13 }}>{r.ticker}</td>
-                    <td style={{ padding: "10px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 13 }}>${fmt(r.price)}</td>
-                    <td style={{ padding: "10px", textAlign: "right" }}><span style={{ color: recColor(r.rec), fontWeight: 700, fontSize: 11, fontFamily: "var(--mono)" }}>{r.rec}</span></td>
-                    <td style={{ padding: "10px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 12 }}>{fmtPct(r.conf * 100, 0)}</td>
-                    <td style={{ padding: "10px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 12, color: r.sharpe > 1 ? C.up : r.sharpe > 0 ? C.hold : C.down }}>{fmt(r.sharpe)}</td>
-                    <td style={{ padding: "10px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 12 }}>{fmtPct(r.vol)}</td>
-                    <td style={{ padding: "10px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 12, color: C.down }}>{fmtPct(r.maxDD)}</td>
-                    <td style={{ padding: "10px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 12, color: r.mom > 0 ? C.up : C.down }}>{r.mom > 0 ? "+" : ""}{fmtPct(r.mom)}</td>
-                    <td style={{ padding: "10px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 12, color: r.stretch > 65 ? C.down : r.stretch < 35 ? C.up : C.hold }}>{fmt(r.stretch, 0)}</td>
+                    <td style={{ padding: "8px", fontWeight: 700, color: C.ink, fontFamily: "var(--mono)", fontSize: 12 }}>{r.ticker}</td>
+                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 12 }}>${fmt(r.price)}</td>
+                    <td style={{ padding: "8px", textAlign: "right" }}><span style={{ color: recColor(r.rec), fontWeight: 700, fontSize: 10, fontFamily: "var(--mono)" }}>{r.rec}</span></td>
+                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11 }}>{fmtPct(r.conf * 100, 0)}</td>
+                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: r.sharpe > 1 ? C.up : r.sharpe > 0 ? C.hold : C.down }}>{fmt(r.sharpe)}</td>
+                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11 }}>{fmtPct(r.vol)}</td>
+                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: C.down }}>{fmtPct(r.maxDD)}</td>
+                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: r.mom > 0 ? C.up : C.down }}>{r.mom > 0 ? "+" : ""}{fmtPct(r.mom)}</td>
+                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: r.stretch > 65 ? C.down : r.stretch < 35 ? C.up : C.hold }}>{fmt(r.stretch, 0)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           {sorted.length > 1 && (
-            <Section title="Sharpe Comparison">
-              <ResponsiveContainer width="100%" height={Math.max(140, sorted.length * 36)}>
-                <BarChart data={sorted} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} horizontal={false} />
-                  <XAxis type="number" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} />
-                  <YAxis dataKey="ticker" type="category" tick={{ fill: C.ink, fontSize: 12, fontWeight: 700, fontFamily: "var(--mono)" }} width={50} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} />
-                  <Bar dataKey="sharpe" name="Sharpe" fill={C.inkSoft} radius={[0, 2, 2, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Section>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <Section title="Sharpe Comparison">
+                <ResponsiveContainer width="100%" height={Math.max(120, sorted.length * 32)}>
+                  <BarChart data={sorted} layout="vertical" margin={{ top: 0, right: 12, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} horizontal={false} />
+                    <XAxis type="number" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} />
+                    <YAxis dataKey="ticker" type="category" tick={{ fill: C.ink, fontSize: 11, fontWeight: 700, fontFamily: "var(--mono)" }} width={45} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }} />
+                    <Bar dataKey="sharpe" name="Sharpe" fill={C.inkSoft} radius={[0, 2, 2, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Section>
+              <Section title="Volatility Comparison">
+                <ResponsiveContainer width="100%" height={Math.max(120, sorted.length * 32)}>
+                  <BarChart data={sorted} layout="vertical" margin={{ top: 0, right: 12, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} horizontal={false} />
+                    <XAxis type="number" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickFormatter={v => `${v}%`} />
+                    <YAxis dataKey="ticker" type="category" tick={{ fill: C.ink, fontSize: 11, fontWeight: 700, fontFamily: "var(--mono)" }} width={45} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }} formatter={v => [`${fmt(v)}%`, "Volatility"]} />
+                    <Bar dataKey="vol" name="Volatility" fill={C.accent + "AA"} radius={[0, 2, 2, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Section>
+            </div>
           )}
         </>
       )}
@@ -3434,7 +3275,7 @@ function App() {
   const [error, setError] = useState(null);
   const [livePrice, setLivePrice] = useState(null);
   const [latency, setLatency] = useState(null);
-  const [liveTickers, setLiveTickers] = useState(false);
+  const [liveTickers, setLiveTickers] = useState(true);
   const [showPerf, setShowPerf] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -3565,90 +3406,81 @@ function App() {
     textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)",
     opacity: locked ? 0.7 : 1,
   });
-  const homeWrap = tab === "home"
-    ? { width: "clamp(320px, 70vw, 1200px)", margin: "0 auto" }
-    : {};
 
   return (
-    <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
-      <header style={{ padding: "16px 32px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 1 }}>
-        <div style={homeWrap}>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
-              <BrandMark size={24} pro={isPro} />
-              <span style={{ width: 1, height: 16, background: C.rule, display: "inline-block", margin: "0 2px" }} />
-              <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>Quantitative Analysis</span>
-            </div>
-            <div ref={searchRef} style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
-              <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }} placeholder="Search stocks, crypto, forex..."
-                style={{ width: 260, background: "transparent", border: `1px solid ${C.rule}`, padding: "7px 12px", color: C.ink, fontSize: 13, fontFamily: "var(--body)", outline: "none" }}
-                onKeyDown={e => {
-                  if (e.key === "Enter") {
-                    const sym = searchQuery.trim().toUpperCase();
-                    if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); }
-                  }
-                  if (e.key === "Escape") setShowSearchDropdown(false);
-                }}
-                onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
-              />
-              {showSearchDropdown && searchResults.length > 0 && (
-                <div style={{ position: "absolute", top: "100%", left: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
-                  {searchResults.map((r) => (
-                    <button key={r.symbol} onClick={() => { analyze(r.symbol); setSearchQuery(""); setShowSearchDropdown(false); }}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 14px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
-                      onMouseEnter={e => e.currentTarget.style.background = C.paper}
-                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                      <div>
-                        <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 13, color: C.ink }}>{r.symbol}</span>
-                        <span style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginLeft: 8 }}>{r.shortname || r.longname || ""}</span>
-                      </div>
-                      <div style={{ display: "flex", gap: 6, fontSize: 9, color: C.inkFaint, fontFamily: "var(--mono)" }}>
-                        {r.exchDisp && <span>{r.exchDisp}</span>}
-                        {r.typeDisp && <span style={{ background: C.paper, padding: "1px 4px" }}>{r.typeDisp}</span>}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button onClick={() => { const sym = searchQuery.trim().toUpperCase(); if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); } }} disabled={loading || !searchQuery.trim()}
-                style={{ padding: "7px 20px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: loading ? "wait" : "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
-                {loading ? "Running…" : "Analyze"}
-              </button>
-            </div>
+    <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", maxWidth: "70%", margin: "0 auto", width: "100%", boxShadow: "0 0 60px rgba(0,0,0,0.04)" }}>
+      <header style={{ padding: "16px 24px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 1 }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
+            <BrandMark size={22} pro={isPro} />
+            <span style={{ width: 1, height: 14, background: C.rule, display: "inline-block", margin: "0 2px" }} />
+            <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>Quantitative Analysis</span>
           </div>
-          <nav style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-            <div style={{ display: "flex" }}>
-              {[
-                { key: "home", label: "Home" },
-                { key: "analysis", label: "Analysis" },
-                { key: "charts", label: "Charts" },
-                { key: "heatmap", label: "Heatmap", pro: true },
-                { key: "comparison", label: "Comparison", pro: true },
-              ].map(({ key, label, pro }) => {
-                const locked = !!pro && !isPro;
-                return (
-                  <button key={key} onClick={() => setTab(key)} style={tabStyle(key, locked)}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <span>{label}</span>
-                      {locked && <ProTag small />}
-                    </span>
+          <div ref={searchRef} style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
+            <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }} placeholder="Search stocks..."
+              style={{ width: 200, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", color: C.ink, fontSize: 12, fontFamily: "var(--body)", outline: "none" }}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  const sym = searchQuery.trim().toUpperCase();
+                  if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); }
+                }
+                if (e.key === "Escape") setShowSearchDropdown(false);
+              }}
+              onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
+            />
+            {showSearchDropdown && searchResults.length > 0 && (
+              <div style={{ position: "absolute", top: "100%", left: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
+                {searchResults.map((r) => (
+                  <button key={r.symbol} onClick={() => { analyze(r.symbol); setSearchQuery(""); setShowSearchDropdown(false); }}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 14px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.paper}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <div>
+                      <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 13, color: C.ink }}>{r.symbol}</span>
+                      <span style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginLeft: 8 }}>{r.shortname || r.longname || ""}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, fontSize: 9, color: C.inkFaint, fontFamily: "var(--mono)" }}>
+                      {r.exchDisp && <span>{r.exchDisp}</span>}
+                      {r.typeDisp && <span style={{ background: C.paper, padding: "1px 4px" }}>{r.typeDisp}</span>}
+                    </div>
                   </button>
-                );
-              })}
-            </div>
-            <LiteTools onAnalyze={analyze} />
-          </nav>
+                ))}
+              </div>
+            )}
+            <button onClick={() => { const sym = searchQuery.trim().toUpperCase(); if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); } }} disabled={loading || !searchQuery.trim()}
+              style={{ padding: "7px 20px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: loading ? "wait" : "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
+              {loading ? "Running…" : "Analyze"}
+            </button>
+          </div>
         </div>
+        <nav style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+          <div style={{ display: "flex" }}>
+            {[
+              { key: "home", label: "Home" },
+              { key: "analysis", label: "Analysis" },
+              { key: "charts", label: "Charts" },
+              { key: "heatmap", label: "Heatmap", pro: true },
+              { key: "comparison", label: "Comparison", pro: true },
+            ].map(({ key, label, pro }) => {
+              const locked = !!pro && !isPro;
+              return (
+                <button key={key} onClick={() => setTab(key)} style={tabStyle(key, locked)}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span>{label}</span>
+                    {locked && <ProTag small />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <LiteTools onAnalyze={analyze} />
+        </nav>
       </header>
 
-      <main style={{ flex: 1, padding: "24px 32px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1 }} key={tab + (result?.ticker || "")}>
+      <main style={{ flex: 1, padding: "20px 24px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1, minWidth: 0 }} key={tab + (result?.ticker || "")}>
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
-        {!loading && !error && tab === "home" && (
-          <div style={homeWrap}>
-            <HomeTab onAnalyze={analyze} liveTickers={liveTickers} />
-          </div>
-        )}
+        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} liveTickers={liveTickers} />}
         {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} latency={latency} isPro={isPro} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "charts" && <ChartsTab result={result} livePrice={livePrice} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab /> : (
@@ -3667,24 +3499,22 @@ function App() {
         ))}
       </main>
 
-      <footer style={{ padding: "8px 32px", borderTop: `1px solid ${C.rule}`, position: "relative", zIndex: 1 }}>
-        <div style={{ ...homeWrap, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.04em" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <LogoIcon size={12} color={C.inkFaint} />
-            <span>For educational purposes only — not financial advice</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button onClick={() => setIsPro(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
-              DEV: {isPro ? "DISABLE" : "ENABLE"} PRO
-            </button>
-            <button onClick={() => setLiveTickers(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: liveTickers ? C.ink : "transparent", color: liveTickers ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
-              DEV: LIVE TICKERS {liveTickers ? "ON" : "OFF"}
-            </button>
-            <button onClick={() => setShowPerf(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: showPerf ? C.ink : "transparent", color: showPerf ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
-              DEV: PERF
-            </button>
-            <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v0.3.12</span>
-          </div>
+      <footer style={{ padding: "8px 24px", borderTop: `1px solid ${C.rule}`, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.04em", position: "relative", zIndex: 1, flexWrap: "wrap", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <LogoIcon size={12} color={C.inkFaint} />
+          <span>For educational purposes only — not financial advice</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={() => setIsPro(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
+            DEV: {isPro ? "DISABLE" : "ENABLE"} PRO
+          </button>
+          <button onClick={() => setLiveTickers(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: liveTickers ? C.ink : "transparent", color: liveTickers ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
+            DEV: LIVE TICKERS {liveTickers ? "ON" : "OFF"}
+          </button>
+          <button onClick={() => setShowPerf(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: showPerf ? C.ink : "transparent", color: showPerf ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
+            DEV: PERF
+          </button>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v1.0.0</span>
         </div>
       </footer>
 

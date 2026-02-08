@@ -8,7 +8,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: #FAF7F2; font-family: 'Libre Franklin', sans-serif; }
+body { background: #E8E1D6; font-family: 'Libre Franklin', sans-serif; }
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: #F5F1EA; }
 ::-webkit-scrollbar-thumb { background: #D4CBBB; }
