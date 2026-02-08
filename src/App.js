@@ -2177,7 +2177,8 @@ function AssetRow({ section, onAnalyze }) {
 // ═══════════════════════════════════════════════════════════
 // HOME TAB
 // ═══════════════════════════════════════════════════════════
-function HomeTab({ onAnalyze, liveTickers }) {
+function HomeTab({ onAnalyze }) {
+  const liveTickers = true;
   const [region, setRegion] = useState("Global");
   const [indexPage, setIndexPage] = useState(0);
   const [stripData, setStripData] = useState([]);
@@ -3679,7 +3680,7 @@ function App() {
   const [error, setError] = useState(null);
   const [livePrice, setLivePrice] = useState(null);
   const [latency, setLatency] = useState(null);
-  const [liveTickers, setLiveTickers] = useState(true);
+  const liveTickers = true;
   const [showPerf, setShowPerf] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -3884,7 +3885,7 @@ function App() {
       <main style={{ flex: 1, padding: "20px 24px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1, minWidth: 0 }} key={tab + (result?.ticker || "")}>
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
-        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} liveTickers={liveTickers} />}
+        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} />}
         {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} latency={latency} isPro={isPro} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "charts" && <ChartsTab result={result} livePrice={livePrice} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab /> : (
