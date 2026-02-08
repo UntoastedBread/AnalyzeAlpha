@@ -3,13 +3,15 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ComposedChart, ReferenceLine, Brush, Customized,
   PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  AreaChart, Area
+  Area
 } from "recharts";
 import "./App.css";
 
 // ═══════════════════════════════════════════════════════════
 // DATA LAYER — Local proxy to Yahoo Finance
 // ═══════════════════════════════════════════════════════════
+let apiCallCount = 0;
+let lastApiLatency = 0;
 function formatDateLabel(ts, interval) {
   const iso = new Date(ts * 1000).toISOString();
   const day = iso.slice(0, 10);
@@ -88,10 +90,13 @@ async function fetchStockData(ticker, period = "1y", interval = "1d") {
 }
 
 async function fetchQuickQuote(ticker) {
-  const url = `/api/chart/${encodeURIComponent(ticker)}?range=5d&interval=1d`;
+  const t0 = performance.now();
+  apiCallCount++;
+  const url = `/api/chart/${encodeURIComponent(ticker)}?range=1mo&interval=1d`;
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const json = await resp.json();
+  lastApiLatency = Math.round(performance.now() - t0);
   const r = json?.chart?.result?.[0];
   if (!r?.meta) throw new Error("Bad response");
   const meta = r.meta;
@@ -102,14 +107,17 @@ async function fetchQuickQuote(ticker) {
   const change = price - prevClose;
   const changePct = prevClose ? (change / prevClose) * 100 : 0;
   const volume = volumes[volumes.length - 1] || 0;
-  return { ticker, price, change, changePct, volume, name: meta.shortName || meta.symbol || ticker, spark: closes.slice(-7) };
+  return { ticker, price, change, changePct, volume, name: meta.shortName || meta.symbol || ticker, spark: closes.slice(-30) };
 }
 
 async function fetchIntradayData(ticker) {
+  const t0 = performance.now();
+  apiCallCount++;
   const url = `/api/chart/${encodeURIComponent(ticker)}?range=1d&interval=5m`;
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const json = await resp.json();
+  lastApiLatency = Math.round(performance.now() - t0);
   const r = json?.chart?.result?.[0];
   if (!r?.timestamp) throw new Error("Bad response");
   const q = r.indicators.quote[0];
@@ -149,11 +157,12 @@ async function fetchRSSNews() {
   }
 }
 
-async function fetchTickerStrip() {
+async function fetchTickerStrip(symbols) {
+  const syms = symbols || TICKER_STRIP_SYMBOLS;
   const results = await Promise.allSettled(
-    TICKER_STRIP_SYMBOLS.map(s => fetchQuickQuote(s.symbol))
+    syms.map(s => fetchQuickQuote(s.symbol))
   );
-  return TICKER_STRIP_SYMBOLS.map((s, i) => {
+  return syms.map((s, i) => {
     const r = results[i];
     if (r.status === "fulfilled") {
       return { ...s, price: r.value.price, change: r.value.change, changePct: r.value.changePct, loaded: true };
@@ -649,6 +658,39 @@ const TICKER_STRIP_SYMBOLS = [
   { symbol: "GC=F", label: "Gold" },
   { symbol: "CL=F", label: "Crude Oil" },
 ];
+
+const MARKET_REGIONS = {
+  US: {
+    strip: [
+      { symbol: "^GSPC", label: "S&P 500" }, { symbol: "^IXIC", label: "Nasdaq" },
+      { symbol: "^DJI", label: "Dow Jones" }, { symbol: "^RUT", label: "Russell 2K" },
+      { symbol: "^VIX", label: "VIX" }, { symbol: "^TNX", label: "10Y Yield" },
+      { symbol: "BTC-USD", label: "Bitcoin" }, { symbol: "GC=F", label: "Gold" },
+      { symbol: "CL=F", label: "Crude Oil" },
+    ],
+    charts: [{ symbol: "^GSPC", label: "S&P 500" }, { symbol: "^IXIC", label: "Nasdaq" }],
+  },
+  Europe: {
+    strip: [
+      { symbol: "^FTSE", label: "FTSE 100" }, { symbol: "^GDAXI", label: "DAX" },
+      { symbol: "^FCHI", label: "CAC 40" }, { symbol: "^STOXX50E", label: "Euro Stoxx" },
+      { symbol: "EURUSD=X", label: "EUR/USD" }, { symbol: "GBPUSD=X", label: "GBP/USD" },
+      { symbol: "^TNX", label: "10Y Yield" }, { symbol: "GC=F", label: "Gold" },
+      { symbol: "CL=F", label: "Crude Oil" },
+    ],
+    charts: [{ symbol: "^FTSE", label: "FTSE 100" }, { symbol: "^GDAXI", label: "DAX" }],
+  },
+  Asia: {
+    strip: [
+      { symbol: "^N225", label: "Nikkei 225" }, { symbol: "^HSI", label: "Hang Seng" },
+      { symbol: "000001.SS", label: "Shanghai" }, { symbol: "^KS11", label: "KOSPI" },
+      { symbol: "^TWII", label: "Taiwan" }, { symbol: "USDJPY=X", label: "USD/JPY" },
+      { symbol: "USDCNY=X", label: "USD/CNY" }, { symbol: "GC=F", label: "Gold" },
+      { symbol: "CL=F", label: "Crude Oil" },
+    ],
+    charts: [{ symbol: "^N225", label: "Nikkei 225" }, { symbol: "^HSI", label: "Hang Seng" }],
+  },
+};
 
 const DEFAULT_TRENDING = [
   { ticker: "AAPL", name: "Apple" },
@@ -1252,28 +1294,43 @@ function SkeletonBlock({ width = "100%", height = 16, style }) {
 }
 
 function TickerStrip({ data, loading }) {
+  const renderItem = (item, idx) => (
+    <div key={item.symbol + "-" + idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", minWidth: 140, borderRight: `1px solid rgba(255,255,255,0.08)`, whiteSpace: "nowrap" }}>
+      <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", fontWeight: 600 }}>{item.label}</span>
+      <span style={{ fontSize: 12, fontFamily: "var(--mono)", color: "#fff", fontWeight: 600 }}>
+        {item.loaded ? (item.price >= 1000 ? item.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : item.price.toFixed(2)) : "—"}
+      </span>
+      <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: item.changePct > 0 ? "#4ADE80" : item.changePct < 0 ? "#F87171" : "rgba(255,255,255,0.5)" }}>
+        {item.loaded ? `${item.changePct >= 0 ? "+" : ""}${item.changePct.toFixed(2)}%` : ""}
+      </span>
+    </div>
+  );
+
   return (
-    <div className="ticker-strip-scroll" style={{ display: "flex", gap: 0, overflowX: "auto", background: C.ink, padding: "0" }}>
-      {loading ? (
-        Array.from({ length: 9 }).map((_, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", minWidth: 140, borderRight: `1px solid rgba(255,255,255,0.08)` }}>
-            <SkeletonBlock width={60} height={10} style={{ opacity: 0.2 }} />
-            <SkeletonBlock width={50} height={12} style={{ opacity: 0.15 }} />
+    <div style={{ display: "flex", alignItems: "center", background: C.ink }}>
+      {/* LIVE badge — fixed, does not scroll */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRight: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}>
+        <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "livePulse 2s ease-in-out infinite", boxShadow: "0 0 6px rgba(74,222,128,0.4)" }} />
+        <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: "#4ADE80", fontWeight: 700, letterSpacing: "0.08em" }}>LIVE</span>
+      </div>
+      {/* Scrolling content */}
+      <div className="ticker-strip-scroll" style={{ flex: 1, overflow: "hidden" }}>
+        {loading ? (
+          <div style={{ display: "flex" }}>
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", minWidth: 140, borderRight: `1px solid rgba(255,255,255,0.08)` }}>
+                <SkeletonBlock width={60} height={10} style={{ opacity: 0.2 }} />
+                <SkeletonBlock width={50} height={12} style={{ opacity: 0.15 }} />
+              </div>
+            ))}
           </div>
-        ))
-      ) : (
-        data.map((item) => (
-          <div key={item.symbol} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", minWidth: 140, borderRight: `1px solid rgba(255,255,255,0.08)`, whiteSpace: "nowrap" }}>
-            <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", fontWeight: 600 }}>{item.label}</span>
-            <span style={{ fontSize: 12, fontFamily: "var(--mono)", color: "#fff", fontWeight: 600 }}>
-              {item.loaded ? (item.price >= 1000 ? item.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : item.price.toFixed(2)) : "—"}
-            </span>
-            <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: item.changePct > 0 ? "#4ADE80" : item.changePct < 0 ? "#F87171" : "rgba(255,255,255,0.5)" }}>
-              {item.loaded ? `${item.changePct >= 0 ? "+" : ""}${item.changePct.toFixed(2)}%` : ""}
-            </span>
+        ) : (
+          <div className="ticker-strip-inner" style={{ display: "flex", width: "max-content" }}>
+            {data.map((item, i) => renderItem(item, i))}
+            {data.map((item, i) => renderItem(item, i + data.length))}
           </div>
-        ))
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -1287,41 +1344,54 @@ function MiniIntradayChart({ data, label, loading }) {
       </div>
     );
   }
-  const { points, prevClose, isUp } = data;
-  const color = isUp ? C.up : C.down;
+  const { points, prevClose } = data;
+  const chartData = points.map(p => ({
+    time: p.time,
+    price: p.price,
+    aboveOpen: Math.max(p.price, prevClose),
+    belowOpen: Math.min(p.price, prevClose),
+  }));
 
   const lastPrice = points.length ? points[points.length - 1].price : prevClose;
   const change = lastPrice - prevClose;
   const changePct = prevClose ? (change / prevClose) * 100 : 0;
+  const color = lastPrice >= prevClose ? C.up : C.down;
+  const safeLabel = label.replace(/[^a-zA-Z0-9]/g, "");
   return (
     <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
         <div>
           <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600 }}>{label}</span>
-          <span style={{ fontSize: 18, fontFamily: "var(--display)", color: C.ink, fontWeight: 400, marginLeft: 12 }}>{fmt(lastPrice)}</span>
+          <span style={{ fontSize: 26, fontFamily: "var(--display)", color: C.ink, fontWeight: 400, marginLeft: 12 }}>{fmt(lastPrice)}</span>
         </div>
         <span style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 700, color }}>
           {change >= 0 ? "+" : ""}{fmt(change)} ({changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%)
         </span>
       </div>
       <ResponsiveContainer width="100%" height={120}>
-        <AreaChart data={points} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+        <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
           <defs>
-            <linearGradient id={`grad-${label}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.2} />
-              <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+            <linearGradient id={`gradUp-${safeLabel}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={C.up} stopOpacity={0.25} />
+              <stop offset="100%" stopColor={C.up} stopOpacity={0.02} />
+            </linearGradient>
+            <linearGradient id={`gradDn-${safeLabel}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={C.down} stopOpacity={0.02} />
+              <stop offset="100%" stopColor={C.down} stopOpacity={0.25} />
             </linearGradient>
           </defs>
           <ReferenceLine y={prevClose} stroke={C.rule} strokeDasharray="3 3" />
-          <Area type="monotone" dataKey="price" stroke={color} strokeWidth={1.5} fill={`url(#grad-${label})`} dot={false} isAnimationActive={false} />
+          <Area type="monotone" dataKey="aboveOpen" stroke="none" fill={`url(#gradUp-${safeLabel})`} baseValue={prevClose} dot={false} isAnimationActive={false} />
+          <Area type="monotone" dataKey="belowOpen" stroke="none" fill={`url(#gradDn-${safeLabel})`} baseValue={prevClose} dot={false} isAnimationActive={false} />
+          <Line type="monotone" dataKey="price" stroke={color} strokeWidth={1.5} dot={false} isAnimationActive={false} />
           <XAxis dataKey="time" hide />
           <YAxis domain={["auto", "auto"]} hide />
           <Tooltip
             contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, fontSize: 11, fontFamily: "var(--mono)" }}
-            formatter={(v) => [`$${Number(v).toFixed(2)}`, "Price"]}
+            formatter={(v, name) => name === "price" ? [`$${Number(v).toFixed(2)}`, "Price"] : [null, null]}
             labelFormatter={(l) => l}
           />
-        </AreaChart>
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );
@@ -1352,13 +1422,13 @@ function MoverColumn({ title, stocks, loading, onAnalyze }) {
             style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 4px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
             onMouseEnter={e => e.currentTarget.style.background = C.paper}
             onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 80 }}>
-              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 11, color: C.ink }}>{s.ticker}</span>
+            <div style={{ display: "grid", gap: 2, minWidth: 80 }}>
+              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
               <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
             </div>
             {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} />}
             <div style={{ textAlign: "right", minWidth: 80 }}>
-              <span style={{ fontFamily: "var(--mono)", fontSize: 11, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
+              <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
               <span style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: s.changePct >= 0 ? C.up : C.down, marginLeft: 8 }}>
                 {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
               </span>
@@ -1445,7 +1515,7 @@ function TrendingWatchlist({ stocks, loading, onAnalyze }) {
           </div>
           {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} />}
           <div style={{ textAlign: "right", minWidth: 56 }}>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</div>
             <div style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 600, color: s.changePct >= 0 ? C.up : C.down }}>
               {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
             </div>
@@ -1502,11 +1572,12 @@ function ChangelogBanner() {
 // ═══════════════════════════════════════════════════════════
 // HOME TAB
 // ═══════════════════════════════════════════════════════════
-function HomeTab({ onAnalyze }) {
+function HomeTab({ onAnalyze, liveTickers }) {
+  const [region, setRegion] = useState("US");
   const [stripData, setStripData] = useState([]);
   const [stripLoading, setStripLoading] = useState(true);
-  const [spIntraday, setSpIntraday] = useState(null);
-  const [nasdaqIntraday, setNasdaqIntraday] = useState(null);
+  const [chart1, setChart1] = useState(null);
+  const [chart2, setChart2] = useState(null);
   const [chartsLoading, setChartsLoading] = useState(true);
   const [movers, setMovers] = useState(null);
   const [moversLoading, setMoversLoading] = useState(true);
@@ -1515,48 +1586,52 @@ function HomeTab({ onAnalyze }) {
   const [trending, setTrending] = useState([]);
   const [trendingLoading, setTrendingLoading] = useState(true);
 
+  const loadRegionData = useCallback(async (rgn, cancelled) => {
+    const cfg = MARKET_REGIONS[rgn];
+    // Strip
+    setStripLoading(true);
+    try {
+      const data = await fetchTickerStrip(cfg.strip);
+      if (!cancelled.current) { setStripData(data); setStripLoading(false); }
+    } catch { if (!cancelled.current) setStripLoading(false); }
+    // Charts
+    setChartsLoading(true);
+    try {
+      const [c1, c2] = await Promise.allSettled([
+        fetchIntradayData(cfg.charts[0].symbol),
+        fetchIntradayData(cfg.charts[1].symbol),
+      ]);
+      if (!cancelled.current) {
+        if (c1.status === "fulfilled") setChart1(c1.value);
+        if (c2.status === "fulfilled") setChart2(c2.value);
+        setChartsLoading(false);
+      }
+    } catch { if (!cancelled.current) setChartsLoading(false); }
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
+    const cancelled = { current: false };
 
-    const loadStrip = async () => {
-      try {
-        const data = await fetchTickerStrip();
-        if (!cancelled) { setStripData(data); setStripLoading(false); }
-      } catch { if (!cancelled) setStripLoading(false); }
-    };
-
-    const loadCharts = async () => {
-      try {
-        const [sp, nq] = await Promise.allSettled([
-          fetchIntradayData("^GSPC"),
-          fetchIntradayData("^IXIC"),
-        ]);
-        if (!cancelled) {
-          if (sp.status === "fulfilled") setSpIntraday(sp.value);
-          if (nq.status === "fulfilled") setNasdaqIntraday(nq.value);
-          setChartsLoading(false);
-        }
-      } catch { if (!cancelled) setChartsLoading(false); }
-    };
+    loadRegionData(region, cancelled);
 
     const loadMovers = async () => {
       try {
         const data = await fetchMarketMovers();
-        if (!cancelled) { setMovers(data); setMoversLoading(false); }
-      } catch { if (!cancelled) setMoversLoading(false); }
+        if (!cancelled.current) { setMovers(data); setMoversLoading(false); }
+      } catch { if (!cancelled.current) setMoversLoading(false); }
     };
 
     const loadNews = async () => {
       try {
         const data = await fetchRSSNews();
-        if (!cancelled) { setNews(data); setNewsLoading(false); }
-      } catch { if (!cancelled) { setNews(FALLBACK_NEWS); setNewsLoading(false); } }
+        if (!cancelled.current) { setNews(data); setNewsLoading(false); }
+      } catch { if (!cancelled.current) { setNews(FALLBACK_NEWS); setNewsLoading(false); } }
     };
 
     const loadTrending = async () => {
       try {
         const results = await Promise.allSettled(DEFAULT_TRENDING.map(s => fetchQuickQuote(s.ticker)));
-        if (!cancelled) {
+        if (!cancelled.current) {
           const stocks = DEFAULT_TRENDING.map((s, i) => {
             const r = results[i];
             if (r.status === "fulfilled") return { ...s, price: r.value.price, changePct: r.value.changePct, spark: r.value.spark, loaded: true };
@@ -1565,29 +1640,59 @@ function HomeTab({ onAnalyze }) {
           setTrending(stocks);
           setTrendingLoading(false);
         }
-      } catch { if (!cancelled) setTrendingLoading(false); }
+      } catch { if (!cancelled.current) setTrendingLoading(false); }
     };
 
-    loadStrip();
-    loadCharts();
     loadMovers();
     loadNews();
     loadTrending();
 
-    const stripInterval = setInterval(loadStrip, 60000);
+    const refreshInterval = setInterval(() => loadRegionData(region, cancelled), 60000);
 
-    return () => { cancelled = true; clearInterval(stripInterval); };
-  }, []);
+    return () => { cancelled.current = true; clearInterval(refreshInterval); };
+  }, [region, loadRegionData]);
+
+  // Live tickers polling
+  useEffect(() => {
+    if (!liveTickers) return;
+    const cancelled = { current: false };
+    const poll = () => loadRegionData(region, cancelled);
+    const id = setInterval(poll, 30000);
+    return () => { cancelled.current = true; clearInterval(id); };
+  }, [liveTickers, region, loadRegionData]);
+
+  const handleRegionChange = (rgn) => {
+    if (rgn === region) return;
+    setRegion(rgn);
+    setChart1(null);
+    setChart2(null);
+  };
+
+  const cfg = MARKET_REGIONS[region];
+  const regionTabStyle = (r) => ({
+    padding: "6px 16px", border: `1px solid ${C.rule}`, borderRadius: 20,
+    background: region === r ? C.ink : "transparent",
+    color: region === r ? C.cream : C.inkMuted,
+    fontSize: 11, fontFamily: "var(--body)", fontWeight: 600, cursor: "pointer",
+    letterSpacing: "0.06em", transition: "all 0.15s",
+  });
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
       {/* Ticker Strip */}
       <TickerStrip data={stripData} loading={stripLoading} />
 
+      {/* Region Selector */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        {Object.keys(MARKET_REGIONS).map((r) => (
+          <button key={r} onClick={() => handleRegionChange(r)} style={regionTabStyle(r)}>{r}</button>
+        ))}
+      </div>
+
       {/* Intraday Charts */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <MiniIntradayChart data={spIntraday} label="S&P 500" loading={chartsLoading && !spIntraday} />
-        <MiniIntradayChart data={nasdaqIntraday} label="Nasdaq" loading={chartsLoading && !nasdaqIntraday} />
+        <MiniIntradayChart data={chart1} label={cfg.charts[0].label} loading={chartsLoading && !chart1} />
+        <MiniIntradayChart data={chart2} label={cfg.charts[1].label} loading={chartsLoading && !chart2} />
       </div>
 
       {/* Market Movers — 3 columns */}
@@ -2551,6 +2656,64 @@ function LiteTools({ onAnalyze }) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// PERF MONITOR
+// ═══════════════════════════════════════════════════════════
+function PerfMonitor({ onClose }) {
+  const [metrics, setMetrics] = useState({});
+  const fpsRef = useRef({ frames: 0, last: performance.now(), fps: 0 });
+
+  useEffect(() => {
+    let running = true;
+    const updateFps = () => {
+      if (!running) return;
+      fpsRef.current.frames++;
+      const now = performance.now();
+      if (now - fpsRef.current.last >= 1000) {
+        fpsRef.current.fps = fpsRef.current.frames;
+        fpsRef.current.frames = 0;
+        fpsRef.current.last = now;
+      }
+      requestAnimationFrame(updateFps);
+    };
+    requestAnimationFrame(updateFps);
+
+    const id = setInterval(() => {
+      const nav = performance.getEntriesByType("navigation")[0];
+      const heap = performance.memory ? `${(performance.memory.usedJSHeapSize / 1048576).toFixed(1)} MB` : "N/A";
+      setMetrics({
+        pageLoad: nav ? `${Math.round(nav.loadEventEnd)}ms` : "N/A",
+        jsHeap: heap,
+        apiCalls: apiCallCount,
+        lastLatency: `${lastApiLatency}ms`,
+        domNodes: document.querySelectorAll("*").length,
+        fps: fpsRef.current.fps,
+      });
+    }, 1000);
+
+    return () => { running = false; clearInterval(id); };
+  }, []);
+
+  const row = { display: "flex", justifyContent: "space-between", padding: "3px 0" };
+  const label = { color: "rgba(255,255,255,0.5)", fontSize: 10 };
+  const val = { color: "#fff", fontSize: 10, fontWeight: 600 };
+
+  return (
+    <div style={{ position: "fixed", top: 12, right: 12, background: "rgba(26,22,18,0.92)", borderRadius: 8, padding: "12px 16px", fontFamily: "var(--mono)", zIndex: 9999, minWidth: 200, backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.1)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ fontSize: 10, color: "#4ADE80", fontWeight: 700, letterSpacing: "0.08em" }}>PERF MONITOR</span>
+        <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
+      </div>
+      <div style={row}><span style={label}>Page Load</span><span style={val}>{metrics.pageLoad}</span></div>
+      <div style={row}><span style={label}>JS Heap</span><span style={val}>{metrics.jsHeap}</span></div>
+      <div style={row}><span style={label}>API Calls</span><span style={val}>{metrics.apiCalls}</span></div>
+      <div style={row}><span style={label}>Last Latency</span><span style={val}>{metrics.lastLatency}</span></div>
+      <div style={row}><span style={label}>DOM Nodes</span><span style={val}>{metrics.domNodes}</span></div>
+      <div style={row}><span style={label}>FPS</span><span style={val}>{metrics.fps}</span></div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // MAIN APP
 // ═══════════════════════════════════════════════════════════
 function App() {
@@ -2564,6 +2727,8 @@ function App() {
   const [error, setError] = useState(null);
   const [livePrice, setLivePrice] = useState(null);
   const [latency, setLatency] = useState(null);
+  const [liveTickers, setLiveTickers] = useState(false);
+  const [showPerf, setShowPerf] = useState(false);
   const liveRef = useRef(null);
   const prevPriceRef = useRef(null);
 
@@ -2702,7 +2867,7 @@ function App() {
       <main style={{ flex: 1, padding: "24px 32px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1 }} key={tab + (result?.ticker || "")}>
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
-        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} />}
+        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} liveTickers={liveTickers} />}
         {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} latency={latency} isPro={isPro} />}
         {!loading && !error && tab === "charts" && <ChartsTab result={result} livePrice={livePrice} />}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab /> : (
@@ -2730,9 +2895,17 @@ function App() {
           <button onClick={() => setIsPro(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
             DEV: {isPro ? "DISABLE" : "ENABLE"} PRO
           </button>
+          <button onClick={() => setLiveTickers(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: liveTickers ? C.ink : "transparent", color: liveTickers ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
+            DEV: LIVE TICKERS {liveTickers ? "ON" : "OFF"}
+          </button>
+          <button onClick={() => setShowPerf(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: showPerf ? C.ink : "transparent", color: showPerf ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
+            DEV: PERF
+          </button>
           <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v1.0.0</span>
         </div>
       </footer>
+
+      {showPerf && <PerfMonitor onClose={() => setShowPerf(false)} />}
     </div>
   );
 }

@@ -54,11 +54,22 @@ select option { background: #FAF7F2; color: #1A1612; }
   50% { transform: translateY(-2px); }
 }
 
-/* Ticker strip scrollbar hiding */
+/* Ticker strip marquee */
+@keyframes tickerScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
 .ticker-strip-scroll {
   -ms-overflow-style: none;
   scrollbar-width: none;
+  overflow: hidden;
 }
 .ticker-strip-scroll::-webkit-scrollbar {
   display: none;
+}
+.ticker-strip-scroll:hover .ticker-strip-inner {
+  animation-play-state: paused;
+}
+.ticker-strip-inner {
+  animation: tickerScroll 30s linear infinite;
 }
