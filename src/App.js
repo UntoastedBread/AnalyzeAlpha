@@ -2587,7 +2587,7 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
     );
   }
 
-  const { ticker, recommendation: rec, techSignals, regime, statSignals, risk, target, stopLoss, data, valuation: marketValuation, fundamentals, valuationModels } = result;
+  const { ticker, recommendation: rec, techSignals, regime, statSignals, risk, target, stopLoss, valuation: marketValuation, fundamentals, valuationModels } = result;
   const strat = STRATEGIES[regime.overall] || STRATEGIES.TRANSITIONING;
   const stretchPos = Math.min(100, Math.max(0, marketValuation?.stretch || 0));
   const prevClose = chartBase.length > 1 ? chartBase[chartBase.length - 2].Close : price;
