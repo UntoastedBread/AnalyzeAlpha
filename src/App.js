@@ -1081,12 +1081,12 @@ function Row({ label, value, color, border = true }) {
   );
 }
 
-function Section({ title, children, style, actions, accentColor }) {
+function Section({ title, children, style, actions }) {
   const baseStyle = { minWidth: 0, ...style };
   return (
     <div style={baseStyle}>
       {title && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "var(--body)", paddingBottom: 8, borderBottom: `2px solid ${accentColor || C.ink}`, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "var(--body)", paddingBottom: 8, borderBottom: `2px solid ${C.ink}`, marginBottom: 10 }}>
           <span>{title}</span>
           {actions && <div style={{ display: "flex", alignItems: "center", gap: 6 }}>{actions}</div>}
         </div>
@@ -1510,7 +1510,7 @@ function SkeletonBlock({ width = "100%", height = 16, style }) {
   );
 }
 
-function TickerStrip({ data, loading, onAnalyze, brandColor }) {
+function TickerStrip({ data, loading, onAnalyze }) {
   const renderItem = (item, idx) => (
     <button
       key={item.symbol + "-" + idx}
@@ -1548,8 +1548,8 @@ function TickerStrip({ data, loading, onAnalyze, brandColor }) {
     <div style={{ display: "flex", alignItems: "center", background: C.ink, overflow: "hidden", minWidth: 0 }}>
       {/* LIVE badge — fixed, does not scroll */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRight: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}>
-        <span style={{ width: 7, height: 7, borderRadius: "50%", background: brandColor || "#4ADE80", display: "inline-block", animation: "livePulse 2s ease-in-out infinite", boxShadow: `0 0 6px ${brandColor || "rgba(74,222,128,0.4)"}` }} />
-        <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: brandColor || "#4ADE80", fontWeight: 700, letterSpacing: "0.08em" }}>LIVE</span>
+        <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "livePulse 2s ease-in-out infinite", boxShadow: "0 0 6px rgba(74,222,128,0.4)" }} />
+        <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: "#4ADE80", fontWeight: 700, letterSpacing: "0.08em" }}>LIVE</span>
       </div>
       {/* Scrolling content */}
       <div className="ticker-strip-scroll" style={{ flex: 1, overflow: "hidden" }}>
@@ -2177,7 +2177,7 @@ function AssetRow({ section, onAnalyze }) {
 // ═══════════════════════════════════════════════════════════
 // HOME TAB
 // ═══════════════════════════════════════════════════════════
-function HomeTab({ onAnalyze, brandColor }) {
+function HomeTab({ onAnalyze }) {
   const [region, setRegion] = useState("Global");
   const [indexPage, setIndexPage] = useState(0);
   const [stripData, setStripData] = useState([]);
@@ -2345,7 +2345,7 @@ function HomeTab({ onAnalyze, brandColor }) {
   return (
     <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
       {/* Ticker Strip */}
-      <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} brandColor={brandColor} />
+      <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} />
 
       {/* Region Selector + Updated timestamp */}
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
@@ -2402,7 +2402,7 @@ function HomeTab({ onAnalyze, brandColor }) {
       </div>
 
       {/* Market Brief */}
-      <Section title="Market Brief" accentColor={brandColor}>
+      <Section title="Market Brief">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
           <MarketCalendarCard items={MARKET_CALENDAR} />
           <SectorSnapshotCard items={SECTOR_SNAPSHOT} />
@@ -2442,6 +2442,34 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
       netMargin: (p.netMargin || 0) * 100,
     }));
   }, [result]);
+
+  const peerSeed = hashCode(result?.ticker || "PEERS");
+  const peerTickers = useMemo(() => {
+    const pool = ["LYFT", "DVLT", "GRAB", "PLTR", "SNOW", "NET", "UBER", "DDOG"];
+    const start = Math.abs(peerSeed) % 4;
+    return pool.slice(start, start + 4);
+  }, [peerSeed]);
+  const peerData = useMemo(() => (
+    peerTickers.map((t, i) => ({
+      name: t,
+      eps: seededRange(peerSeed, 40 + i, 4, 90),
+    }))
+  ), [peerTickers, peerSeed]);
+  const peerAvg = peerData.reduce((a, b) => a + b.eps, 0) / (peerData.length || 1);
+
+  const targetSeries = useMemo(() => {
+    const tail = (result?.data || []).slice(-12);
+    if (!tail.length) return [];
+    const last = tail[tail.length - 1].Close;
+    const target = last * seededRange(peerSeed, 88, 1.1, 1.35);
+    return tail.map((d, i) => ({
+      i,
+      date: d.date,
+      past: d.Close,
+      target: i === tail.length - 1 ? target : null,
+      targetLine: target,
+    }));
+  }, [result?.data, peerSeed]);
 
   useEffect(() => {
     if (!result) return;
@@ -2663,6 +2691,41 @@ function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onRe
                 </div>
               </Section>
             </div>
+            <Section title="Analyst Price Targets">
+              <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <ComposedChart data={targetSeries} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
+                    <XAxis dataKey="i" hide />
+                    <YAxis domain={["auto", "auto"]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={55} />
+                    <Line dataKey="past" stroke={C.ink} dot={false} strokeWidth={2} name="Past 12 months" />
+                    <Line dataKey="targetLine" stroke="#3B82F6" dot={false} strokeWidth={2} strokeDasharray="4 4" name="12-month target" />
+                    <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+                <div style={{ display: "flex", gap: 14, marginTop: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>
+                  <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.ink, marginRight: 6 }} />Past 12 months</span>
+                  <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#3B82F6", marginRight: 6 }} />12-month price target</span>
+                </div>
+              </div>
+            </Section>
+            <Section title="EPS Growth vs Peers">
+              <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={peerData} layout="vertical" margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+                    <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} horizontal={false} />
+                    <XAxis type="number" domain={[0, 100]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} />
+                    <YAxis dataKey="name" type="category" tick={{ fill: C.ink, fontSize: 12, fontFamily: "var(--mono)", fontWeight: 700 }} axisLine={false} tickLine={false} width={60} />
+                    <ReferenceLine x={peerAvg} stroke="#A855F7" strokeWidth={2} />
+                    <Bar dataKey="eps" fill="#4B5563" radius={[4, 4, 4, 4]} />
+                    <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} formatter={(v) => [`${fmt(v)}%`, "EPS Growth"]} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div style={{ marginTop: 6, fontSize: 11, fontFamily: "var(--mono)", color: "#A855F7", textAlign: "right" }}>
+                  Peer Avg {fmt(peerAvg)}%
+                </div>
+              </div>
+            </Section>
             <Section title="Statistical Signals">
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 {[
@@ -3808,15 +3871,6 @@ function App() {
     textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)",
     opacity: locked ? 0.7 : 1,
   });
-  const brandOptions = [
-    { label: "Emerald", value: "#1B6B3A" },
-    { label: "Cobalt", value: "#2458B3" },
-    { label: "Amber", value: "#B36B00" },
-    { label: "Crimson", value: "#B3262E" },
-    { label: "Slate", value: "#2F3B44" },
-  ];
-  const [brandColor, setBrandColor] = useState(brandOptions[0].value);
-
   return (
     <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", maxWidth: "70%", margin: "0 auto", width: "100%", boxShadow: "0 0 60px rgba(0,0,0,0.04)" }}>
       <header style={{ padding: "16px 24px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 1 }}>
@@ -3883,27 +3937,14 @@ function App() {
               );
             })}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Brand</span>
-              <select
-                value={brandColor}
-                onChange={e => setBrandColor(e.target.value)}
-                style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "5px 8px", fontSize: 10, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}
-              >
-                {brandOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-              <span style={{ width: 10, height: 10, borderRadius: 5, background: brandColor, display: "inline-block" }} />
-            </div>
-            <LiteTools onAnalyze={analyze} />
-          </div>
+          <LiteTools onAnalyze={analyze} />
         </nav>
       </header>
 
       <main style={{ flex: 1, padding: "20px 24px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1, minWidth: 0 }} key={tab + (result?.ticker || "")}>
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
-        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} brandColor={brandColor} />}
+        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} />}
         {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} latency={latency} isPro={isPro} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "charts" && <ChartsTab result={result} livePrice={livePrice} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab /> : (
