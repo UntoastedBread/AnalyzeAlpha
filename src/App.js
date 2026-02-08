@@ -778,7 +778,7 @@ const FALLBACK_NEWS = [
 
 const CHANGELOG = [
   {
-    version: "1.0.0",
+    version: "0.3.12",
     date: "Feb 8, 2026",
     items: [
       "GitHub Pages deployment support with gh-pages",
@@ -787,7 +787,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: "0.9.1",
+    version: "0.3.11",
     date: "Feb 7, 2026",
     items: [
       "Brand refresh: logo icon, refined typography, ambient glow",
@@ -796,7 +796,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: "0.9.0",
+    version: "0.3.10",
     date: "Feb 2026",
     items: [
       "Home dashboard with news, market snapshot, and popular tickers",
@@ -804,7 +804,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: "0.8.0",
+    version: "0.3.9",
     date: "Feb 2026",
     items: [
       "Stock vs Financials analysis split",
@@ -1667,7 +1667,7 @@ function TrendingWatchlist({ stocks, loading, onAnalyze }) {
 
 function ChangelogBanner() {
   const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem("changelog_dismissed_1.0.0") === "true"; } catch { return false; }
+    try { return localStorage.getItem("changelog_dismissed_0.3.12") === "true"; } catch { return false; }
   });
   const [expanded, setExpanded] = useState(false);
 
@@ -1678,10 +1678,10 @@ function ChangelogBanner() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
         <button onClick={() => setExpanded(!expanded)}
           style={{ display: "flex", alignItems: "center", gap: 8, background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-          <span style={{ fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>What's New v1.0.0</span>
+          <span style={{ fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>What's New v0.3.12</span>
           <span style={{ fontSize: 10, color: C.inkFaint, transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
         </button>
-        <button onClick={() => { setDismissed(true); try { localStorage.setItem("changelog_dismissed_1.0.0", "true"); } catch {} }}
+        <button onClick={() => { setDismissed(true); try { localStorage.setItem("changelog_dismissed_0.3.12", "true"); } catch {} }}
           style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 14, color: C.inkFaint, padding: "0 4px", lineHeight: 1 }}>×</button>
       </div>
       {expanded && (
@@ -3216,7 +3216,7 @@ function App() {
           <button onClick={() => setShowPerf(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: showPerf ? C.ink : "transparent", color: showPerf ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
             DEV: PERF
           </button>
-          <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v1.0.0</span>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v0.3.12</span>
         </div>
       </footer>
 

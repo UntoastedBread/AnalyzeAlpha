@@ -1,7 +1,7 @@
 {
   "homepage": ".",
   "name": "stock-analyzer-pro",
-  "version": "1.0.0",
+  "version": "0.3.12",
   "private": true,
   "dependencies": {
     "concurrently": "^8.2.2",
