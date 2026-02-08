@@ -907,33 +907,42 @@ const PORTFOLIO_TILE = {
 
 const CHANGELOG = [
   {
-    version: "1.0.0",
+    version: "0.3.12",
     date: "Feb 8, 2026",
     items: [
-      "GitHub Pages deployment support with gh-pages",
-      "Added deploy and predeploy scripts for one-command publishing",
-      "Configured homepage for GitHub Pages hosting",
+      "GitHub Pages deployment support with gh-pages and homepage config",
+      "Global markets grid with region movers and show-more popups",
+      "Search bar with Yahoo Finance autocomplete and /api/search support",
+      "Asset class sections (crypto, rates, commodities, FX) with live prices",
+      "News cards now include images and expanded to 20 items",
+      "Live ticker refresh runs immediately and avoids UI skeleton flashes",
     ],
   },
   {
-    version: "0.9.1",
-    date: "Feb 7, 2026",
+    version: "0.3.11",
+    date: "Feb 8, 2026",
     items: [
       "Brand refresh: logo icon, refined typography, ambient glow",
       "Home page hero section with live market status",
-      "Consistent branding across loading, error, and empty states",
+      "Auto-scrolling marquee ticker strip with LIVE pulse badge",
+      "Market region cycling with split red/green intraday charts",
+      "DEV toggles for live tickers and performance monitor",
+      "Longer sparklines and clearer mover/trending layouts",
     ],
   },
   {
-    version: "0.9.0",
-    date: "Feb 2026",
+    version: "0.3.10",
+    date: "Feb 8, 2026",
     items: [
       "Home dashboard with news, market snapshot, and popular tickers",
       "Financials visuals refresh with radar + cash/debt views",
+      "Homepage overhaul into a live market dashboard",
+      "Real-time ticker strip, intraday charts, movers, and trending sparklines",
+      "RSS news feed, skeleton loading states, and collapsible changelog banner",
     ],
   },
   {
-    version: "0.8.0",
+    version: "0.3.9",
     date: "Feb 2026",
     items: [
       "Stock vs Financials analysis split",
@@ -2068,7 +2077,7 @@ function PortfolioTileCard({ data }) {
 
 function ChangelogBanner() {
   const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem("changelog_dismissed_1.0.0") === "true"; } catch { return false; }
+    try { return localStorage.getItem("changelog_dismissed_0.3.12") === "true"; } catch { return false; }
   });
   const [expanded, setExpanded] = useState(false);
 
@@ -2079,10 +2088,10 @@ function ChangelogBanner() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
         <button onClick={() => setExpanded(!expanded)}
           style={{ display: "flex", alignItems: "center", gap: 8, background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-          <span style={{ fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>What's New v1.0.0</span>
+          <span style={{ fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>What's New v0.3.12</span>
           <span style={{ fontSize: 10, color: C.inkFaint, transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
         </button>
-        <button onClick={() => { setDismissed(true); try { localStorage.setItem("changelog_dismissed_1.0.0", "true"); } catch {} }}
+        <button onClick={() => { setDismissed(true); try { localStorage.setItem("changelog_dismissed_0.3.12", "true"); } catch {} }}
           style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 14, color: C.inkFaint, padding: "0 4px", lineHeight: 1 }}>×</button>
       </div>
       {expanded && (
@@ -2401,14 +2410,14 @@ function HomeTab({ onAnalyze, liveTickers }) {
       </div>
 
       {/* Headlines + Indexes */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 16, alignItems: "start" }}>
-        <div style={{ display: "grid", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 0.8fr)", gap: 16, alignItems: "start" }}>
+        <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
           <Section title="Market News">
             <NewsSection news={news} loading={newsLoading} />
           </Section>
           <PortfolioTileCard data={PORTFOLIO_TILE} />
         </div>
-        <Section title="Indexes" actions={indexActions}>
+        <Section title="Indexes" actions={indexActions} style={{ minWidth: 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
             {pageCharts.map((c) => {
               const idx = cfg.charts.findIndex(x => x.symbol === c.symbol);
@@ -2428,15 +2437,15 @@ function HomeTab({ onAnalyze, liveTickers }) {
       </div>
 
       {/* Market Movers — 3 columns */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
         <MoverColumn title="Top Gainers" stocks={movers?.gainers} allStocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
         <MoverColumn title="Top Losers" stocks={movers?.losers} allStocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
         <MoverColumn title="Trending Stocks" stocks={trending} allStocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
       </div>
 
       {/* Asset Class Sections + Watchlist */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-        <div style={{ display: "grid", gap: 4 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, alignItems: "start" }}>
+        <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
           {ASSET_SECTIONS.map(section => (
             <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
           ))}
@@ -2446,7 +2455,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
 
       {/* Market Brief */}
       <Section title="Market Brief">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
           <MarketCalendarCard items={MARKET_CALENDAR} />
           <SectorSnapshotCard items={SECTOR_SNAPSHOT} />
           <AnalystFeedCard items={ANALYST_FEED} />
@@ -3854,7 +3863,7 @@ function App() {
   });
 
   return (
-    <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", maxWidth: "70%", margin: "0 auto", width: "100%", boxShadow: "0 0 60px rgba(0,0,0,0.04)" }}>
+    <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", maxWidth: "70%", margin: "0 auto", width: "100%", boxShadow: "0 0 60px rgba(0,0,0,0.04)" }}>
       <header style={{ padding: "16px 24px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
@@ -3960,7 +3969,7 @@ function App() {
           <button onClick={() => setShowPerf(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: showPerf ? C.ink : "transparent", color: showPerf ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
             DEV: PERF
           </button>
-          <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v1.0.0</span>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v0.3.12</span>
         </div>
       </footer>
 
