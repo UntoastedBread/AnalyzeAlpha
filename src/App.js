@@ -2773,7 +2773,6 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                 })}
               </div>
             </Section>
-          </LazySection>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <Section title="Price — Last 60 Sessions" actions={
