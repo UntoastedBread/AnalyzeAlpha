@@ -107,7 +107,7 @@ async function fetchQuickQuote(ticker) {
   const change = price - prevClose;
   const changePct = prevClose ? (change / prevClose) * 100 : 0;
   const volume = volumes[volumes.length - 1] || 0;
-  return { ticker, price, change, changePct, volume, name: meta.shortName || meta.symbol || ticker, spark: closes.slice(-30) };
+  return { ticker, price, change, changePct, volume, name: meta.shortName || meta.symbol || ticker, spark: closes.slice(-30), prevClose };
 }
 
 async function fetchIntradayData(ticker) {
@@ -133,15 +133,16 @@ async function fetchIntradayData(ticker) {
   return { points, prevClose, lastPrice, isUp: lastPrice >= prevClose };
 }
 
-async function fetchMarketMovers() {
-  const results = await Promise.allSettled(HEATMAP_UNIVERSE.map(s => fetchQuickQuote(s.ticker)));
+async function fetchMarketMovers(universe) {
+  const uni = universe || HEATMAP_UNIVERSE;
+  const results = await Promise.allSettled(uni.map(s => fetchQuickQuote(s.ticker)));
   const quotes = results
     .filter(r => r.status === "fulfilled")
     .map(r => r.value);
   const sorted = [...quotes].sort((a, b) => b.changePct - a.changePct);
-  const gainers = sorted.filter(s => s.changePct > 0).slice(0, 5);
-  const losers = [...quotes].sort((a, b) => a.changePct - b.changePct).filter(s => s.changePct < 0).slice(0, 5);
-  const mostActive = [...quotes].sort((a, b) => b.volume - a.volume).slice(0, 5);
+  const gainers = sorted.filter(s => s.changePct > 0);
+  const losers = [...quotes].sort((a, b) => a.changePct - b.changePct).filter(s => s.changePct < 0);
+  const mostActive = [...quotes].sort((a, b) => b.volume - a.volume);
   return { gainers, losers, mostActive };
 }
 
@@ -150,7 +151,7 @@ async function fetchRSSNews() {
     const resp = await fetch("/api/rss");
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const json = await resp.json();
-    if (json.items && json.items.length > 0) return json.items.slice(0, 8);
+    if (json.items && json.items.length > 0) return json.items.slice(0, 20);
     return FALLBACK_NEWS;
   } catch {
     return FALLBACK_NEWS;
@@ -169,6 +170,14 @@ async function fetchTickerStrip(symbols) {
     }
     return { ...s, price: 0, change: 0, changePct: 0, loaded: false };
   });
+}
+
+async function fetchSearch(query) {
+  if (!query || query.length < 1) return [];
+  const resp = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+  if (!resp.ok) return [];
+  const json = await resp.json();
+  return json.quotes || [];
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -660,6 +669,20 @@ const TICKER_STRIP_SYMBOLS = [
 ];
 
 const MARKET_REGIONS = {
+  Global: {
+    strip: [
+      { symbol: "^GSPC", label: "S&P 500" }, { symbol: "^IXIC", label: "Nasdaq" },
+      { symbol: "^DJI", label: "Dow Jones" }, { symbol: "^RUT", label: "Russell 2K" },
+      { symbol: "^VIX", label: "VIX" }, { symbol: "^TNX", label: "10Y Yield" },
+      { symbol: "BTC-USD", label: "Bitcoin" }, { symbol: "GC=F", label: "Gold" },
+      { symbol: "CL=F", label: "Crude Oil" },
+    ],
+    charts: [
+      { symbol: "^GSPC", label: "S&P 500" }, { symbol: "^IXIC", label: "Nasdaq" },
+      { symbol: "^FTSE", label: "FTSE 100" }, { symbol: "^GDAXI", label: "DAX" },
+      { symbol: "^N225", label: "Nikkei 225" }, { symbol: "^HSI", label: "Hang Seng" },
+    ],
+  },
   US: {
     strip: [
       { symbol: "^GSPC", label: "S&P 500" }, { symbol: "^IXIC", label: "Nasdaq" },
@@ -691,6 +714,49 @@ const MARKET_REGIONS = {
     charts: [{ symbol: "^N225", label: "Nikkei 225" }, { symbol: "^HSI", label: "Hang Seng" }],
   },
 };
+
+const REGION_MOVERS = {
+  Global: HEATMAP_UNIVERSE,
+  US: HEATMAP_UNIVERSE,
+  Europe: [
+    { ticker: "SHEL", name: "Shell", cap: 200 }, { ticker: "ASML", name: "ASML", cap: 300 },
+    { ticker: "SAP", name: "SAP", cap: 250 }, { ticker: "AZN", name: "AstraZeneca", cap: 220 },
+    { ticker: "NVS", name: "Novartis", cap: 210 }, { ticker: "TTE", name: "TotalEnergies", cap: 140 },
+    { ticker: "SAN", name: "Sanofi", cap: 130 }, { ticker: "DEO", name: "Diageo", cap: 80 },
+    { ticker: "UL", name: "Unilever", cap: 120 }, { ticker: "GSK", name: "GSK", cap: 90 },
+    { ticker: "RIO", name: "Rio Tinto", cap: 100 }, { ticker: "BTI", name: "BAT", cap: 75 },
+  ],
+  Asia: [
+    { ticker: "TSM", name: "TSMC", cap: 700 }, { ticker: "BABA", name: "Alibaba", cap: 200 },
+    { ticker: "TM", name: "Toyota", cap: 250 }, { ticker: "SONY", name: "Sony", cap: 120 },
+    { ticker: "HDB", name: "HDFC Bank", cap: 100 }, { ticker: "MUFG", name: "MUFG", cap: 90 },
+    { ticker: "PDD", name: "PDD Holdings", cap: 130 }, { ticker: "JD", name: "JD.com", cap: 50 },
+    { ticker: "NIO", name: "NIO", cap: 15 }, { ticker: "INFY", name: "Infosys", cap: 70 },
+    { ticker: "KB", name: "KB Financial", cap: 25 }, { ticker: "LI", name: "Li Auto", cap: 20 },
+  ],
+};
+
+const ASSET_SECTIONS = [
+  { title: "Cryptocurrencies", symbols: [
+    { symbol: "BTC-USD", label: "Bitcoin" }, { symbol: "ETH-USD", label: "Ethereum" },
+    { symbol: "SOL-USD", label: "Solana" }, { symbol: "XRP-USD", label: "XRP" },
+    { symbol: "ADA-USD", label: "Cardano" }, { symbol: "DOGE-USD", label: "Dogecoin" },
+  ]},
+  { title: "Rates", symbols: [
+    { symbol: "^TNX", label: "US 10Y" }, { symbol: "^TYX", label: "US 30Y" },
+    { symbol: "^FVX", label: "US 5Y" }, { symbol: "^IRX", label: "US 3M" },
+  ]},
+  { title: "Commodities", symbols: [
+    { symbol: "GC=F", label: "Gold" }, { symbol: "SI=F", label: "Silver" },
+    { symbol: "CL=F", label: "Crude Oil" }, { symbol: "NG=F", label: "Nat Gas" },
+    { symbol: "HG=F", label: "Copper" }, { symbol: "ZC=F", label: "Corn" },
+  ]},
+  { title: "Currencies", symbols: [
+    { symbol: "EURUSD=X", label: "EUR/USD" }, { symbol: "GBPUSD=X", label: "GBP/USD" },
+    { symbol: "USDJPY=X", label: "USD/JPY" }, { symbol: "USDCNY=X", label: "USD/CNY" },
+    { symbol: "DX-Y.NYB", label: "DXY" }, { symbol: "AUDUSD=X", label: "AUD/USD" },
+  ]},
+];
 
 const DEFAULT_TRENDING = [
   { ticker: "AAPL", name: "Apple" },
@@ -898,7 +964,7 @@ function Section({ title, children, style, actions }) {
   );
 }
 
-function Sparkline({ data, color = C.ink }) {
+function Sparkline({ data, color = C.ink, prevClose }) {
   if (!data || data.length < 2) return null;
   const width = 120;
   const height = 36;
@@ -911,8 +977,15 @@ function Sparkline({ data, color = C.ink }) {
     const y = height - pad - ((v - min) / span) * (height - pad * 2);
     return `${x},${y}`;
   }).join(" ");
+  let refY = null;
+  if (prevClose != null && prevClose >= min && prevClose <= max) {
+    refY = height - pad - ((prevClose - min) / span) * (height - pad * 2);
+  }
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      {refY != null && (
+        <line x1={pad} y1={refY} x2={width - pad} y2={refY} stroke={C.inkFaint} strokeWidth="1" strokeDasharray="3 2" opacity="0.6" />
+      )}
       <polyline fill="none" stroke={color} strokeWidth="2" points={points} strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
@@ -1009,7 +1082,7 @@ function CandlestickSeries({ data, xAxisMap, yAxisMap }) {
   );
 }
 
-function ExpandedChartModal({ title, mode, data, onClose, dataKey }) {
+function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, interval, onReanalyze, ticker }) {
   const [window, setWindow] = useState({ start: 0, end: Math.max(0, (data?.length || 1) - 1) });
   const [chartType, setChartType] = useState(mode === "price" ? "candles" : "line");
   const containerRef = useRef(null);
@@ -1143,6 +1216,18 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey }) {
               <>
                 <button onClick={() => setChartType("line")} style={controlBtn(chartType === "line")}>Line</button>
                 <button onClick={() => setChartType("candles")} style={controlBtn(chartType === "candles")}>Candles</button>
+              </>
+            )}
+            {onReanalyze && ticker && (
+              <>
+                <select value={period || "1y"} onChange={e => onReanalyze(ticker, e.target.value, interval)}
+                  style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "5px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
+                  {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"],["2y","2Y"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                </select>
+                <select value={interval || "1d"} onChange={e => onReanalyze(ticker, period, e.target.value)}
+                  style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "5px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
+                  {(["1d","5d"].includes(period) ? [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["60m","1h"]] : period === "1mo" ? [["15m","15m"],["30m","30m"],["60m","1h"],["1d","1d"]] : [["1d","1d"]]).map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                </select>
               </>
             )}
             <button onClick={() => zoomWindow(0.85)} style={controlBtn(false)}>Zoom In</button>
@@ -1397,7 +1482,43 @@ function MiniIntradayChart({ data, label, loading }) {
   );
 }
 
-function MoverColumn({ title, stocks, loading, onAnalyze }) {
+function MoverPopup({ title, stocks, onAnalyze, onClose }) {
+  return (
+    <div className="popup-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(26,22,18,0.35)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div className="popup-card" onClick={e => e.stopPropagation()} style={{ background: C.cream, border: `1px solid ${C.rule}`, width: 480, maxHeight: "80vh", boxShadow: "8px 16px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: `1px solid ${C.rule}` }}>
+          <span style={{ fontFamily: "var(--display)", fontSize: 18, color: C.ink }}>{title}</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: C.inkMuted, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ overflowY: "auto", padding: "8px 20px 20px" }}>
+          {stocks.map((s) => (
+            <button key={s.ticker} onClick={() => { onAnalyze?.(s.ticker); onClose(); }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 4px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
+              onMouseEnter={e => e.currentTarget.style.background = C.paper}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <div style={{ display: "grid", gap: 2, minWidth: 80 }}>
+                <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
+                <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
+              </div>
+              {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
+              <div style={{ textAlign: "right", minWidth: 80 }}>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: s.changePct >= 0 ? C.up : C.down, marginLeft: 8 }}>
+                  {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
+  const [showPopup, setShowPopup] = useState(false);
+  const display = stocks ? stocks.slice(0, 5) : [];
+
   if (loading) {
     return (
       <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
@@ -1414,27 +1535,40 @@ function MoverColumn({ title, stocks, loading, onAnalyze }) {
   return (
     <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
       <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600, marginBottom: 12 }}>{title}</div>
-      {(!stocks || stocks.length === 0) ? (
+      {(!display || display.length === 0) ? (
         <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)", padding: "12px 0" }}>No data available</div>
       ) : (
-        stocks.map((s) => (
-          <button key={s.ticker} onClick={() => onAnalyze?.(s.ticker)}
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 4px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
-            onMouseEnter={e => e.currentTarget.style.background = C.paper}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-            <div style={{ display: "grid", gap: 2, minWidth: 80 }}>
-              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
-              <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
-            </div>
-            {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} />}
-            <div style={{ textAlign: "right", minWidth: 80 }}>
-              <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
-              <span style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: s.changePct >= 0 ? C.up : C.down, marginLeft: 8 }}>
-                {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
-              </span>
-            </div>
-          </button>
-        ))
+        <>
+          {display.map((s) => (
+            <button key={s.ticker} onClick={() => onAnalyze?.(s.ticker)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 4px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
+              onMouseEnter={e => e.currentTarget.style.background = C.paper}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <div style={{ display: "grid", gap: 2, minWidth: 80 }}>
+                <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
+                <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
+              </div>
+              {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
+              <div style={{ textAlign: "right", minWidth: 80 }}>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: s.changePct >= 0 ? C.up : C.down, marginLeft: 8 }}>
+                  {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
+                </span>
+              </div>
+            </button>
+          ))}
+          {allStocks && allStocks.length > 5 && (
+            <button onClick={() => setShowPopup(true)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: "8px 4px", background: "transparent", border: "none", cursor: "pointer", color: C.inkMuted, fontSize: 11, fontFamily: "var(--body)", fontWeight: 600, gap: 4, marginTop: 4, transition: "color 0.15s" }}
+              onMouseEnter={e => e.currentTarget.style.color = C.ink}
+              onMouseLeave={e => e.currentTarget.style.color = C.inkMuted}>
+              Show all {allStocks.length} →
+            </button>
+          )}
+        </>
+      )}
+      {showPopup && allStocks && (
+        <MoverPopup title={title} stocks={allStocks} onAnalyze={onAnalyze} onClose={() => setShowPopup(false)} />
       )}
     </div>
   );
@@ -1469,19 +1603,24 @@ function NewsSection({ news, loading }) {
     <div style={{ display: "grid", gap: 1 }}>
       {news.map((n, i) => (
         <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
-          style={{ display: "block", padding: "14px 16px", background: C.warmWhite, borderLeft: `2px solid ${i === 0 ? C.ink : "transparent"}`, borderRight: `1px solid ${C.rule}`, borderTop: `1px solid ${C.rule}`, borderBottom: `1px solid ${C.rule}`, textDecoration: "none", transition: "background 0.15s" }}
+          style={{ display: "flex", gap: 12, padding: "14px 16px", background: C.warmWhite, borderLeft: `2px solid ${i === 0 ? C.ink : "transparent"}`, borderRight: `1px solid ${C.rule}`, borderTop: `1px solid ${C.rule}`, borderBottom: `1px solid ${C.rule}`, textDecoration: "none", transition: "background 0.15s" }}
           onMouseEnter={e => e.currentTarget.style.background = C.paper}
           onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}>
-          <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{n.title}</div>
-          {n.description && (
-            <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.4, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.description}</div>
+          {n.image && (
+            <img src={n.image} alt="" style={{ width: 80, height: 60, objectFit: "cover", flexShrink: 0, background: C.paper }} onError={e => e.currentTarget.style.display = "none"} />
           )}
-          <div style={{ marginTop: 6, display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
-            <span style={{ fontWeight: 600 }}>{n.source || "Yahoo Finance"}</span>
-            {n.pubDate && <>
-              <span style={{ color: C.ruleFaint }}>|</span>
-              <span>{timeAgo(n.pubDate)}</span>
-            </>}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{n.title}</div>
+            {n.description && (
+              <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.4, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.description}</div>
+            )}
+            <div style={{ marginTop: 6, display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
+              <span style={{ fontWeight: 600 }}>{n.source || "Yahoo Finance"}</span>
+              {n.pubDate && <>
+                <span style={{ color: C.ruleFaint }}>|</span>
+                <span>{timeAgo(n.pubDate)}</span>
+              </>}
+            </div>
           </div>
         </a>
       ))}
@@ -1513,7 +1652,7 @@ function TrendingWatchlist({ stocks, loading, onAnalyze }) {
             <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
             <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
           </div>
-          {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} />}
+          {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
           <div style={{ textAlign: "right", minWidth: 56 }}>
             <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</div>
             <div style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 600, color: s.changePct >= 0 ? C.up : C.down }}>
@@ -1569,15 +1708,65 @@ function ChangelogBanner() {
   );
 }
 
+function AssetRow({ section }) {
+  const [data, setData] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.allSettled(section.symbols.map(s => fetchQuickQuote(s.symbol))).then(results => {
+      if (cancelled) return;
+      const items = section.symbols.map((s, i) => {
+        const r = results[i];
+        if (r.status === "fulfilled") return { ...s, price: r.value.price, changePct: r.value.changePct, spark: r.value.spark, ok: true };
+        return { ...s, price: 0, changePct: 0, spark: [], ok: false };
+      });
+      setData(items);
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [section]);
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0" }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)", minWidth: 100, flexShrink: 0 }}>
+        {section.title}
+      </div>
+      <div style={{ display: "flex", gap: 8, flex: 1, overflowX: "auto" }}>
+        {!loaded ? (
+          Array.from({ length: section.symbols.length }).map((_, i) => (
+            <div key={i} style={{ padding: "8px 12px", background: C.warmWhite, border: `1px solid ${C.rule}`, minWidth: 130 }}>
+              <SkeletonBlock width={60} height={10} style={{ marginBottom: 4 }} />
+              <SkeletonBlock width={80} height={14} />
+            </div>
+          ))
+        ) : (
+          data.filter(d => d.ok).map(d => (
+            <div key={d.symbol} style={{ padding: "8px 12px", background: C.warmWhite, border: `1px solid ${C.rule}`, minWidth: 130, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <div>
+                <div style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>{d.label}</div>
+                <div style={{ fontSize: 13, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>{d.price >= 100 ? d.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : d.price.toFixed(2)}</div>
+                <div style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: d.changePct >= 0 ? C.up : C.down }}>
+                  {d.changePct >= 0 ? "+" : ""}{d.changePct.toFixed(2)}%
+                </div>
+              </div>
+              {d.spark && d.spark.length > 1 && <Sparkline data={d.spark} color={d.changePct >= 0 ? C.up : C.down} />}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════
 // HOME TAB
 // ═══════════════════════════════════════════════════════════
 function HomeTab({ onAnalyze, liveTickers }) {
-  const [region, setRegion] = useState("US");
+  const [region, setRegion] = useState("Global");
   const [stripData, setStripData] = useState([]);
   const [stripLoading, setStripLoading] = useState(true);
-  const [chart1, setChart1] = useState(null);
-  const [chart2, setChart2] = useState(null);
+  const [charts, setCharts] = useState([]);
   const [chartsLoading, setChartsLoading] = useState(true);
   const [movers, setMovers] = useState(null);
   const [moversLoading, setMoversLoading] = useState(true);
@@ -1585,6 +1774,20 @@ function HomeTab({ onAnalyze, liveTickers }) {
   const [newsLoading, setNewsLoading] = useState(true);
   const [trending, setTrending] = useState([]);
   const [trendingLoading, setTrendingLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [agoText, setAgoText] = useState("");
+
+  // "Updated Xs ago" counter
+  useEffect(() => {
+    if (!lastRefresh) return;
+    const tick = () => {
+      const sec = Math.round((Date.now() - lastRefresh) / 1000);
+      setAgoText(sec < 60 ? `${sec}s ago` : `${Math.floor(sec / 60)}m ago`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [lastRefresh]);
 
   const loadRegionData = useCallback(async (rgn, cancelled, skeleton) => {
     const cfg = MARKET_REGIONS[rgn];
@@ -1594,21 +1797,22 @@ function HomeTab({ onAnalyze, liveTickers }) {
       if (!cancelled.current) { setStripData(data); setStripLoading(false); }
     } catch { if (!cancelled.current) setStripLoading(false); }
     try {
-      const [c1, c2] = await Promise.allSettled([
-        fetchIntradayData(cfg.charts[0].symbol),
-        fetchIntradayData(cfg.charts[1].symbol),
-      ]);
+      const chartResults = await Promise.allSettled(cfg.charts.map(c => fetchIntradayData(c.symbol)));
       if (!cancelled.current) {
-        if (c1.status === "fulfilled") setChart1(c1.value);
-        if (c2.status === "fulfilled") setChart2(c2.value);
+        setCharts(chartResults.map((r, i) => ({
+          data: r.status === "fulfilled" ? r.value : null,
+          label: cfg.charts[i].label,
+        })));
         setChartsLoading(false);
+        setLastRefresh(Date.now());
       }
     } catch { if (!cancelled.current) setChartsLoading(false); }
   }, []);
 
-  const loadMovers = useCallback(async (cancelled) => {
+  const loadMovers = useCallback(async (rgn, cancelled) => {
     try {
-      const data = await fetchMarketMovers();
+      const universe = REGION_MOVERS[rgn] || HEATMAP_UNIVERSE;
+      const data = await fetchMarketMovers(universe);
       if (!cancelled.current) { setMovers(data); setMoversLoading(false); }
     } catch { if (!cancelled.current) setMoversLoading(false); }
   }, []);
@@ -1619,7 +1823,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
       if (!cancelled.current) {
         const stocks = DEFAULT_TRENDING.map((s, i) => {
           const r = results[i];
-          if (r.status === "fulfilled") return { ...s, price: r.value.price, changePct: r.value.changePct, spark: r.value.spark, loaded: true };
+          if (r.status === "fulfilled") return { ...s, price: r.value.price, changePct: r.value.changePct, spark: r.value.spark, prevClose: r.value.prevClose, loaded: true };
           return { ...s, price: 0, changePct: 0, spark: [], loaded: false };
         }).filter(s => s.loaded);
         setTrending(stocks);
@@ -1632,7 +1836,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
     const cancelled = { current: false };
 
     loadRegionData(region, cancelled, true);
-    loadMovers(cancelled);
+    loadMovers(region, cancelled);
     loadTrending(cancelled);
 
     const loadNews = async () => {
@@ -1654,7 +1858,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
     const cancelled = { current: false };
     const poll = () => {
       loadRegionData(region, cancelled, false);
-      loadMovers(cancelled);
+      loadMovers(region, cancelled);
       loadTrending(cancelled);
     };
     poll();
@@ -1665,11 +1869,13 @@ function HomeTab({ onAnalyze, liveTickers }) {
   const handleRegionChange = (rgn) => {
     if (rgn === region) return;
     setRegion(rgn);
-    setChart1(null);
-    setChart2(null);
+    setCharts([]);
+    setMovers(null);
+    setMoversLoading(true);
   };
 
   const cfg = MARKET_REGIONS[region];
+  const isGlobal = region === "Global";
   const regionTabStyle = (r) => ({
     padding: "6px 16px", border: `1px solid ${C.rule}`, borderRadius: 20,
     background: region === r ? C.ink : "transparent",
@@ -1683,24 +1889,37 @@ function HomeTab({ onAnalyze, liveTickers }) {
       {/* Ticker Strip */}
       <TickerStrip data={stripData} loading={stripLoading} />
 
-      {/* Region Selector */}
+      {/* Region Selector + Updated timestamp */}
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         {Object.keys(MARKET_REGIONS).map((r) => (
           <button key={r} onClick={() => handleRegionChange(r)} style={regionTabStyle(r)}>{r}</button>
         ))}
+        {lastRefresh && (
+          <span style={{ marginLeft: "auto", fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.04em" }}>
+            Updated {agoText}
+          </span>
+        )}
       </div>
 
-      {/* Intraday Charts */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <MiniIntradayChart data={chart1} label={cfg.charts[0].label} loading={chartsLoading && !chart1} />
-        <MiniIntradayChart data={chart2} label={cfg.charts[1].label} loading={chartsLoading && !chart2} />
+      {/* Intraday Charts — 3×2 for Global, 1×2 for regions */}
+      <div style={{ display: "grid", gridTemplateColumns: isGlobal ? "1fr 1fr 1fr" : "1fr 1fr", gap: 16 }}>
+        {cfg.charts.map((c, i) => (
+          <MiniIntradayChart key={c.symbol} data={charts[i]?.data} label={c.label} loading={chartsLoading && !charts[i]?.data} />
+        ))}
       </div>
 
-      {/* Market Movers — 3 columns */}
+      {/* Market Movers — 3 columns with show-more */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-        <MoverColumn title="Top Gainers" stocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
-        <MoverColumn title="Top Losers" stocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
-        <MoverColumn title="Most Active" stocks={movers?.mostActive} loading={moversLoading} onAnalyze={onAnalyze} />
+        <MoverColumn title="Top Gainers" stocks={movers?.gainers} allStocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
+        <MoverColumn title="Top Losers" stocks={movers?.losers} allStocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
+        <MoverColumn title="Most Active" stocks={movers?.mostActive} allStocks={movers?.mostActive} loading={moversLoading} onAnalyze={onAnalyze} />
+      </div>
+
+      {/* Asset Class Sections */}
+      <div style={{ display: "grid", gap: 4 }}>
+        {ASSET_SECTIONS.map(section => (
+          <AssetRow key={section.title} section={section} />
+        ))}
       </div>
 
       {/* News + Trending */}
@@ -1722,7 +1941,7 @@ function HomeTab({ onAnalyze, liveTickers }) {
 // ═══════════════════════════════════════════════════════════
 // ANALYSIS TAB
 // ═══════════════════════════════════════════════════════════
-function AnalysisTab({ result, livePrice, latency, isPro }) {
+function AnalysisTab({ result, livePrice, latency, isPro, period, interval, onReanalyze }) {
   const [subTab, setSubTab] = useState("stock");
   const [finPeriod, setFinPeriod] = useState("LTM");
   const [assumptions, setAssumptions] = useState(null);
@@ -1888,7 +2107,20 @@ function AnalysisTab({ result, livePrice, latency, isPro }) {
             </Section>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <Section title="Price — Last 60 Sessions">
+        <Section title="Price — Last 60 Sessions" actions={
+          onReanalyze && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <select value={period || "1y"} onChange={e => onReanalyze(ticker, e.target.value, interval)}
+                style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
+                {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"],["2y","2Y"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+              </select>
+              <select value={interval || "1d"} onChange={e => onReanalyze(ticker, period, e.target.value)}
+                style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
+                {(["1d","5d"].includes(period) ? [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["60m","1h"]] : period === "1mo" ? [["15m","15m"],["30m","30m"],["60m","1h"],["1d","1d"]] : [["1d","1d"]]).map(([v,l])=><option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+          )
+        }>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginBottom: 8 }}>
             <button onClick={() => setChartType("line")} style={chartToggle(chartType === "line")}>Line</button>
             <button onClick={() => setChartType("candles")} style={chartToggle(chartType === "candles")}>Candles</button>
@@ -2166,7 +2398,7 @@ function AnalysisTab({ result, livePrice, latency, isPro }) {
 // ═══════════════════════════════════════════════════════════
 // CHARTS TAB
 // ═══════════════════════════════════════════════════════════
-function ChartsTab({ result, livePrice }) {
+function ChartsTab({ result, livePrice, period, interval, onReanalyze }) {
   const [show, setShow] = useState({ sma: true, bb: true, vol: true, rsi: true, macd: false, stoch: false });
   const [chartType, setChartType] = useState("line");
   const [expanded, setExpanded] = useState(null);
@@ -2209,6 +2441,19 @@ function ChartsTab({ result, livePrice }) {
         <span style={{ marginLeft: 8, fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.1em" }}>Chart</span>
         <button onClick={() => setChartType("line")} style={btn(chartType === "line")}>Line</button>
         <button onClick={() => setChartType("candles")} style={btn(chartType === "candles")}>Candles</button>
+        {onReanalyze && (
+          <>
+            <span style={{ marginLeft: 8, fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.1em" }}>Period</span>
+            <select value={period || "1y"} onChange={e => onReanalyze(ticker, e.target.value, interval)}
+              style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
+              {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"],["2y","2Y"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+            </select>
+            <select value={interval || "1d"} onChange={e => onReanalyze(ticker, period, e.target.value)}
+              style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
+              {(["1d","5d"].includes(period) ? [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["60m","1h"]] : period === "1mo" ? [["15m","15m"],["30m","30m"],["60m","1h"],["1d","1d"]] : [["1d","1d"]]).map(([v,l])=><option key={v} value={v}>{l}</option>)}
+            </select>
+          </>
+        )}
       </div>
       <Section title={`${ticker} — Full Period`} actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "price", title: `${ticker} — Full Period` })}>Expand</button>}>
         <ResponsiveContainer width="100%" height={h}>
@@ -2284,6 +2529,10 @@ function ChartsTab({ result, livePrice }) {
           data={cd}
           dataKey={ticker}
           onClose={() => setExpanded(null)}
+          period={period}
+          interval={interval}
+          onReanalyze={onReanalyze}
+          ticker={ticker}
         />
       )}
     </div>
@@ -2730,8 +2979,32 @@ function App() {
   const [latency, setLatency] = useState(null);
   const [liveTickers, setLiveTickers] = useState(false);
   const [showPerf, setShowPerf] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const searchTimerRef = useRef(null);
+  const searchRef = useRef(null);
   const liveRef = useRef(null);
   const prevPriceRef = useRef(null);
+
+  // Close search dropdown on outside click
+  useEffect(() => {
+    const h = e => { if (searchRef.current && !searchRef.current.contains(e.target)) setShowSearchDropdown(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    if (!searchQuery || searchQuery.length < 1) { setSearchResults([]); return; }
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(async () => {
+      const results = await fetchSearch(searchQuery);
+      setSearchResults(results);
+      setShowSearchDropdown(true);
+    }, 300);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [searchQuery]);
 
   const intervalOptions = useMemo(() => {
     if (["1d", "5d"].includes(period)) {
@@ -2805,6 +3078,28 @@ function App() {
     setLoading(false);
   }, [ticker, period, interval]);
 
+  const reanalyze = useCallback(async (t, p, i) => {
+    setPeriod(p);
+    setIntervalValue(i);
+    const sym = t.trim().toUpperCase();
+    if (!sym) return;
+    setTicker(sym); setLoading(true); setError(null); setLivePrice(null); setLatency(null);
+    try {
+      const fd = await fetchStockData(sym, p, i);
+      const analysis = runAnalysis(sym, fd.data);
+      analysis.period = p;
+      analysis.interval = i;
+      analysis.source = fd.source;
+      analysis.latency = fd.latency;
+      analysis.debug = fd.debug;
+      setResult(analysis);
+      setLatency(fd.latency);
+    } catch (e) {
+      setError({ message: e.message || "All data sources failed", debug: e.debug || { error: String(e) } });
+    }
+    setLoading(false);
+  }, []);
+
   const tabStyle = (t, locked = false) => ({
     padding: "0 0 10px 0", marginRight: 24, background: "none", border: "none",
     borderBottom: tab === t ? `2px solid ${C.ink}` : "2px solid transparent",
@@ -2823,19 +3118,38 @@ function App() {
             <span style={{ width: 1, height: 16, background: C.rule, display: "inline-block", margin: "0 2px" }} />
             <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>Quantitative Analysis</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} placeholder="Ticker"
-              style={{ width: 110, background: "transparent", border: `1px solid ${C.rule}`, padding: "7px 10px", color: C.ink, fontSize: 14, fontFamily: "var(--mono)", fontWeight: 600, letterSpacing: "0.1em", outline: "none" }}
-              onKeyDown={e => e.key === "Enter" && analyze()} />
-            <select value={period} onChange={e => setPeriod(e.target.value)}
-              style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "7px 8px", color: C.inkMuted, fontSize: 11, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
-              {[["1d", "1D"], ["5d", "5D"], ["1mo", "1M"], ["3mo", "3M"], ["6mo", "6M"], ["1y", "1Y"], ["2y", "2Y"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-            <select value={interval} onChange={e => setIntervalValue(e.target.value)}
-              style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "7px 8px", color: C.inkMuted, fontSize: 11, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
-              {intervalOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-            <button onClick={() => analyze()} disabled={loading || !ticker}
+          <div ref={searchRef} style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+            <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }} placeholder="Search stocks, crypto, forex..."
+              style={{ width: 260, background: "transparent", border: `1px solid ${C.rule}`, padding: "7px 12px", color: C.ink, fontSize: 13, fontFamily: "var(--body)", outline: "none" }}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  const sym = searchQuery.trim().toUpperCase();
+                  if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); }
+                }
+                if (e.key === "Escape") setShowSearchDropdown(false);
+              }}
+              onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
+            />
+            {showSearchDropdown && searchResults.length > 0 && (
+              <div style={{ position: "absolute", top: "100%", left: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
+                {searchResults.map((r) => (
+                  <button key={r.symbol} onClick={() => { analyze(r.symbol); setSearchQuery(""); setShowSearchDropdown(false); }}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 14px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.paper}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <div>
+                      <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 13, color: C.ink }}>{r.symbol}</span>
+                      <span style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginLeft: 8 }}>{r.shortname || r.longname || ""}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, fontSize: 9, color: C.inkFaint, fontFamily: "var(--mono)" }}>
+                      {r.exchDisp && <span>{r.exchDisp}</span>}
+                      {r.typeDisp && <span style={{ background: C.paper, padding: "1px 4px" }}>{r.typeDisp}</span>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            <button onClick={() => { const sym = searchQuery.trim().toUpperCase(); if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); } }} disabled={loading || !searchQuery.trim()}
               style={{ padding: "7px 20px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: loading ? "wait" : "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
               {loading ? "Running…" : "Analyze"}
             </button>
@@ -2869,8 +3183,8 @@ function App() {
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
         {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} liveTickers={liveTickers} />}
-        {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} latency={latency} isPro={isPro} />}
-        {!loading && !error && tab === "charts" && <ChartsTab result={result} livePrice={livePrice} />}
+        {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} latency={latency} isPro={isPro} period={period} interval={interval} onReanalyze={reanalyze} />}
+        {!loading && !error && tab === "charts" && <ChartsTab result={result} livePrice={livePrice} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab /> : (
           <ProGate
             title="Heatmap Is Pro"

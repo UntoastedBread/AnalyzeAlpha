@@ -73,3 +73,18 @@ select option { background: #FAF7F2; color: #1A1612; }
 .ticker-strip-inner {
   animation: tickerScroll 30s linear infinite;
 }
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes popupSlideIn {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.popup-overlay {
+  animation: overlayFadeIn 0.2s ease;
+}
+.popup-card {
+  animation: popupSlideIn 0.25s ease;
+}
