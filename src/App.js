@@ -778,6 +778,52 @@ const FALLBACK_NEWS = [
 
 const NEWS_PLACEHOLDER_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 500'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0%25' stop-color='%23EFE7DC'/><stop offset='100%25' stop-color='%23D7C8B4'/></linearGradient></defs><rect width='800' height='500' fill='url(%23g)'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Verdana' font-size='36' fill='%236B5E52'>Market%20News</text></svg>";
 
+const WATCHLIST_SUMMARY = [
+  { ticker: "AAPL", name: "Apple", price: 196.32, changePct: 1.12, note: "Target 205" },
+  { ticker: "NVDA", name: "NVIDIA", price: 722.84, changePct: -0.84, note: "Alert 700" },
+  { ticker: "MSFT", name: "Microsoft", price: 412.15, changePct: 0.44, note: "Earnings soon" },
+  { ticker: "TSLA", name: "Tesla", price: 248.05, changePct: -1.6, note: "Trim zone" },
+  { ticker: "AMZN", name: "Amazon", price: 171.52, changePct: 0.9, note: "Add on dip" },
+];
+
+const MARKET_CALENDAR = [
+  { date: "Feb 12", time: "08:30", event: "CPI (YoY)", impact: "High" },
+  { date: "Feb 13", time: "08:30", event: "Retail Sales", impact: "Medium" },
+  { date: "Feb 14", time: "10:00", event: "Consumer Sentiment", impact: "Low" },
+  { date: "Feb 18", time: "14:00", event: "FOMC Minutes", impact: "High" },
+];
+
+const SECTOR_SNAPSHOT = [
+  { sector: "Technology", changePct: 1.4 },
+  { sector: "Financials", changePct: -0.3 },
+  { sector: "Energy", changePct: 0.7 },
+  { sector: "Healthcare", changePct: -0.2 },
+  { sector: "Industrials", changePct: 0.5 },
+];
+
+const ANALYST_FEED = [
+  { ticker: "NVDA", action: "Upgrade", firm: "Bernstein", rating: "Outperform", target: "$980" },
+  { ticker: "AAPL", action: "Maintain", firm: "Piper", rating: "Overweight", target: "$210" },
+  { ticker: "AMZN", action: "Upgrade", firm: "Truist", rating: "Buy", target: "$205" },
+  { ticker: "META", action: "Downgrade", firm: "Citi", rating: "Neutral", target: "$445" },
+];
+
+const INSIDER_FEED = [
+  { ticker: "MSFT", name: "Satya Nadella", action: "Sell", value: "$4.2M" },
+  { ticker: "TSLA", name: "Robyn Denholm", action: "Buy", value: "$1.1M" },
+  { ticker: "NFLX", name: "Greg Peters", action: "Sell", value: "$820K" },
+  { ticker: "CRM", name: "Amy Weaver", action: "Buy", value: "$540K" },
+];
+
+const PORTFOLIO_TILE = {
+  value: 248300,
+  dayChangePct: 1.12,
+  ytdPct: 8.6,
+  cash: 12400,
+  risk: "Moderate",
+  top: ["AAPL", "NVDA", "MSFT", "AMZN", "META"],
+};
+
 const CHANGELOG = [
   {
     version: "0.3.12",
@@ -1703,40 +1749,187 @@ function NewsSection({ news, loading }) {
   );
 }
 
-function TrendingWatchlist({ stocks, loading, onAnalyze }) {
-  if (loading) {
-    return (
+function MiniCard({ title, children, style }) {
+  return (
+    <div style={{ background: C.warmWhite, border: `1px solid ${C.rule}`, padding: "14px 16px", display: "grid", gap: 10, ...style }}>
+      {title && (
+        <div style={{ fontSize: 10, fontFamily: "var(--body)", letterSpacing: "0.14em", textTransform: "uppercase", color: C.inkFaint, fontWeight: 700 }}>
+          {title}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function WatchlistSummary({ items, onAnalyze }) {
+  return (
+    <MiniCard title="Watchlist Summary">
       <div style={{ display: "grid", gap: 1 }}>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-            <SkeletonBlock width={50} height={12} />
-            <SkeletonBlock width={70} height={12} />
+        {items.map((it) => (
+          <button
+            key={it.ticker}
+            type="button"
+            onClick={() => onAnalyze?.(it.ticker)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              padding: "8px 6px",
+              background: "transparent",
+              border: "none",
+              borderBottom: `1px solid ${C.ruleFaint}`,
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = C.paper}
+            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+          >
+            <div style={{ display: "grid", gap: 2 }}>
+              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{it.ticker}</span>
+              <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{it.name}</span>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 600, color: C.ink }}>${fmt(it.price)}</div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: it.changePct >= 0 ? C.up : C.down }}>
+                {it.changePct >= 0 ? "+" : ""}{it.changePct.toFixed(2)}%
+              </div>
+              <div style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 2 }}>{it.note}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </MiniCard>
+  );
+}
+
+function MarketCalendarCard({ items }) {
+  const impactColor = (impact) => {
+    if (impact === "High") return { color: C.down, bg: C.downBg };
+    if (impact === "Medium") return { color: C.hold, bg: C.holdBg };
+    return { color: C.up, bg: C.upBg };
+  };
+  return (
+    <MiniCard title="Market Calendar">
+      <div style={{ display: "grid", gap: 6 }}>
+        {items.map((e, i) => {
+          const c = impactColor(e.impact);
+          return (
+            <div key={`${e.event}-${i}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 11, fontFamily: "var(--mono)", color: C.ink }}>{e.date} · {e.time}</div>
+                <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>{e.event}</div>
+              </div>
+              <span style={{ fontSize: 9, fontFamily: "var(--mono)", padding: "2px 6px", borderRadius: 10, background: c.bg, color: c.color }}>
+                {e.impact}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </MiniCard>
+  );
+}
+
+function SectorSnapshotCard({ items }) {
+  return (
+    <MiniCard title="Sector Snapshot">
+      <div style={{ display: "grid", gap: 8 }}>
+        {items.map((s) => {
+          const width = Math.min(100, Math.max(12, Math.abs(s.changePct) * 20));
+          const color = s.changePct >= 0 ? C.up : C.down;
+          return (
+            <div key={s.sector} style={{ display: "grid", gap: 4 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: "var(--mono)", color: C.ink }}>
+                <span>{s.sector}</span>
+                <span style={{ color }}>{s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%</span>
+              </div>
+              <div style={{ height: 6, background: C.paper, position: "relative" }}>
+                <div style={{ width: `${width}%`, height: "100%", background: color }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </MiniCard>
+  );
+}
+
+function AnalystFeedCard({ items }) {
+  return (
+    <MiniCard title="Analyst Notes">
+      <div style={{ display: "grid", gap: 8 }}>
+        {items.map((a, i) => (
+          <div key={`${a.ticker}-${i}`} style={{ display: "grid", gap: 2 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 11, color: C.ink }}>{a.ticker}</span>
+              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>{a.target}</span>
+            </div>
+            <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>
+              {a.action} · {a.firm} · {a.rating}
+            </div>
           </div>
         ))}
       </div>
-    );
-  }
+    </MiniCard>
+  );
+}
+
+function InsiderFeedCard({ items }) {
   return (
-    <div style={{ display: "grid", gap: 1 }}>
-      {stocks.map((s) => (
-        <button key={s.ticker} onClick={() => onAnalyze?.(s.ticker)}
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, cursor: "pointer", width: "100%", textAlign: "left", transition: "background 0.15s" }}
-          onMouseEnter={e => e.currentTarget.style.background = C.paper}
-          onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}>
-          <div style={{ display: "grid", gap: 2, minWidth: 60 }}>
-            <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
-            <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
-          </div>
-          {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
-          <div style={{ textAlign: "right", minWidth: 56 }}>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 600, color: s.changePct >= 0 ? C.up : C.down }}>
-              {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
+    <MiniCard title="Insider Tape">
+      <div style={{ display: "grid", gap: 8 }}>
+        {items.map((t, i) => (
+          <div key={`${t.ticker}-${i}`} style={{ display: "grid", gap: 2 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 11, color: C.ink }}>{t.ticker}</span>
+              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>{t.value}</span>
+            </div>
+            <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>
+              {t.name} · {t.action}
             </div>
           </div>
-        </button>
-      ))}
-    </div>
+        ))}
+      </div>
+    </MiniCard>
+  );
+}
+
+function PortfolioTileCard({ data }) {
+  const changeColor = data.dayChangePct >= 0 ? C.up : C.down;
+  return (
+    <MiniCard title="Portfolio Snapshot" style={{ gridColumn: "1 / -1" }}>
+      <div style={{ display: "grid", gap: 10 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <div style={{ fontSize: 24, fontFamily: "var(--display)", color: C.ink }}>{fmtMoney(data.value)}</div>
+          <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: changeColor }}>
+            {data.dayChangePct >= 0 ? "+" : ""}{data.dayChangePct.toFixed(2)}% today
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>YTD</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: C.up }}>{data.ytdPct.toFixed(2)}%</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Cash</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700 }}>{fmtMoney(data.cash)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Risk</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700 }}>{data.risk}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {data.top.map(t => (
+            <span key={t} style={{ fontSize: 10, fontFamily: "var(--mono)", padding: "2px 6px", border: `1px solid ${C.rule}`, color: C.inkMuted }}>
+              {t}
+            </span>
+          ))}
+        </div>
+      </div>
+    </MiniCard>
   );
 }
 
@@ -2057,15 +2250,29 @@ function HomeTab({ onAnalyze, liveTickers }) {
         <MoverColumn title="Trending Stocks" stocks={trending} allStocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
       </div>
 
-      {/* Asset Class Sections + What's New */}
+      {/* Asset Class Sections + Watchlist */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
         <div style={{ display: "grid", gap: 4 }}>
           {ASSET_SECTIONS.map(section => (
             <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
           ))}
         </div>
-        <ChangelogBanner />
+        <WatchlistSummary items={WATCHLIST_SUMMARY} onAnalyze={onAnalyze} />
       </div>
+
+      {/* Market Brief */}
+      <Section title="Market Brief">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <MarketCalendarCard items={MARKET_CALENDAR} />
+          <SectorSnapshotCard items={SECTOR_SNAPSHOT} />
+          <AnalystFeedCard items={ANALYST_FEED} />
+          <InsiderFeedCard items={INSIDER_FEED} />
+          <PortfolioTileCard data={PORTFOLIO_TILE} />
+        </div>
+      </Section>
+
+      {/* Changelog Banner */}
+      <ChangelogBanner />
     </div>
   );
 }
