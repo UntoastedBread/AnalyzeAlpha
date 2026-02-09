@@ -1,55 +1,179 @@
 const express = require('express');
-const cors = require('cors');
 const https = require('https');
 
 const app = express();
-app.use(cors());
+
+const DEFAULT_ALLOWED_ORIGINS = new Set([
+  'https://analyze-alpha.vercel.app',
+  'http://localhost:3000',
+]);
+const ALLOWED_RANGES = new Set(['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']);
+const ALLOWED_INTERVALS = new Set(['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo']);
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX = 120;
+const MAX_BYTES = 2 * 1024 * 1024;
+const UPSTREAM_TIMEOUT_MS = 8000;
+const rateBuckets = new Map();
+
+function getAllowedOrigins() {
+  const extra = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+  return new Set([...DEFAULT_ALLOWED_ORIGINS, ...extra]);
+}
+
+function setCors(req, res) {
+  const origin = req.headers.origin;
+  if (!origin) return;
+  const allowed = getAllowedOrigins();
+  if (!allowed.has(origin)) return;
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Vary', 'Origin');
+}
+
+function getClientIp(req) {
+  const xf = req.headers['x-forwarded-for'];
+  if (typeof xf === 'string' && xf.length) return xf.split(',')[0].trim();
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  const entry = rateBuckets.get(ip) || { count: 0, start: now };
+  if (now - entry.start > RATE_LIMIT_WINDOW_MS) {
+    entry.count = 0;
+    entry.start = now;
+  }
+  entry.count += 1;
+  rateBuckets.set(ip, entry);
+  if (rateBuckets.size > 5000) {
+    for (const [key, value] of rateBuckets) {
+      if (now - value.start > RATE_LIMIT_WINDOW_MS) rateBuckets.delete(key);
+    }
+  }
+  return entry.count > RATE_LIMIT_MAX;
+}
+
+function normalizeParam(param) {
+  if (Array.isArray(param)) return param[0];
+  return param;
+}
+
+app.use((req, res, next) => {
+  setCors(req, res);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  if (req.path.startsWith('/api/') && req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  return next();
+});
+
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/')) return next();
+  const ip = getClientIp(req);
+  if (isRateLimited(ip)) {
+    return res.status(429).json({ error: 'Rate limit exceeded' });
+  }
+  return next();
+});
 
 app.get('/api/chart/:ticker', (req, res) => {
-  const { ticker } = req.params;
-  const range = req.query.range || '1y';
-  const interval = req.query.interval || '1d';
+  const ticker = normalizeParam(req.params.ticker);
+  const range = normalizeParam(req.query.range) || '1y';
+  const interval = normalizeParam(req.query.interval) || '1d';
+  if (!ticker || !/^[A-Za-z0-9=^.\-]{1,12}$/.test(ticker)) {
+    return res.status(400).json({ error: 'Invalid ticker' });
+  }
+  if (!ALLOWED_RANGES.has(range)) {
+    return res.status(400).json({ error: 'Invalid range' });
+  }
+  if (!ALLOWED_INTERVALS.has(interval)) {
+    return res.status(400).json({ error: 'Invalid interval' });
+  }
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}&includePrePost=false`;
 
   console.log(`[Proxy] Fetching: ${ticker} range=${range}`);
 
-  https.get(url, {
+  let responded = false;
+  const fail = (status, message) => {
+    if (responded) return;
+    responded = true;
+    res.status(status).json({ error: message });
+  };
+
+  const apiReq = https.get(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
     }
   }, (apiRes) => {
     let data = '';
-    apiRes.on('data', chunk => data += chunk);
+    let bytes = 0;
+    apiRes.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES) {
+        apiReq.destroy(new Error('Upstream response too large'));
+        return fail(413, 'Upstream response too large');
+      }
+      data += chunk;
+    });
     apiRes.on('end', () => {
+      if (responded) return;
       try {
         res.setHeader('Content-Type', 'application/json');
         res.status(apiRes.statusCode).send(data);
         console.log(`[Proxy] ✓ ${ticker} — ${apiRes.statusCode}`);
       } catch (e) {
-        res.status(500).json({ error: e.message });
+        fail(500, e.message);
       }
     });
   }).on('error', (e) => {
     console.error(`[Proxy] ✗ ${ticker} — ${e.message}`);
-    res.status(500).json({ error: e.message });
+    fail(502, e.message);
+  });
+  apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+    apiReq.destroy(new Error('Upstream timeout'));
+    fail(504, 'Upstream timeout');
   });
 });
 
 app.get('/api/search', (req, res) => {
-  const q = req.query.q;
+  const q = normalizeParam(req.query.q);
   if (!q) return res.status(400).json({ error: 'Missing q parameter' });
+  if (q.length > 64) return res.status(400).json({ error: 'Query too long' });
 
   const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0`;
   console.log(`[Proxy] Search: ${q}`);
 
-  https.get(url, {
+  let responded = false;
+  const fail = (status, message) => {
+    if (responded) return;
+    responded = true;
+    res.status(status).json({ error: message });
+  };
+
+  const apiReq = https.get(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
     }
   }, (apiRes) => {
     let data = '';
-    apiRes.on('data', chunk => data += chunk);
+    let bytes = 0;
+    apiRes.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES) {
+        apiReq.destroy(new Error('Upstream response too large'));
+        return fail(413, 'Upstream response too large');
+      }
+      data += chunk;
+    });
     apiRes.on('end', () => {
+      if (responded) return;
       try {
         const json = JSON.parse(data);
         const quotes = (json.quotes || []).map(q => ({
@@ -62,12 +186,16 @@ app.get('/api/search', (req, res) => {
         res.json({ quotes });
         console.log(`[Proxy] ✓ Search "${q}" — ${quotes.length} results`);
       } catch (e) {
-        res.status(500).json({ error: e.message });
+        fail(500, e.message);
       }
     });
   }).on('error', (e) => {
     console.error(`[Proxy] ✗ Search — ${e.message}`);
-    res.status(500).json({ error: e.message });
+    fail(502, e.message);
+  });
+  apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+    apiReq.destroy(new Error('Upstream timeout'));
+    fail(504, 'Upstream timeout');
   });
 });
 
@@ -80,14 +208,30 @@ app.get('/api/rss', (req, res) => {
 
   console.log('[Proxy] Fetching RSS feed');
 
-  https.get(rssUrl, {
+  let responded = false;
+  const fail = (status, message) => {
+    if (responded) return;
+    responded = true;
+    res.status(status).json({ error: message });
+  };
+
+  const apiReq = https.get(rssUrl, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
     }
   }, (apiRes) => {
     let data = '';
-    apiRes.on('data', chunk => data += chunk);
+    let bytes = 0;
+    apiRes.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES) {
+        apiReq.destroy(new Error('Upstream response too large'));
+        return fail(413, 'Upstream response too large');
+      }
+      data += chunk;
+    });
     apiRes.on('end', () => {
+      if (responded) return;
       try {
         const items = [];
         const itemRegex = /<item>([\s\S]*?)<\/item>/g;
@@ -111,18 +255,22 @@ app.get('/api/rss', (req, res) => {
         res.json({ items: items.slice(0, 20) });
         console.log(`[Proxy] ✓ RSS — ${items.length} items`);
       } catch (e) {
-        res.status(500).json({ error: e.message });
+        fail(500, e.message);
       }
     });
   }).on('error', (e) => {
     console.error(`[Proxy] ✗ RSS — ${e.message}`);
-    res.status(500).json({ error: e.message });
+    fail(502, e.message);
+  });
+  apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+    apiReq.destroy(new Error('Upstream timeout'));
+    fail(504, 'Upstream timeout');
   });
 });
 
 app.get('/api/summary/:ticker', (req, res) => {
-  const { ticker } = req.params;
-  const modules = req.query.modules || 'price,financialData,defaultKeyStatistics,summaryDetail';
+  const ticker = normalizeParam(req.params.ticker);
+  const modules = normalizeParam(req.query.modules) || 'price,financialData,defaultKeyStatistics,summaryDetail';
   if (!/^[A-Za-z0-9=^.\-]+$/.test(ticker)) {
     return res.status(400).json({ error: 'Invalid ticker' });
   }
@@ -132,44 +280,80 @@ app.get('/api/summary/:ticker', (req, res) => {
   const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}`;
   console.log(`[Proxy] Summary: ${ticker} modules=${modules}`);
 
-  https.get(url, {
+  let responded = false;
+  const fail = (status, message) => {
+    if (responded) return;
+    responded = true;
+    res.status(status).json({ error: message });
+  };
+
+  const apiReq = https.get(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
     }
   }, (apiRes) => {
     let data = '';
-    apiRes.on('data', chunk => data += chunk);
+    let bytes = 0;
+    apiRes.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES) {
+        apiReq.destroy(new Error('Upstream response too large'));
+        return fail(413, 'Upstream response too large');
+      }
+      data += chunk;
+    });
     apiRes.on('end', () => {
+      if (responded) return;
       try {
         res.setHeader('Content-Type', 'application/json');
         res.status(apiRes.statusCode).send(data);
         console.log(`[Proxy] ✓ Summary ${ticker} — ${apiRes.statusCode}`);
       } catch (e) {
-        res.status(500).json({ error: e.message });
+        fail(500, e.message);
       }
     });
   }).on('error', (e) => {
     console.error(`[Proxy] ✗ Summary ${ticker} — ${e.message}`);
-    res.status(500).json({ error: e.message });
+    fail(502, e.message);
+  });
+  apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+    apiReq.destroy(new Error('Upstream timeout'));
+    fail(504, 'Upstream timeout');
   });
 });
 
 app.get('/api/recommendations/:ticker', (req, res) => {
-  const { ticker } = req.params;
+  const ticker = normalizeParam(req.params.ticker);
   if (!/^[A-Za-z0-9=^.\-]+$/.test(ticker)) {
     return res.status(400).json({ error: 'Invalid ticker' });
   }
   const url = `https://query2.finance.yahoo.com/v6/finance/recommendationsbysymbol/${encodeURIComponent(ticker)}`;
   console.log(`[Proxy] Recommendations: ${ticker}`);
 
-  https.get(url, {
+  let responded = false;
+  const fail = (status, message) => {
+    if (responded) return;
+    responded = true;
+    res.status(status).json({ error: message });
+  };
+
+  const apiReq = https.get(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
     }
   }, (apiRes) => {
     let data = '';
-    apiRes.on('data', chunk => data += chunk);
+    let bytes = 0;
+    apiRes.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES) {
+        apiReq.destroy(new Error('Upstream response too large'));
+        return fail(413, 'Upstream response too large');
+      }
+      data += chunk;
+    });
     apiRes.on('end', () => {
+      if (responded) return;
       try {
         const json = JSON.parse(data);
         const symbols = (json?.finance?.result?.[0]?.recommendedSymbols || [])
@@ -178,12 +362,16 @@ app.get('/api/recommendations/:ticker', (req, res) => {
         res.json({ symbols });
         console.log(`[Proxy] ✓ Recommendations ${ticker} — ${symbols.length} symbols`);
       } catch (e) {
-        res.status(500).json({ error: e.message });
+        fail(500, e.message);
       }
     });
   }).on('error', (e) => {
     console.error(`[Proxy] ✗ Recommendations ${ticker} — ${e.message}`);
-    res.status(500).json({ error: e.message });
+    fail(502, e.message);
+  });
+  apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+    apiReq.destroy(new Error('Upstream timeout'));
+    fail(504, 'Upstream timeout');
   });
 });
 
