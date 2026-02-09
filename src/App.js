@@ -895,34 +895,40 @@ const FALLBACK_NEWS = [
 const NEWS_PLACEHOLDER_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 500'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0%25' stop-color='%23EFE7DC'/><stop offset='100%25' stop-color='%23D7C8B4'/></linearGradient></defs><rect width='800' height='500' fill='url(%23g)'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Verdana' font-size='36' fill='%236B5E52'>Market%20News</text></svg>";
 
 
-const MARKET_CALENDAR = [
-  { date: "Feb 12", time: "08:30", event: "CPI (YoY)", impact: "High" },
-  { date: "Feb 13", time: "08:30", event: "Retail Sales", impact: "Medium" },
-  { date: "Feb 14", time: "10:00", event: "Consumer Sentiment", impact: "Low" },
-  { date: "Feb 18", time: "14:00", event: "FOMC Minutes", impact: "High" },
+const SCORECARD_INDICATORS = [
+  { symbol: "^VIX", label: "VIX" },
+  { symbol: "^TNX", label: "10Y Yield" },
+  { symbol: "DX-Y.NYB", label: "Dollar (DXY)" },
+  { symbol: "GC=F", label: "Gold" },
 ];
 
-const GLOBAL_INDICES = [
-  { symbol: "^GSPC", label: "S&P 500" },
-  { symbol: "^DJI", label: "Dow Jones" },
-  { symbol: "^IXIC", label: "Nasdaq" },
-  { symbol: "^FTSE", label: "FTSE 100" },
-  { symbol: "^N225", label: "Nikkei 225" },
-  { symbol: "^GDAXI", label: "DAX" },
+const CROSS_ASSET_SYMBOLS = [
+  { symbol: "SPY", label: "Stocks" },
+  { symbol: "TLT", label: "Bonds" },
+  { symbol: "GLD", label: "Gold" },
+  { symbol: "BTC-USD", label: "Crypto" },
+  { symbol: "UUP", label: "Dollar" },
 ];
 
-const ANALYST_FEED = [
-  { ticker: "NVDA", action: "Upgrade", firm: "Bernstein", rating: "Outperform", target: "$980" },
-  { ticker: "AAPL", action: "Maintain", firm: "Piper", rating: "Overweight", target: "$210" },
-  { ticker: "AMZN", action: "Upgrade", firm: "Truist", rating: "Buy", target: "$205" },
-  { ticker: "META", action: "Downgrade", firm: "Citi", rating: "Neutral", target: "$445" },
+const SECTOR_ETFS = [
+  { symbol: "XLK", label: "Technology" },
+  { symbol: "XLF", label: "Financials" },
+  { symbol: "XLE", label: "Energy" },
+  { symbol: "XLV", label: "Healthcare" },
+  { symbol: "XLI", label: "Industrials" },
+  { symbol: "XLC", label: "Comm. Services" },
+  { symbol: "XLY", label: "Consumer Disc." },
+  { symbol: "XLP", label: "Consumer Staples" },
+  { symbol: "XLU", label: "Utilities" },
+  { symbol: "XLRE", label: "Real Estate" },
+  { symbol: "XLB", label: "Materials" },
 ];
 
-const INSIDER_FEED = [
-  { ticker: "MSFT", name: "Satya Nadella", action: "Sell", value: "$4.2M" },
-  { ticker: "TSLA", name: "Robyn Denholm", action: "Buy", value: "$1.1M" },
-  { ticker: "NFLX", name: "Greg Peters", action: "Sell", value: "$820K" },
-  { ticker: "CRM", name: "Amy Weaver", action: "Buy", value: "$540K" },
+const YIELD_CURVE_TENORS = [
+  { symbol: "^IRX", label: "3M", maturity: 0.25 },
+  { symbol: "^FVX", label: "5Y", maturity: 5 },
+  { symbol: "^TNX", label: "10Y", maturity: 10 },
+  { symbol: "^TYX", label: "30Y", maturity: 30 },
 ];
 
 const PORTFOLIO_TILE = {
@@ -1912,74 +1918,158 @@ function MiniCard({ title, children, style }) {
   );
 }
 
-function MarketCalendarCard({ items }) {
-  const impactColor = (impact) => {
-    if (impact === "High") return { color: C.down, bg: C.downBg };
-    if (impact === "Medium") return { color: C.hold, bg: C.holdBg };
-    return { color: C.up, bg: C.upBg };
+function MarketScorecardCard() {
+  const [spData, setSpData] = useState(null);
+  const [indicators, setIndicators] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const now = new Date();
+    const ytdStart = new Date(now.getFullYear(), 0, 1);
+
+    Promise.all([
+      fetchStockData("^GSPC", "1y", "1d"),
+      Promise.allSettled(SCORECARD_INDICATORS.map(ind => fetchQuickQuote(ind.symbol))),
+    ]).then(([stockResult, indResults]) => {
+      if (cancelled) return;
+      const hist = stockResult.data;
+      const latest = hist[hist.length - 1]?.Close || 0;
+      const prev1d = hist.length > 1 ? hist[hist.length - 2]?.Close : latest;
+      const prev1w = hist.length > 5 ? hist[hist.length - 6]?.Close : hist[0]?.Close;
+      const prev1m = hist.length > 22 ? hist[hist.length - 23]?.Close : hist[0]?.Close;
+      const ytdClose = hist.find(d => {
+        const parts = d.date.split(/[\s/,-]+/);
+        return true;
+      });
+      const firstOfYear = hist.find((_, i) => i === 0)?.Close || latest;
+      const calcRet = (from) => from ? ((latest - from) / from) * 100 : 0;
+      setSpData({
+        price: latest,
+        ret1d: calcRet(prev1d),
+        ret1w: calcRet(prev1w),
+        ret1m: calcRet(prev1m),
+        retYtd: calcRet(firstOfYear),
+      });
+      setIndicators(SCORECARD_INDICATORS.map((ind, i) => {
+        const r = indResults[i];
+        if (r.status === "fulfilled") return { ...ind, price: r.value.price, changePct: r.value.changePct, ok: true };
+        return { ...ind, price: 0, changePct: 0, ok: false };
+      }));
+      setLoaded(true);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const vixColor = (v) => {
+    if (v < 15) return C.up;
+    if (v < 20) return C.hold;
+    if (v < 30) return "#D97706";
+    return C.down;
   };
+  const vixWidth = (v) => Math.min(100, (v / 40) * 100);
+
+  const ReturnPill = ({ label, value }) => (
+    <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, padding: "3px 8px", borderRadius: 10, background: value >= 0 ? C.upBg : C.downBg, color: value >= 0 ? C.up : C.down }}>
+      {label} {value >= 0 ? "+" : ""}{value.toFixed(2)}%
+    </span>
+  );
+
   return (
-    <MiniCard title="Market Calendar">
-      <div style={{ display: "grid", gap: 10 }}>
-        {items.map((e, i) => {
-          const c = impactColor(e.impact);
-          return (
-            <div key={`${e.event}-${i}`} style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: 10, padding: "8px 10px", background: C.cream, border: `1px solid ${C.ruleFaint}`, borderRadius: 12 }}>
-              <div style={{ display: "grid", gap: 4, justifyItems: "center" }}>
-                <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted, letterSpacing: "0.04em" }}>{e.time}</div>
-                <div style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 700, color: C.ink }}>{e.date}</div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div style={{ fontSize: 12, fontFamily: "var(--body)", color: C.ink }}>{e.event}</div>
-                  <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>Macro event</div>
-                </div>
-                <span style={{ fontSize: 9, fontFamily: "var(--mono)", padding: "3px 8px", borderRadius: 10, background: c.bg, color: c.color, fontWeight: 700 }}>
-                  {e.impact}
-                </span>
-              </div>
+    <MiniCard title="Market Scorecard">
+      {!loaded ? (
+        <div style={{ display: "grid", gap: 8 }}>
+          <SkeletonBlock height={24} />
+          <SkeletonBlock height={16} />
+          <SkeletonBlock height={16} />
+          <SkeletonBlock height={16} />
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ display: "grid", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>S&P 500</span>
+              <span style={{ fontSize: 16, fontFamily: "var(--mono)", fontWeight: 700, color: C.ink }}>
+                {spData.price.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </span>
             </div>
-          );
-        })}
-      </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <ReturnPill label="1D" value={spData.ret1d} />
+              <ReturnPill label="1W" value={spData.ret1w} />
+              <ReturnPill label="1M" value={spData.ret1m} />
+              <ReturnPill label="YTD" value={spData.retYtd} />
+            </div>
+          </div>
+          {indicators.find(d => d.label === "VIX" && d.ok) && (() => {
+            const vix = indicators.find(d => d.label === "VIX");
+            return (
+              <div style={{ display: "grid", gap: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>VIX</span>
+                  <span style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 700, color: vixColor(vix.price) }}>{vix.price.toFixed(1)}</span>
+                </div>
+                <div style={{ height: 6, background: C.paper, borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${vixWidth(vix.price)}%`, background: vixColor(vix.price), borderRadius: 3, transition: "width 0.3s" }} />
+                </div>
+              </div>
+            );
+          })()}
+          <div style={{ display: "grid", gap: 0 }}>
+            {indicators.filter(d => d.label !== "VIX" && d.ok).map(d => (
+              <div key={d.symbol} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+                <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>{d.label}</span>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>
+                    {d.price >= 100 ? d.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : d.price.toFixed(2)}
+                  </span>
+                  <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: d.changePct >= 0 ? C.up : C.down }}>
+                    {d.changePct >= 0 ? "+" : ""}{d.changePct.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </MiniCard>
   );
 }
 
-function GlobalIndexCard() {
+function CrossAssetCard() {
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled(GLOBAL_INDICES.map(idx => fetchQuickQuote(idx.symbol))).then(results => {
+    Promise.allSettled(CROSS_ASSET_SYMBOLS.map(a => fetchQuickQuote(a.symbol))).then(results => {
       if (cancelled) return;
-      const items = GLOBAL_INDICES.map((idx, i) => {
+      setData(CROSS_ASSET_SYMBOLS.map((a, i) => {
         const r = results[i];
-        if (r.status === "fulfilled") return { ...idx, price: r.value.price, changePct: r.value.changePct, ok: true };
-        return { ...idx, price: 0, changePct: 0, ok: false };
-      });
-      setData(items);
+        if (r.status === "fulfilled") return { ...a, price: r.value.price, changePct: r.value.changePct, spark: r.value.spark, prevClose: r.value.prevClose, ok: true };
+        return { ...a, price: 0, changePct: 0, spark: [], prevClose: 0, ok: false };
+      }));
       setLoaded(true);
     });
     return () => { cancelled = true; };
   }, []);
 
   return (
-    <MiniCard title="Global Indices">
+    <MiniCard title="Cross-Asset Pulse">
       <div style={{ display: "grid", gap: 0 }}>
         {!loaded ? (
-          GLOBAL_INDICES.map((_, i) => (
+          CROSS_ASSET_SYMBOLS.map((_, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
-              <SkeletonBlock width={80} height={12} />
+              <SkeletonBlock width={60} height={12} />
+              <SkeletonBlock width={120} height={24} />
               <SkeletonBlock width={60} height={12} />
             </div>
           ))
         ) : (
           data.filter(d => d.ok).map(d => (
-            <div key={d.symbol} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
-              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.ink, fontWeight: 600 }}>{d.label}</span>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <div key={d.symbol} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.ink, fontWeight: 600, minWidth: 50 }}>{d.label}</span>
+              <Sparkline data={d.spark} color={d.changePct >= 0 ? C.up : C.down} prevClose={d.prevClose} />
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 90, justifyContent: "flex-end" }}>
                 <span style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>
                   {d.price >= 100 ? d.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : d.price.toFixed(2)}
                 </span>
@@ -1995,63 +2085,103 @@ function GlobalIndexCard() {
   );
 }
 
-function AnalystFeedCard({ items }) {
-  const actionStyle = (action) => {
-    if (action === "Upgrade") return { color: C.up, bg: C.upBg, border: C.up };
-    if (action === "Downgrade") return { color: C.down, bg: C.downBg, border: C.down };
-    return { color: C.hold, bg: C.holdBg, border: C.hold };
-  };
+function SectorPerformanceCard() {
+  const [data, setData] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.allSettled(SECTOR_ETFS.map(s => fetchQuickQuote(s.symbol))).then(results => {
+      if (cancelled) return;
+      const items = SECTOR_ETFS.map((s, i) => {
+        const r = results[i];
+        if (r.status === "fulfilled") return { ...s, changePct: r.value.changePct, ok: true };
+        return { ...s, changePct: 0, ok: false };
+      }).filter(d => d.ok).sort((a, b) => b.changePct - a.changePct);
+      setData(items);
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const maxAbs = Math.max(...data.map(d => Math.abs(d.changePct)), 1);
+  const barCap = Math.max(maxAbs, 0.5);
+
   return (
-    <MiniCard title="Analyst Notes">
-      <div style={{ display: "grid", gap: 10 }}>
-        {items.map((a, i) => (
-          <div key={`${a.ticker}-${i}`} style={{ display: "grid", gap: 6, padding: "10px 12px", background: C.cream, border: `1px solid ${C.ruleFaint}`, borderRadius: 12, borderLeft: `3px solid ${actionStyle(a.action).border}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{a.ticker}</span>
-                <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>{a.firm}</span>
+    <MiniCard title="Sector Performance">
+      <div style={{ display: "grid", gap: 0 }}>
+        {!loaded ? (
+          SECTOR_ETFS.slice(0, 6).map((_, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+              <SkeletonBlock width={80} height={10} />
+              <SkeletonBlock width="100%" height={10} />
+              <SkeletonBlock width={40} height={10} />
+            </div>
+          ))
+        ) : (
+          data.map(d => {
+            const pct = Math.abs(d.changePct);
+            const barW = Math.min(100, (pct / barCap) * 100);
+            const color = d.changePct >= 0 ? C.up : C.down;
+            const opacity = 0.3 + 0.7 * Math.min(pct / barCap, 1);
+            return (
+              <div key={d.symbol} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+                <span style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, minWidth: 90, flexShrink: 0 }}>{d.label}</span>
+                <div style={{ flex: 1, height: 8, background: C.paper, borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${barW}%`, background: color, opacity, borderRadius: 4, transition: "width 0.3s" }} />
+                </div>
+                <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color, minWidth: 48, textAlign: "right" }}>
+                  {d.changePct >= 0 ? "+" : ""}{d.changePct.toFixed(2)}%
+                </span>
               </div>
-              <span style={{ fontSize: 9, fontFamily: "var(--mono)", padding: "3px 8px", borderRadius: 10, background: actionStyle(a.action).bg, color: actionStyle(a.action).color, fontWeight: 700 }}>
-                {a.action}
-              </span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>{a.rating}</span>
-              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.ink }}>{a.target}</span>
-            </div>
-          </div>
-        ))}
+            );
+          })
+        )}
       </div>
     </MiniCard>
   );
 }
 
-function InsiderFeedCard({ items }) {
-  const actionStyle = (action) => {
-    if (action === "Buy") return { color: C.up, bg: C.upBg, border: C.up };
-    return { color: C.down, bg: C.downBg, border: C.down };
-  };
+function YieldCurveCard() {
+  const [data, setData] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.allSettled(YIELD_CURVE_TENORS.map(t => fetchQuickQuote(t.symbol))).then(results => {
+      if (cancelled) return;
+      const points = YIELD_CURVE_TENORS.map((t, i) => {
+        const r = results[i];
+        if (r.status === "fulfilled") return { ...t, yield: r.value.price, ok: true };
+        return { ...t, yield: 0, ok: false };
+      }).filter(d => d.ok);
+      setData(points);
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const isNormal = data.length >= 2 && data[data.length - 1].yield > data[0].yield;
+  const lineColor = isNormal ? C.up : C.down;
+
   return (
-    <MiniCard title="Insider Tape">
-      <div style={{ display: "grid", gap: 10 }}>
-        {items.map((t, i) => (
-          <div key={`${t.ticker}-${i}`} style={{ display: "grid", gap: 6, padding: "10px 12px", background: C.cream, border: `1px solid ${C.ruleFaint}`, borderRadius: 12, borderLeft: `3px solid ${actionStyle(t.action).border}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{t.ticker}</span>
-                <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>{t.name}</span>
-              </div>
-              <span style={{ fontSize: 9, fontFamily: "var(--mono)", padding: "3px 8px", borderRadius: 10, background: actionStyle(t.action).bg, color: actionStyle(t.action).color, fontWeight: 700 }}>
-                {t.action}
-              </span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>Insider transaction</span>
-              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.ink }}>{t.value}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+    <MiniCard title="Yield Curve">
+      {!loaded ? (
+        <SkeletonBlock height={140} />
+      ) : data.length < 2 ? (
+        <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, padding: 20, textAlign: "center" }}>Yield data unavailable</div>
+      ) : (
+        <div style={{ width: "100%", height: 140 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 20, right: 20, bottom: 5, left: 10 }}>
+              <XAxis dataKey="label" tick={{ fontSize: 10, fontFamily: "var(--mono)", fill: C.inkMuted }} axisLine={{ stroke: C.rule }} tickLine={false} />
+              <YAxis domain={["auto", "auto"]} tick={{ fontSize: 10, fontFamily: "var(--mono)", fill: C.inkMuted }} axisLine={false} tickLine={false} width={30} tickFormatter={v => v.toFixed(1) + "%"} />
+              <Tooltip contentStyle={{ background: C.warmWhite, border: `1px solid ${C.rule}`, fontSize: 11, fontFamily: "var(--mono)" }} formatter={v => [v.toFixed(2) + "%", "Yield"]} />
+              <Line type="monotone" dataKey="yield" stroke={lineColor} strokeWidth={2} dot={{ fill: lineColor, r: 4 }} label={{ position: "top", fontSize: 10, fontFamily: "var(--mono)", fill: C.ink, formatter: v => v.toFixed(2) + "%" }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </MiniCard>
   );
 }
@@ -2442,14 +2572,10 @@ function HomeTab({ onAnalyze }) {
       <LazySection minHeight={220}>
         <Section title="Market Brief">
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
-            <div style={{ display: "grid", gap: 16 }}>
-              <GlobalIndexCard />
-              <MarketCalendarCard items={MARKET_CALENDAR} />
-            </div>
-            <div style={{ display: "grid", gap: 16 }}>
-              <AnalystFeedCard items={ANALYST_FEED} />
-              <InsiderFeedCard items={INSIDER_FEED} />
-            </div>
+            <MarketScorecardCard />
+            <CrossAssetCard />
+            <SectorPerformanceCard />
+            <YieldCurveCard />
           </div>
         </Section>
       </LazySection>
