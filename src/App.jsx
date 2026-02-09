@@ -26,6 +26,343 @@ const INTERVAL_MS = {
 
 const WORKSPACE_STORAGE_KEY = "aa_workspace_v1";
 const WORKSPACE_VERSION = 1;
+const LANG_STORAGE_KEY = "aa_lang_v1";
+
+const LANGUAGES = [
+  { code: "en-US", label: "English (United States)" },
+  { code: "fr-FR", label: "Français (France)" },
+  { code: "de-DE", label: "Deutsch (Deutschland)" },
+  { code: "hi-IN", label: "हिन्दी (भारत)" },
+  { code: "id-ID", label: "Indonesia (Indonesia)" },
+  { code: "it-IT", label: "Italiano (Italia)" },
+  { code: "ja-JP", label: "日本語 (日本)" },
+  { code: "ko-KR", label: "한국어 (대한민국)" },
+  { code: "pt-BR", label: "Português (Brasil)" },
+  { code: "es-419", label: "Español (Latinoamérica)" },
+  { code: "es-ES", label: "Español (España)" },
+];
+
+const TRANSLATIONS = {
+  "en-US": {
+    "tagline.quant": "Quantitative Analysis",
+    "search.placeholder": "Search stocks...",
+    "search.running": "Running…",
+    "search.analyze": "Analyze",
+    "nav.home": "Home",
+    "nav.analysis": "Analysis",
+    "nav.charts": "Charts",
+    "nav.heatmap": "Heatmap",
+    "nav.comparison": "Comparison",
+    "nav.account": "Account",
+    "menu.settings": "Settings",
+    "menu.language": "Language",
+    "menu.upgrade": "Upgrade to Pro",
+    "menu.gift": "Gift AnalyzeAlpha",
+    "menu.logout": "Log out",
+    "menu.signedOut": "Not signed in",
+    "pro.heatmap.title": "Heatmap Is Pro",
+    "pro.heatmap.desc": "Unlock the S&P heatmap with live Sharpe, volatility, and relative performance.",
+    "pro.heatmap.f0": "Parallel data fetches",
+    "pro.heatmap.f1": "Treemap visualization",
+    "pro.heatmap.f2": "Risk and regime overlays",
+    "pro.comparison.title": "Comparison Is Pro",
+    "pro.comparison.desc": "Compare multiple tickers across signals, risk, and valuation in one view.",
+    "pro.comparison.f0": "Side-by-side signal scores",
+    "pro.comparison.f1": "Sharpe and drawdown rankings",
+    "pro.comparison.f2": "Export-ready table view",
+    "footer.disclaimer": "For educational purposes only — not financial advice",
+  },
+  "fr-FR": {
+    "tagline.quant": "Analyse quantitative",
+    "search.placeholder": "Rechercher des actions...",
+    "search.running": "En cours…",
+    "search.analyze": "Analyser",
+    "nav.home": "Accueil",
+    "nav.analysis": "Analyse",
+    "nav.charts": "Graphiques",
+    "nav.heatmap": "Carte thermique",
+    "nav.comparison": "Comparaison",
+    "nav.account": "Compte",
+    "menu.settings": "Paramètres",
+    "menu.language": "Langue",
+    "menu.upgrade": "Passer à Pro",
+    "menu.gift": "Offrir AnalyzeAlpha",
+    "menu.logout": "Se déconnecter",
+    "menu.signedOut": "Non connecté",
+    "pro.heatmap.title": "La carte thermique est Pro",
+    "pro.heatmap.desc": "Déverrouillez la carte thermique du S&P avec Sharpe, volatilité et performance relative en temps réel.",
+    "pro.heatmap.f0": "Récupérations de données parallèles",
+    "pro.heatmap.f1": "Visualisation en treemap",
+    "pro.heatmap.f2": "Superpositions de risque et de régime",
+    "pro.comparison.title": "La comparaison est Pro",
+    "pro.comparison.desc": "Comparez plusieurs tickers selon les signaux, le risque et la valorisation dans une seule vue.",
+    "pro.comparison.f0": "Scores de signaux côte à côte",
+    "pro.comparison.f1": "Classements Sharpe et drawdown",
+    "pro.comparison.f2": "Vue tableau prête à l'export",
+    "footer.disclaimer": "À des fins éducatives uniquement — ceci n'est pas un conseil financier",
+  },
+  "de-DE": {
+    "tagline.quant": "Quantitative Analyse",
+    "search.placeholder": "Aktien suchen...",
+    "search.running": "Läuft…",
+    "search.analyze": "Analysieren",
+    "nav.home": "Startseite",
+    "nav.analysis": "Analyse",
+    "nav.charts": "Charts",
+    "nav.heatmap": "Heatmap",
+    "nav.comparison": "Vergleich",
+    "nav.account": "Konto",
+    "menu.settings": "Einstellungen",
+    "menu.language": "Sprache",
+    "menu.upgrade": "Auf Pro upgraden",
+    "menu.gift": "AnalyzeAlpha verschenken",
+    "menu.logout": "Abmelden",
+    "menu.signedOut": "Nicht angemeldet",
+    "pro.heatmap.title": "Heatmap ist Pro",
+    "pro.heatmap.desc": "Schalte die S&P-Heatmap mit live Sharpe, Volatilität und relativer Performance frei.",
+    "pro.heatmap.f0": "Parallele Datenabrufe",
+    "pro.heatmap.f1": "Treemap-Visualisierung",
+    "pro.heatmap.f2": "Risiko- und Regime-Overlays",
+    "pro.comparison.title": "Vergleich ist Pro",
+    "pro.comparison.desc": "Vergleiche mehrere Ticker über Signale, Risiko und Bewertung in einer Ansicht.",
+    "pro.comparison.f0": "Signal-Scores nebeneinander",
+    "pro.comparison.f1": "Sharpe- und Drawdown-Rankings",
+    "pro.comparison.f2": "Exportfertige Tabellenansicht",
+    "footer.disclaimer": "Nur zu Bildungszwecken — keine Finanzberatung",
+  },
+  "hi-IN": {
+    "tagline.quant": "मात्रात्मक विश्लेषण",
+    "search.placeholder": "स्टॉक्स खोजें...",
+    "search.running": "चल रहा है…",
+    "search.analyze": "विश्लेषण करें",
+    "nav.home": "होम",
+    "nav.analysis": "विश्लेषण",
+    "nav.charts": "चार्ट",
+    "nav.heatmap": "हीटमैप",
+    "nav.comparison": "तुलना",
+    "nav.account": "अकाउंट",
+    "menu.settings": "सेटिंग्स",
+    "menu.language": "भाषा",
+    "menu.upgrade": "प्रो में अपग्रेड करें",
+    "menu.gift": "AnalyzeAlpha उपहार दें",
+    "menu.logout": "लॉग आउट",
+    "menu.signedOut": "साइन इन नहीं है",
+    "pro.heatmap.title": "हीटमैप प्रो है",
+    "pro.heatmap.desc": "लाइव शार्प, वोलैटिलिटी और रिलेटिव परफॉर्मेंस के साथ S&P हीटमैप अनलॉक करें।",
+    "pro.heatmap.f0": "समानांतर डेटा फेच",
+    "pro.heatmap.f1": "ट्रीमैप विज़ुअलाइज़ेशन",
+    "pro.heatmap.f2": "रिस्क और रेजीम ओवरले",
+    "pro.comparison.title": "तुलना प्रो है",
+    "pro.comparison.desc": "एक ही दृश्य में कई टिकर्स को संकेत, जोखिम और मूल्यांकन के अनुसार तुलना करें।",
+    "pro.comparison.f0": "साइड-बाय-साइड सिग्नल स्कोर",
+    "pro.comparison.f1": "शार्प और ड्रॉडाउन रैंकिंग",
+    "pro.comparison.f2": "एक्सपोर्ट-रेडी टेबल व्यू",
+    "footer.disclaimer": "केवल शैक्षिक उद्देश्यों के लिए — यह वित्तीय सलाह नहीं है",
+  },
+  "id-ID": {
+    "tagline.quant": "Analisis kuantitatif",
+    "search.placeholder": "Cari saham...",
+    "search.running": "Memproses…",
+    "search.analyze": "Analisis",
+    "nav.home": "Beranda",
+    "nav.analysis": "Analisis",
+    "nav.charts": "Grafik",
+    "nav.heatmap": "Peta panas",
+    "nav.comparison": "Perbandingan",
+    "nav.account": "Akun",
+    "menu.settings": "Pengaturan",
+    "menu.language": "Bahasa",
+    "menu.upgrade": "Upgrade ke Pro",
+    "menu.gift": "Hadiahkan AnalyzeAlpha",
+    "menu.logout": "Keluar",
+    "menu.signedOut": "Belum masuk",
+    "pro.heatmap.title": "Peta panas adalah Pro",
+    "pro.heatmap.desc": "Buka peta panas S&P dengan Sharpe, volatilitas, dan kinerja relatif secara langsung.",
+    "pro.heatmap.f0": "Pengambilan data paralel",
+    "pro.heatmap.f1": "Visualisasi treemap",
+    "pro.heatmap.f2": "Overlay risiko dan rezim",
+    "pro.comparison.title": "Perbandingan adalah Pro",
+    "pro.comparison.desc": "Bandingkan beberapa ticker berdasarkan sinyal, risiko, dan valuasi dalam satu tampilan.",
+    "pro.comparison.f0": "Skor sinyal berdampingan",
+    "pro.comparison.f1": "Peringkat Sharpe dan drawdown",
+    "pro.comparison.f2": "Tampilan tabel siap ekspor",
+    "footer.disclaimer": "Hanya untuk tujuan edukasi — bukan nasihat keuangan",
+  },
+  "it-IT": {
+    "tagline.quant": "Analisi quantitativa",
+    "search.placeholder": "Cerca titoli...",
+    "search.running": "In esecuzione…",
+    "search.analyze": "Analizza",
+    "nav.home": "Home",
+    "nav.analysis": "Analisi",
+    "nav.charts": "Grafici",
+    "nav.heatmap": "Mappa termica",
+    "nav.comparison": "Confronto",
+    "nav.account": "Account",
+    "menu.settings": "Impostazioni",
+    "menu.language": "Lingua",
+    "menu.upgrade": "Passa a Pro",
+    "menu.gift": "Regala AnalyzeAlpha",
+    "menu.logout": "Esci",
+    "menu.signedOut": "Non connesso",
+    "pro.heatmap.title": "La mappa termica è Pro",
+    "pro.heatmap.desc": "Sblocca la mappa termica dell'S&P con Sharpe, volatilità e performance relativa in tempo reale.",
+    "pro.heatmap.f0": "Recuperi dati paralleli",
+    "pro.heatmap.f1": "Visualizzazione treemap",
+    "pro.heatmap.f2": "Sovrapposizioni di rischio e regime",
+    "pro.comparison.title": "Il confronto è Pro",
+    "pro.comparison.desc": "Confronta più ticker per segnali, rischio e valutazione in un'unica vista.",
+    "pro.comparison.f0": "Punteggi dei segnali affiancati",
+    "pro.comparison.f1": "Classifiche Sharpe e drawdown",
+    "pro.comparison.f2": "Vista tabella pronta per l'esportazione",
+    "footer.disclaimer": "Solo a scopo educativo — non è consulenza finanziaria",
+  },
+  "ja-JP": {
+    "tagline.quant": "定量分析",
+    "search.placeholder": "株式を検索...",
+    "search.running": "実行中…",
+    "search.analyze": "分析する",
+    "nav.home": "ホーム",
+    "nav.analysis": "分析",
+    "nav.charts": "チャート",
+    "nav.heatmap": "ヒートマップ",
+    "nav.comparison": "比較",
+    "nav.account": "アカウント",
+    "menu.settings": "設定",
+    "menu.language": "言語",
+    "menu.upgrade": "Pro にアップグレード",
+    "menu.gift": "AnalyzeAlpha を贈る",
+    "menu.logout": "ログアウト",
+    "menu.signedOut": "サインインしていません",
+    "pro.heatmap.title": "ヒートマップは Pro です",
+    "pro.heatmap.desc": "ライブのシャープ、ボラティリティ、相対パフォーマンスで S&P ヒートマップを解放。",
+    "pro.heatmap.f0": "並列データ取得",
+    "pro.heatmap.f1": "ツリーマップ可視化",
+    "pro.heatmap.f2": "リスクとレジームのオーバーレイ",
+    "pro.comparison.title": "比較は Pro です",
+    "pro.comparison.desc": "複数のティッカーをシグナル、リスク、バリュエーションで一括比較。",
+    "pro.comparison.f0": "シグナルスコアの並列表示",
+    "pro.comparison.f1": "シャープとドローダウンのランキング",
+    "pro.comparison.f2": "エクスポート可能な表表示",
+    "footer.disclaimer": "教育目的のみ — 金融助言ではありません",
+  },
+  "ko-KR": {
+    "tagline.quant": "정량 분석",
+    "search.placeholder": "종목 검색...",
+    "search.running": "실행 중…",
+    "search.analyze": "분석",
+    "nav.home": "홈",
+    "nav.analysis": "분석",
+    "nav.charts": "차트",
+    "nav.heatmap": "히트맵",
+    "nav.comparison": "비교",
+    "nav.account": "계정",
+    "menu.settings": "설정",
+    "menu.language": "언어",
+    "menu.upgrade": "Pro로 업그레이드",
+    "menu.gift": "AnalyzeAlpha 선물하기",
+    "menu.logout": "로그아웃",
+    "menu.signedOut": "로그인되지 않음",
+    "pro.heatmap.title": "히트맵은 Pro입니다",
+    "pro.heatmap.desc": "실시간 샤프, 변동성, 상대 성과로 S&P 히트맵을 잠금 해제합니다.",
+    "pro.heatmap.f0": "병렬 데이터 가져오기",
+    "pro.heatmap.f1": "트리맵 시각화",
+    "pro.heatmap.f2": "리스크 및 레짐 오버레이",
+    "pro.comparison.title": "비교는 Pro입니다",
+    "pro.comparison.desc": "여러 티커를 신호, 리스크, 가치평가로 한 화면에서 비교합니다.",
+    "pro.comparison.f0": "나란한 신호 점수",
+    "pro.comparison.f1": "샤프 및 드로다운 순위",
+    "pro.comparison.f2": "내보내기용 테이블 보기",
+    "footer.disclaimer": "교육 목적 전용 — 금융 조언이 아닙니다",
+  },
+  "pt-BR": {
+    "tagline.quant": "Análise quantitativa",
+    "search.placeholder": "Pesquisar ações...",
+    "search.running": "Processando…",
+    "search.analyze": "Analisar",
+    "nav.home": "Início",
+    "nav.analysis": "Análise",
+    "nav.charts": "Gráficos",
+    "nav.heatmap": "Mapa de calor",
+    "nav.comparison": "Comparação",
+    "nav.account": "Conta",
+    "menu.settings": "Configurações",
+    "menu.language": "Idioma",
+    "menu.upgrade": "Atualizar para Pro",
+    "menu.gift": "Presentear AnalyzeAlpha",
+    "menu.logout": "Sair",
+    "menu.signedOut": "Não conectado",
+    "pro.heatmap.title": "Mapa de calor é Pro",
+    "pro.heatmap.desc": "Desbloqueie o mapa de calor do S&P com Sharpe, volatilidade e desempenho relativo ao vivo.",
+    "pro.heatmap.f0": "Coletas de dados paralelas",
+    "pro.heatmap.f1": "Visualização em treemap",
+    "pro.heatmap.f2": "Sobreposições de risco e regime",
+    "pro.comparison.title": "Comparação é Pro",
+    "pro.comparison.desc": "Compare vários tickers por sinais, risco e valuation em uma única visualização.",
+    "pro.comparison.f0": "Pontuações de sinais lado a lado",
+    "pro.comparison.f1": "Rankings de Sharpe e drawdown",
+    "pro.comparison.f2": "Visão de tabela pronta para exportação",
+    "footer.disclaimer": "Apenas para fins educacionais — não é aconselhamento financeiro",
+  },
+  "es-419": {
+    "tagline.quant": "Análisis cuantitativo",
+    "search.placeholder": "Buscar acciones...",
+    "search.running": "Ejecutando…",
+    "search.analyze": "Analizar",
+    "nav.home": "Inicio",
+    "nav.analysis": "Análisis",
+    "nav.charts": "Gráficos",
+    "nav.heatmap": "Mapa de calor",
+    "nav.comparison": "Comparación",
+    "nav.account": "Cuenta",
+    "menu.settings": "Configuración",
+    "menu.language": "Idioma",
+    "menu.upgrade": "Mejorar a Pro",
+    "menu.gift": "Regalar AnalyzeAlpha",
+    "menu.logout": "Cerrar sesión",
+    "menu.signedOut": "No has iniciado sesión",
+    "pro.heatmap.title": "El mapa de calor es Pro",
+    "pro.heatmap.desc": "Desbloquea el mapa de calor del S&P con Sharpe, volatilidad y rendimiento relativo en vivo.",
+    "pro.heatmap.f0": "Obtención de datos en paralelo",
+    "pro.heatmap.f1": "Visualización treemap",
+    "pro.heatmap.f2": "Superposiciones de riesgo y régimen",
+    "pro.comparison.title": "La comparación es Pro",
+    "pro.comparison.desc": "Compara varios tickers por señales, riesgo y valoración en una sola vista.",
+    "pro.comparison.f0": "Puntuaciones de señales lado a lado",
+    "pro.comparison.f1": "Clasificaciones de Sharpe y drawdown",
+    "pro.comparison.f2": "Vista de tabla lista para exportar",
+    "footer.disclaimer": "Solo con fines educativos — no es asesoramiento financiero",
+  },
+  "es-ES": {
+    "tagline.quant": "Análisis cuantitativo",
+    "search.placeholder": "Buscar acciones...",
+    "search.running": "Ejecutando…",
+    "search.analyze": "Analizar",
+    "nav.home": "Inicio",
+    "nav.analysis": "Análisis",
+    "nav.charts": "Gráficos",
+    "nav.heatmap": "Mapa de calor",
+    "nav.comparison": "Comparación",
+    "nav.account": "Cuenta",
+    "menu.settings": "Ajustes",
+    "menu.language": "Idioma",
+    "menu.upgrade": "Actualizar a Pro",
+    "menu.gift": "Regalar AnalyzeAlpha",
+    "menu.logout": "Cerrar sesión",
+    "menu.signedOut": "No has iniciado sesión",
+    "pro.heatmap.title": "El mapa de calor es Pro",
+    "pro.heatmap.desc": "Desbloquea el mapa de calor del S&P con Sharpe, volatilidad y rendimiento relativo en vivo.",
+    "pro.heatmap.f0": "Obtención de datos en paralelo",
+    "pro.heatmap.f1": "Visualización treemap",
+    "pro.heatmap.f2": "Superposiciones de riesgo y régimen",
+    "pro.comparison.title": "La comparación es Pro",
+    "pro.comparison.desc": "Compara varios tickers por señales, riesgo y valoración en una sola vista.",
+    "pro.comparison.f0": "Puntuaciones de señales en paralelo",
+    "pro.comparison.f1": "Clasificaciones de Sharpe y drawdown",
+    "pro.comparison.f2": "Vista de tabla lista para exportar",
+    "footer.disclaimer": "Solo con fines educativos — no es asesoramiento financiero",
+  },
+};
 
 function emptyWorkspace() {
   return {
@@ -1130,6 +1467,73 @@ function LogoIcon({ size = 20, color }) {
       <path d="M6 26 L12 10 L18 18 L26 4" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
       <circle cx="26" cy="4" r="2" fill={c} opacity="0.9" />
       <path d="M6 26 L12 10 L18 18 L26 4" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.15" style={{ filter: "blur(3px)" }} />
+    </svg>
+  );
+}
+
+function IconGear({ size = 18, color = C.inkFaint }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: "block" }}>
+      <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" stroke={color} strokeWidth="1.6" />
+      <path d="M19.4 12a7.4 7.4 0 0 0-.08-1l2.02-1.56-1.6-2.77-2.44 1a7.6 7.6 0 0 0-1.74-1L15.3 3h-3.2l-.26 2.67a7.6 7.6 0 0 0-1.74 1l-2.44-1-1.6 2.77L8.08 11a7.4 7.4 0 0 0 0 2l-2.02 1.56 1.6 2.77 2.44-1c.53.4 1.11.73 1.74 1L12.1 21h3.2l.26-2.67c.63-.27 1.21-.6 1.74-1l2.44 1 1.6-2.77L19.32 13c.05-.33.08-.66.08-1Z" stroke={color} strokeWidth="1.2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconGlobe({ size = 18, color = C.inkFaint }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: "block" }}>
+      <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.6" />
+      <path d="M3.5 12h17" stroke={color} strokeWidth="1.2" />
+      <path d="M12 3c3 3.2 3 14.8 0 18" stroke={color} strokeWidth="1.2" />
+      <path d="M12 3c-3 3.2-3 14.8 0 18" stroke={color} strokeWidth="1.2" />
+    </svg>
+  );
+}
+
+function IconCrown({ size = 18, color = C.inkFaint }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: "block" }}>
+      <path d="M4 8 8.5 12 12 6l3.5 6L20 8l-2 9H6L4 8Z" stroke={color} strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M6.5 19h11" stroke={color} strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconGift({ size = 18, color = C.inkFaint }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: "block" }}>
+      <path d="M4 11h16v9H4z" stroke={color} strokeWidth="1.4" />
+      <path d="M12 11v9" stroke={color} strokeWidth="1.4" />
+      <path d="M3 7h18v4H3z" stroke={color} strokeWidth="1.4" />
+      <path d="M12 7c-1.6 0-3-1.1-3-2.5S10.2 2 12 4c1.8-2 3-1.1 3 0.5S13.6 7 12 7Z" stroke={color} strokeWidth="1.2" />
+    </svg>
+  );
+}
+
+function IconLogout({ size = 18, color = C.inkFaint }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: "block" }}>
+      <path d="M4 4h9v4" stroke={color} strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M4 20h9v-4" stroke={color} strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M10 12h10" stroke={color} strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M16 8l4 4-4 4" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconChevronRight({ size = 14, color = C.inkFaint }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: "block" }}>
+      <path d="M9 6l6 6-6 6" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconCheck({ size = 14, color = C.inkFaint }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: "block" }}>
+      <path d="M5 12l4 4L19 6" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -4550,6 +4954,11 @@ function PerfMonitor({ onClose }) {
 function App() {
   const initialWorkspace = useMemo(() => loadLocalWorkspace(), []);
   const [tab, setTab] = useState("home");
+  const [locale, setLocale] = useState(() => {
+    if (typeof window === "undefined") return "en-US";
+    const saved = localStorage.getItem(LANG_STORAGE_KEY);
+    return saved && TRANSLATIONS[saved] ? saved : "en-US";
+  });
   const [isPro, setIsPro] = useState(false);
   const [session, setSession] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
@@ -4579,9 +4988,18 @@ function App() {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const searchTimerRef = useRef(null);
   const searchRef = useRef(null);
+  const accountMenuRef = useRef(null);
   const liveRef = useRef(null);
   const prevPriceRef = useRef(null);
   const chartTimerRef = useRef(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+
+  const t = useCallback((key) => {
+    return (TRANSLATIONS[locale] && TRANSLATIONS[locale][key])
+      || TRANSLATIONS["en-US"][key]
+      || key;
+  }, [locale]);
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -4589,6 +5007,24 @@ function App() {
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
+
+  useEffect(() => {
+    const h = e => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target)) {
+        setAccountMenuOpen(false);
+        setLangMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(LANG_STORAGE_KEY, locale);
+      document.documentElement.lang = locale;
+    }
+  }, [locale]);
 
   // Debounced search
   useEffect(() => {
@@ -4927,10 +5363,10 @@ function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
             <BrandMark size={22} pro={isPro} />
             <span style={{ width: 1, height: 14, background: C.rule, display: "inline-block", margin: "0 2px" }} />
-            <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>Quantitative Analysis</span>
+            <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>{t("tagline.quant")}</span>
           </div>
           <div ref={searchRef} style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
-            <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }} placeholder="Search stocks..."
+            <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }} placeholder={t("search.placeholder")}
               style={{ width: 200, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", color: C.ink, fontSize: 12, fontFamily: "var(--body)", outline: "none" }}
               onKeyDown={e => {
                 if (e.key === "Enter") {
@@ -4962,18 +5398,18 @@ function App() {
             )}
             <button onClick={() => { const sym = searchQuery.trim().toUpperCase(); if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); } }} disabled={loading || !searchQuery.trim()}
               style={{ padding: "7px 20px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: loading ? "wait" : "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
-              {loading ? "Running…" : "Analyze"}
+              {loading ? t("search.running") : t("search.analyze")}
             </button>
           </div>
         </div>
         <nav style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
           <div style={{ display: "flex" }}>
             {[
-              { key: "home", label: "Home" },
-              { key: "analysis", label: "Analysis" },
-              { key: "charts", label: "Charts" },
-              { key: "heatmap", label: "Heatmap", pro: true },
-              { key: "comparison", label: "Comparison", pro: true },
+              { key: "home", label: t("nav.home") },
+              { key: "analysis", label: t("nav.analysis") },
+              { key: "charts", label: t("nav.charts") },
+              { key: "heatmap", label: t("nav.heatmap"), pro: true },
+              { key: "comparison", label: t("nav.comparison"), pro: true },
             ].map(({ key, label, pro, badge }) => {
               const locked = !!pro && !isPro;
               return (
@@ -4996,7 +5432,144 @@ function App() {
               onAddAlert={addAlert}
               onRemoveAlert={removeAlert}
             />
-            <button onClick={() => setTab("account")} style={tabStyle("account")}>Account</button>
+            <div ref={accountMenuRef} style={{ position: "relative" }}>
+              <button
+                onClick={() => setAccountMenuOpen(o => !o)}
+                onKeyDown={e => {
+                  if (e.key === "Escape") { setAccountMenuOpen(false); setLangMenuOpen(false); }
+                }}
+                style={tabStyle("account")}
+              >
+                {t("nav.account")}
+              </button>
+              {accountMenuOpen && (
+                <div style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "100%",
+                  marginTop: 10,
+                  minWidth: 260,
+                  background: "#2C2B28",
+                  color: "#E9E6E1",
+                  borderRadius: 16,
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+                  padding: "10px 8px",
+                  zIndex: 400,
+                }}>
+                  <div style={{ padding: "6px 12px 10px", fontSize: 12, color: "rgba(255,255,255,0.6)", fontFamily: "var(--mono)" }}>
+                    {session?.user?.email || t("menu.signedOut")}
+                  </div>
+                  <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "4px 8px 8px" }} />
+
+                  <button
+                    onClick={() => { setTab("account"); setAccountMenuOpen(false); setLangMenuOpen(false); }}
+                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 12px", background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <IconGear />
+                    <span style={{ flex: 1, textAlign: "left" }}>{t("menu.settings")}</span>
+                  </button>
+
+                  <div
+                    onMouseEnter={() => setLangMenuOpen(true)}
+                    onMouseLeave={() => setLangMenuOpen(false)}
+                    style={{ position: "relative" }}
+                  >
+                    <button
+                      onClick={() => setLangMenuOpen(o => !o)}
+                      style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 12px", background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    >
+                      <IconGlobe />
+                      <span style={{ flex: 1, textAlign: "left" }}>{t("menu.language")}</span>
+                      <IconChevronRight />
+                    </button>
+                    {langMenuOpen && (
+                      <div
+                        onMouseEnter={() => setLangMenuOpen(true)}
+                        onMouseLeave={() => setLangMenuOpen(false)}
+                        style={{
+                          position: "absolute",
+                          left: "100%",
+                          top: 0,
+                          marginLeft: 10,
+                          minWidth: 260,
+                          background: "#2C2B28",
+                          borderRadius: 16,
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+                          padding: "8px 6px",
+                          zIndex: 450,
+                        }}
+                      >
+                        {LANGUAGES.map((lang) => {
+                          const active = lang.code === locale;
+                          return (
+                            <button
+                              key={lang.code}
+                              onClick={() => { setLocale(lang.code); setAccountMenuOpen(false); setLangMenuOpen(false); }}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                width: "100%",
+                                padding: "8px 12px",
+                                background: active ? "rgba(255,255,255,0.06)" : "transparent",
+                                border: "none",
+                                color: "inherit",
+                                cursor: "pointer",
+                                fontSize: 14,
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                              onMouseLeave={e => e.currentTarget.style.background = active ? "rgba(255,255,255,0.06)" : "transparent"}
+                            >
+                              <span style={{ textAlign: "left" }}>{lang.label}</span>
+                              {active && <IconCheck />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "6px 8px 8px" }} />
+
+                  <button
+                    onClick={() => { setAccountMenuOpen(false); setLangMenuOpen(false); }}
+                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 12px", background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <IconCrown />
+                    <span style={{ flex: 1, textAlign: "left" }}>{t("menu.upgrade")}</span>
+                  </button>
+                  <button
+                    onClick={() => { setAccountMenuOpen(false); setLangMenuOpen(false); }}
+                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 12px", background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <IconGift />
+                    <span style={{ flex: 1, textAlign: "left" }}>{t("menu.gift")}</span>
+                  </button>
+
+                  <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "6px 8px 8px" }} />
+
+                  <button
+                    onClick={() => { handleSignOut(); setAccountMenuOpen(false); setLangMenuOpen(false); }}
+                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 12px", background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <IconLogout />
+                    <span style={{ flex: 1, textAlign: "left" }}>{t("menu.logout")}</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </nav>
       </header>
@@ -5028,16 +5601,16 @@ function App() {
         {!loading && !error && tab === "charts" && <ChartsTab result={result} chartLivePrice={chartLivePrice} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab /> : (
           <ProGate
-            title="Heatmap Is Pro"
-            description="Unlock the S&P heatmap with live Sharpe, volatility, and relative performance."
-            features={["Parallel data fetches", "Treemap visualization", "Risk and regime overlays"]}
+            title={t("pro.heatmap.title")}
+            description={t("pro.heatmap.desc")}
+            features={[t("pro.heatmap.f0"), t("pro.heatmap.f1"), t("pro.heatmap.f2")]}
           />
         ))}
         {!loading && !error && tab === "comparison" && (isPro ? <ComparisonTab /> : (
           <ProGate
-            title="Comparison Is Pro"
-            description="Compare multiple tickers across signals, risk, and valuation in one view."
-            features={["Side-by-side signal scores", "Sharpe and drawdown rankings", "Export-ready table view"]}
+            title={t("pro.comparison.title")}
+            description={t("pro.comparison.desc")}
+            features={[t("pro.comparison.f0"), t("pro.comparison.f1"), t("pro.comparison.f2")]}
           />
         ))}
       </main>
@@ -5045,7 +5618,7 @@ function App() {
       <footer style={{ padding: "8px 24px", borderTop: `1px solid ${C.rule}`, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.04em", position: "relative", zIndex: 1, flexWrap: "wrap", gap: 6 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <LogoIcon size={12} color={C.inkFaint} />
-          <span>For educational purposes only — not financial advice</span>
+          <span>{t("footer.disclaimer")}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={() => setIsPro(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
