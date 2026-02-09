@@ -5447,28 +5447,27 @@ function App() {
                   position: "absolute",
                   right: 0,
                   top: "100%",
-                  marginTop: 10,
-                  minWidth: 260,
-                  background: "#2C2B28",
-                  color: "#E9E6E1",
-                  borderRadius: 16,
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
-                  padding: "10px 8px",
+                  width: 380,
+                  background: C.cream,
+                  color: C.ink,
+                  borderRadius: 0,
+                  border: `1px solid ${C.rule}`,
+                  boxShadow: "4px 8px 24px rgba(0,0,0,0.08)",
+                  padding: 16,
                   zIndex: 2200,
                 }}>
-                  <div style={{ padding: "6px 12px 10px", fontSize: 12, color: "rgba(255,255,255,0.6)", fontFamily: "var(--mono)" }}>
+                  <div style={{ padding: "6px 8px 10px", fontSize: 12, color: C.inkMuted, fontFamily: "var(--mono)" }}>
                     {session?.user?.email || t("menu.signedOut")}
                   </div>
-                  <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "4px 8px 8px" }} />
+                  <div style={{ height: 1, background: C.rule, margin: "4px 8px 8px" }} />
 
                   <button
                     onClick={() => { setTab("account"); setAccountMenuOpen(false); setLangMenuOpen(false); }}
-                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 12px", background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.paper}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                   >
-                    <IconGear />
+                    <IconGear color={C.inkMuted} />
                     <span style={{ flex: 1, textAlign: "left" }}>{t("menu.settings")}</span>
                   </button>
 
@@ -5479,13 +5478,13 @@ function App() {
                   >
                     <button
                       onClick={() => setLangMenuOpen(o => !o)}
-                      style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 12px", background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}
-                      onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                      style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
+                      onMouseEnter={e => e.currentTarget.style.background = C.paper}
                       onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                     >
-                      <IconGlobe />
+                      <IconGlobe color={C.inkMuted} />
                       <span style={{ flex: 1, textAlign: "left" }}>{t("menu.language")}</span>
-                      <IconChevronRight />
+                      <IconChevronRight color={C.inkFaint} />
                     </button>
                     {langMenuOpen && (
                       <div
@@ -5495,12 +5494,13 @@ function App() {
                           position: "absolute",
                           left: "100%",
                           top: 0,
-                          marginLeft: 10,
+                          marginLeft: -1,
                           minWidth: 260,
-                          background: "#2C2B28",
-                          borderRadius: 16,
-                          border: "1px solid rgba(255,255,255,0.08)",
-                          boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+                          background: C.cream,
+                          borderRadius: 0,
+                          border: `1px solid ${C.rule}`,
+                          borderLeft: "none",
+                          boxShadow: "4px 8px 24px rgba(0,0,0,0.08)",
                           padding: "8px 6px",
                           zIndex: 2300,
                         }}
@@ -5517,17 +5517,18 @@ function App() {
                                 justifyContent: "space-between",
                                 width: "100%",
                                 padding: "8px 12px",
-                                background: active ? "rgba(255,255,255,0.06)" : "transparent",
+                                background: active ? C.paper : "transparent",
                                 border: "none",
-                                color: "inherit",
+                                color: C.ink,
                                 cursor: "pointer",
-                                fontSize: 14,
+                                fontSize: 13,
+                                fontFamily: "var(--body)",
                               }}
-                              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
-                              onMouseLeave={e => e.currentTarget.style.background = active ? "rgba(255,255,255,0.06)" : "transparent"}
+                              onMouseEnter={e => e.currentTarget.style.background = C.paper}
+                              onMouseLeave={e => e.currentTarget.style.background = active ? C.paper : "transparent"}
                             >
                               <span style={{ textAlign: "left" }}>{lang.label}</span>
-                              {active && <IconCheck />}
+                              {active && <IconCheck color={C.inkFaint} />}
                             </button>
                           );
                         })}
@@ -5535,36 +5536,36 @@ function App() {
                     )}
                   </div>
 
-                  <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "6px 8px 8px" }} />
+                  <div style={{ height: 1, background: C.rule, margin: "6px 8px 8px" }} />
 
                   <button
                     onClick={() => { setAccountMenuOpen(false); setLangMenuOpen(false); }}
-                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 12px", background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.paper}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                   >
-                    <IconCrown />
+                    <IconCrown color={C.inkMuted} />
                     <span style={{ flex: 1, textAlign: "left" }}>{t("menu.upgrade")}</span>
                   </button>
                   <button
                     onClick={() => { setAccountMenuOpen(false); setLangMenuOpen(false); }}
-                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 12px", background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.paper}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                   >
-                    <IconGift />
+                    <IconGift color={C.inkMuted} />
                     <span style={{ flex: 1, textAlign: "left" }}>{t("menu.gift")}</span>
                   </button>
 
-                  <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "6px 8px 8px" }} />
+                  <div style={{ height: 1, background: C.rule, margin: "6px 8px 8px" }} />
 
                   <button
                     onClick={() => { handleSignOut(); setAccountMenuOpen(false); setLangMenuOpen(false); }}
-                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 12px", background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.paper}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                   >
-                    <IconLogout />
+                    <IconLogout color={C.inkMuted} />
                     <span style={{ flex: 1, textAlign: "left" }}>{t("menu.logout")}</span>
                   </button>
                 </div>
