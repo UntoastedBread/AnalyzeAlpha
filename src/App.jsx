@@ -54,12 +54,17 @@ const TRANSLATIONS = {
     "nav.heatmap": "Heatmap",
     "nav.comparison": "Comparison",
     "nav.account": "Account",
+    "nav.help": "Help",
     "menu.settings": "Settings",
     "menu.language": "Language",
     "menu.upgrade": "Upgrade to Pro",
     "menu.gift": "Gift AnalyzeAlpha",
     "menu.logout": "Log out",
     "menu.signedOut": "Not signed in",
+    "chart.openCharts": "Open in Charts",
+    "help.title": "Help Mode",
+    "help.body": "Hover any highlighted element to learn what it does. Click Help again to exit.",
+    "help.exit": "Exit Help",
     "pro.heatmap.title": "Heatmap Is Pro",
     "pro.heatmap.desc": "Unlock the S&P heatmap with live Sharpe, volatility, and relative performance.",
     "pro.heatmap.f0": "Parallel data fetches",
@@ -83,12 +88,17 @@ const TRANSLATIONS = {
     "nav.heatmap": "Carte thermique",
     "nav.comparison": "Comparaison",
     "nav.account": "Compte",
+    "nav.help": "Aide",
     "menu.settings": "Paramètres",
     "menu.language": "Langue",
     "menu.upgrade": "Passer à Pro",
     "menu.gift": "Offrir AnalyzeAlpha",
     "menu.logout": "Se déconnecter",
     "menu.signedOut": "Non connecté",
+    "chart.openCharts": "Ouvrir dans Graphiques",
+    "help.title": "Mode d'aide",
+    "help.body": "Survolez un élément en surbrillance pour voir ce qu'il fait. Cliquez sur Aide à nouveau pour quitter.",
+    "help.exit": "Quitter l'aide",
     "pro.heatmap.title": "La carte thermique est Pro",
     "pro.heatmap.desc": "Déverrouillez la carte thermique du S&P avec Sharpe, volatilité et performance relative en temps réel.",
     "pro.heatmap.f0": "Récupérations de données parallèles",
@@ -112,12 +122,17 @@ const TRANSLATIONS = {
     "nav.heatmap": "Heatmap",
     "nav.comparison": "Vergleich",
     "nav.account": "Konto",
+    "nav.help": "Hilfe",
     "menu.settings": "Einstellungen",
     "menu.language": "Sprache",
     "menu.upgrade": "Auf Pro upgraden",
     "menu.gift": "AnalyzeAlpha verschenken",
     "menu.logout": "Abmelden",
     "menu.signedOut": "Nicht angemeldet",
+    "chart.openCharts": "In Charts öffnen",
+    "help.title": "Hilfemodus",
+    "help.body": "Fahre über markierte Elemente, um zu sehen, was sie tun. Klicke erneut auf Hilfe, um zu beenden.",
+    "help.exit": "Hilfe beenden",
     "pro.heatmap.title": "Heatmap ist Pro",
     "pro.heatmap.desc": "Schalte die S&P-Heatmap mit live Sharpe, Volatilität und relativer Performance frei.",
     "pro.heatmap.f0": "Parallele Datenabrufe",
@@ -141,12 +156,17 @@ const TRANSLATIONS = {
     "nav.heatmap": "हीटमैप",
     "nav.comparison": "तुलना",
     "nav.account": "अकाउंट",
+    "nav.help": "सहायता",
     "menu.settings": "सेटिंग्स",
     "menu.language": "भाषा",
     "menu.upgrade": "प्रो में अपग्रेड करें",
     "menu.gift": "AnalyzeAlpha उपहार दें",
     "menu.logout": "लॉग आउट",
     "menu.signedOut": "साइन इन नहीं है",
+    "chart.openCharts": "चार्ट्स में खोलें",
+    "help.title": "सहायता मोड",
+    "help.body": "हाइलाइट किए गए तत्वों पर होवर करें ताकि उनका मतलब समझें। बाहर निकलने के लिए सहायता पर फिर क्लिक करें।",
+    "help.exit": "सहायता बंद करें",
     "pro.heatmap.title": "हीटमैप प्रो है",
     "pro.heatmap.desc": "लाइव शार्प, वोलैटिलिटी और रिलेटिव परफॉर्मेंस के साथ S&P हीटमैप अनलॉक करें।",
     "pro.heatmap.f0": "समानांतर डेटा फेच",
@@ -170,12 +190,17 @@ const TRANSLATIONS = {
     "nav.heatmap": "Peta panas",
     "nav.comparison": "Perbandingan",
     "nav.account": "Akun",
+    "nav.help": "Bantuan",
     "menu.settings": "Pengaturan",
     "menu.language": "Bahasa",
     "menu.upgrade": "Upgrade ke Pro",
     "menu.gift": "Hadiahkan AnalyzeAlpha",
     "menu.logout": "Keluar",
     "menu.signedOut": "Belum masuk",
+    "chart.openCharts": "Buka di Grafik",
+    "help.title": "Mode Bantuan",
+    "help.body": "Arahkan kursor ke elemen yang disorot untuk melihat fungsinya. Klik Bantuan lagi untuk keluar.",
+    "help.exit": "Keluar Bantuan",
     "pro.heatmap.title": "Peta panas adalah Pro",
     "pro.heatmap.desc": "Buka peta panas S&P dengan Sharpe, volatilitas, dan kinerja relatif secara langsung.",
     "pro.heatmap.f0": "Pengambilan data paralel",
@@ -199,12 +224,17 @@ const TRANSLATIONS = {
     "nav.heatmap": "Mappa termica",
     "nav.comparison": "Confronto",
     "nav.account": "Account",
+    "nav.help": "Aiuto",
     "menu.settings": "Impostazioni",
     "menu.language": "Lingua",
     "menu.upgrade": "Passa a Pro",
     "menu.gift": "Regala AnalyzeAlpha",
     "menu.logout": "Esci",
     "menu.signedOut": "Non connesso",
+    "chart.openCharts": "Apri in Grafici",
+    "help.title": "Modalità Aiuto",
+    "help.body": "Passa il mouse sugli elementi evidenziati per vedere cosa fanno. Fai clic su Aiuto di nuovo per uscire.",
+    "help.exit": "Esci da Aiuto",
     "pro.heatmap.title": "La mappa termica è Pro",
     "pro.heatmap.desc": "Sblocca la mappa termica dell'S&P con Sharpe, volatilità e performance relativa in tempo reale.",
     "pro.heatmap.f0": "Recuperi dati paralleli",
@@ -228,12 +258,17 @@ const TRANSLATIONS = {
     "nav.heatmap": "ヒートマップ",
     "nav.comparison": "比較",
     "nav.account": "アカウント",
+    "nav.help": "ヘルプ",
     "menu.settings": "設定",
     "menu.language": "言語",
     "menu.upgrade": "Pro にアップグレード",
     "menu.gift": "AnalyzeAlpha を贈る",
     "menu.logout": "ログアウト",
     "menu.signedOut": "サインインしていません",
+    "chart.openCharts": "チャートで開く",
+    "help.title": "ヘルプモード",
+    "help.body": "ハイライトされた要素にカーソルを合わせると説明が表示されます。終了するにはもう一度ヘルプをクリックします。",
+    "help.exit": "ヘルプを終了",
     "pro.heatmap.title": "ヒートマップは Pro です",
     "pro.heatmap.desc": "ライブのシャープ、ボラティリティ、相対パフォーマンスで S&P ヒートマップを解放。",
     "pro.heatmap.f0": "並列データ取得",
@@ -257,12 +292,17 @@ const TRANSLATIONS = {
     "nav.heatmap": "히트맵",
     "nav.comparison": "비교",
     "nav.account": "계정",
+    "nav.help": "도움말",
     "menu.settings": "설정",
     "menu.language": "언어",
     "menu.upgrade": "Pro로 업그레이드",
     "menu.gift": "AnalyzeAlpha 선물하기",
     "menu.logout": "로그아웃",
     "menu.signedOut": "로그인되지 않음",
+    "chart.openCharts": "차트에서 열기",
+    "help.title": "도움말 모드",
+    "help.body": "강조 표시된 요소에 마우스를 올리면 설명이 표시됩니다. 종료하려면 도움말을 다시 클릭하세요.",
+    "help.exit": "도움말 종료",
     "pro.heatmap.title": "히트맵은 Pro입니다",
     "pro.heatmap.desc": "실시간 샤프, 변동성, 상대 성과로 S&P 히트맵을 잠금 해제합니다.",
     "pro.heatmap.f0": "병렬 데이터 가져오기",
@@ -286,12 +326,17 @@ const TRANSLATIONS = {
     "nav.heatmap": "Mapa de calor",
     "nav.comparison": "Comparação",
     "nav.account": "Conta",
+    "nav.help": "Ajuda",
     "menu.settings": "Configurações",
     "menu.language": "Idioma",
     "menu.upgrade": "Atualizar para Pro",
     "menu.gift": "Presentear AnalyzeAlpha",
     "menu.logout": "Sair",
     "menu.signedOut": "Não conectado",
+    "chart.openCharts": "Abrir em Gráficos",
+    "help.title": "Modo de Ajuda",
+    "help.body": "Passe o mouse sobre os elementos destacados para ver o que eles fazem. Clique em Ajuda novamente para sair.",
+    "help.exit": "Sair da Ajuda",
     "pro.heatmap.title": "Mapa de calor é Pro",
     "pro.heatmap.desc": "Desbloqueie o mapa de calor do S&P com Sharpe, volatilidade e desempenho relativo ao vivo.",
     "pro.heatmap.f0": "Coletas de dados paralelas",
@@ -315,12 +360,17 @@ const TRANSLATIONS = {
     "nav.heatmap": "Mapa de calor",
     "nav.comparison": "Comparación",
     "nav.account": "Cuenta",
+    "nav.help": "Ayuda",
     "menu.settings": "Configuración",
     "menu.language": "Idioma",
     "menu.upgrade": "Mejorar a Pro",
     "menu.gift": "Regalar AnalyzeAlpha",
     "menu.logout": "Cerrar sesión",
     "menu.signedOut": "No has iniciado sesión",
+    "chart.openCharts": "Abrir en Gráficos",
+    "help.title": "Modo de Ayuda",
+    "help.body": "Pasa el cursor sobre los elementos resaltados para ver qué hacen. Haz clic en Ayuda otra vez para salir.",
+    "help.exit": "Salir de Ayuda",
     "pro.heatmap.title": "El mapa de calor es Pro",
     "pro.heatmap.desc": "Desbloquea el mapa de calor del S&P con Sharpe, volatilidad y rendimiento relativo en vivo.",
     "pro.heatmap.f0": "Obtención de datos en paralelo",
@@ -344,12 +394,17 @@ const TRANSLATIONS = {
     "nav.heatmap": "Mapa de calor",
     "nav.comparison": "Comparación",
     "nav.account": "Cuenta",
+    "nav.help": "Ayuda",
     "menu.settings": "Ajustes",
     "menu.language": "Idioma",
     "menu.upgrade": "Actualizar a Pro",
     "menu.gift": "Regalar AnalyzeAlpha",
     "menu.logout": "Cerrar sesión",
     "menu.signedOut": "No has iniciado sesión",
+    "chart.openCharts": "Abrir en Gráficos",
+    "help.title": "Modo de Ayuda",
+    "help.body": "Pasa el cursor por los elementos resaltados para ver qué hacen. Haz clic en Ayuda otra vez para salir.",
+    "help.exit": "Salir de Ayuda",
     "pro.heatmap.title": "El mapa de calor es Pro",
     "pro.heatmap.desc": "Desbloquea el mapa de calor del S&P con Sharpe, volatilidad y rendimiento relativo en vivo.",
     "pro.heatmap.f0": "Obtención de datos en paralelo",
@@ -1633,6 +1688,24 @@ function Row({ label, value, color, border = true }) {
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "7px 0", borderBottom: border ? `1px solid ${C.ruleFaint}` : "none" }}>
       <span style={{ color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>{label}</span>
       <span style={{ color: color || C.ink, fontSize: 13, fontFamily: "var(--mono)", fontWeight: 600 }}>{value}</span>
+    </div>
+  );
+}
+
+function HelpWrap({ help, enabled, onShow, onHide, block = false, children }) {
+  if (!help || !enabled) return children;
+  return (
+    <div
+      onMouseEnter={e => onShow?.(e, help)}
+      onMouseLeave={onHide}
+      style={{
+        display: block ? "block" : "inline-flex",
+        outline: `1px dashed ${C.rule}`,
+        outlineOffset: 4,
+        borderRadius: 6,
+      }}
+    >
+      {children}
     </div>
   );
 }
@@ -3422,7 +3495,7 @@ function AccountTab({
 // ═══════════════════════════════════════════════════════════
 // ANALYSIS TAB
 // ═══════════════════════════════════════════════════════════
-function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period, interval, onReanalyze }) {
+function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period, interval, onReanalyze, onOpenCharts, openChartsLabel, helpMode, onShowHelp, onHideHelp }) {
   const [subTab, setSubTab] = useState("stock");
   const [finPeriod, setFinPeriod] = useState("LTM");
   const [assumptions, setAssumptions] = useState(null);
@@ -3562,6 +3635,18 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
     letterSpacing: "0.08em",
     textTransform: "uppercase",
   });
+  const openChartsBtn = {
+    padding: "4px 10px",
+    border: `1px solid ${C.rule}`,
+    background: "transparent",
+    color: C.inkMuted,
+    fontSize: 10,
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: "var(--body)",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+  };
   const inputStyle = {
     width: "100%",
     background: "transparent",
@@ -3702,20 +3787,42 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
             </Section>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <Section title="Price — Last 60 Sessions" actions={
-          onReanalyze && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <select value={period || "1y"} onChange={e => onReanalyze(ticker, e.target.value, interval)}
-                style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
-                {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"],["2y","2Y"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
-              </select>
-              <select value={interval || "1d"} onChange={e => onReanalyze(ticker, period, e.target.value)}
-                style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
-                {(["1d","5d"].includes(period) ? [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["60m","1h"]] : period === "1mo" ? [["15m","15m"],["30m","30m"],["60m","1h"],["1d","1d"]] : [["1d","1d"]]).map(([v,l])=><option key={v} value={v}>{l}</option>)}
-              </select>
-            </div>
-          )
-        }>
+        <HelpWrap
+          enabled={helpMode}
+          onShow={onShowHelp}
+          onHide={onHideHelp}
+          block
+          help={{
+            title: "Price Chart",
+            body: "Shows the last 60 sessions with live overlays and indicators. Use the controls to change period or interval.",
+          }}
+        >
+          <Section title="Price — Last 60 Sessions" actions={
+            (onReanalyze || onOpenCharts) && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                {onOpenCharts && (
+                  <button
+                    onClick={() => onOpenCharts({ mode: "price", title: `${ticker} — Full Period` })}
+                    style={openChartsBtn}
+                  >
+                    {openChartsLabel || "Open in Charts"}
+                  </button>
+                )}
+                {onReanalyze && (
+                  <>
+                    <select value={period || "1y"} onChange={e => onReanalyze(ticker, e.target.value, interval)}
+                      style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
+                      {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"],["2y","2Y"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                    </select>
+                    <select value={interval || "1d"} onChange={e => onReanalyze(ticker, period, e.target.value)}
+                      style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
+                      {(["1d","5d"].includes(period) ? [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["60m","1h"]] : period === "1mo" ? [["15m","15m"],["30m","30m"],["60m","1h"],["1d","1d"]] : [["1d","1d"]]).map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </>
+                )}
+              </div>
+            )
+          }>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginBottom: 8 }}>
             <button onClick={() => setChartType("line")} style={chartToggle(chartType === "line")}>Line</button>
             <button onClick={() => setChartType("candles")} style={chartToggle(chartType === "candles")}>Candles</button>
@@ -3737,7 +3844,8 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
               )}
             </ComposedChart>
           </ResponsiveContainer>
-        </Section>
+          </Section>
+        </HelpWrap>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
               <Section title="Valuation Analysis">
                 <div style={{ fontSize: 16, fontWeight: 700, color: valColor(marketValuation.verdict), fontFamily: "var(--display)", marginBottom: 10, lineHeight: 1.2 }}>{marketValuation.verdict}</div>
@@ -4139,7 +4247,7 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
 // ═══════════════════════════════════════════════════════════
 // CHARTS TAB
 // ═══════════════════════════════════════════════════════════
-function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze }) {
+function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, intent, onConsumeIntent }) {
   const [show, setShow] = useState({ sma: true, bb: true, vol: true, rsi: true, macd: false, stoch: false });
   const [chartType, setChartType] = useState("line");
   const [expanded, setExpanded] = useState(null);
@@ -4169,6 +4277,12 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze }) {
     setChartType("line");
     setExpanded(null);
   }, [result?.ticker]);
+
+  useEffect(() => {
+    if (!intent || !result) return;
+    setExpanded({ mode: intent.mode || "price", title: intent.title || `${ticker} — Full Period` });
+    onConsumeIntent?.();
+  }, [intent, result, ticker, onConsumeIntent]);
 
   if (!result) {
     return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 400, color: C.inkMuted, fontFamily: "var(--display)", fontSize: 24 }}>Run an analysis first</div>;
@@ -4994,12 +5108,40 @@ function App() {
   const chartTimerRef = useRef(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const [helpMode, setHelpMode] = useState(false);
+  const [helpTooltip, setHelpTooltip] = useState(null);
+  const [chartIntent, setChartIntent] = useState(null);
 
   const t = useCallback((key) => {
     return (TRANSLATIONS[locale] && TRANSLATIONS[locale][key])
       || TRANSLATIONS["en-US"][key]
       || key;
   }, [locale]);
+
+  const showHelp = useCallback((e, help) => {
+    if (!helpMode || !help) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const tooltipWidth = 280;
+    const pad = 12;
+    const viewportW = window.innerWidth || 0;
+    const viewportH = window.innerHeight || 0;
+    let x = rect.right + 12;
+    if (x + tooltipWidth > viewportW - pad) {
+      x = rect.left - tooltipWidth - 12;
+    }
+    if (x < pad) x = pad;
+    let y = rect.top;
+    const estimatedHeight = 140;
+    if (y + estimatedHeight > viewportH - pad) {
+      y = viewportH - estimatedHeight - pad;
+    }
+    if (y < pad) y = pad;
+    setHelpTooltip({ title: help.title, body: help.body, x, y });
+  }, [helpMode]);
+
+  const hideHelp = useCallback(() => {
+    if (helpMode) setHelpTooltip(null);
+  }, [helpMode]);
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -5025,6 +5167,10 @@ function App() {
       document.documentElement.lang = locale;
     }
   }, [locale]);
+
+  useEffect(() => {
+    if (!helpMode) setHelpTooltip(null);
+  }, [helpMode]);
 
   // Debounced search
   useEffect(() => {
@@ -5356,6 +5502,24 @@ function App() {
     textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)",
     opacity: locked ? 0.7 : 1,
   });
+  const utilityTabStyle = (on) => ({
+    padding: "0 0 10px 0",
+    background: "none",
+    border: "none",
+    borderBottom: on ? `2px solid ${C.ink}` : "2px solid transparent",
+    color: on ? C.ink : C.inkMuted,
+    fontSize: 12,
+    fontWeight: on ? 700 : 500,
+    cursor: "pointer",
+    textTransform: "uppercase",
+    letterSpacing: "0.12em",
+    fontFamily: "var(--body)",
+  });
+  const openCharts = useCallback((intent) => {
+    setChartIntent(intent);
+    setTab("charts");
+  }, []);
+  const consumeChartIntent = useCallback(() => setChartIntent(null), []);
   return (
     <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", maxWidth: "70%", margin: "0 auto", width: "100%" }}>
       <header style={{ padding: "16px 24px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 2000 }}>
@@ -5366,17 +5530,27 @@ function App() {
             <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>{t("tagline.quant")}</span>
           </div>
           <div ref={searchRef} style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
-            <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }} placeholder={t("search.placeholder")}
-              style={{ width: 200, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", color: C.ink, fontSize: 12, fontFamily: "var(--body)", outline: "none" }}
-              onKeyDown={e => {
-                if (e.key === "Enter") {
-                  const sym = searchQuery.trim().toUpperCase();
-                  if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); }
-                }
-                if (e.key === "Escape") setShowSearchDropdown(false);
+            <HelpWrap
+              enabled={helpMode}
+              onShow={showHelp}
+              onHide={hideHelp}
+              help={{
+                title: "Search",
+                body: "Type a ticker or company name. Press Enter or click Analyze to run the model.",
               }}
-              onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
-            />
+            >
+              <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }} placeholder={t("search.placeholder")}
+                style={{ width: 200, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", color: C.ink, fontSize: 12, fontFamily: "var(--body)", outline: "none" }}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    const sym = searchQuery.trim().toUpperCase();
+                    if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); }
+                  }
+                  if (e.key === "Escape") setShowSearchDropdown(false);
+                }}
+                onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
+              />
+            </HelpWrap>
             {showSearchDropdown && searchResults.length > 0 && (
               <div style={{ position: "absolute", top: "100%", left: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
                 {searchResults.map((r) => (
@@ -5396,10 +5570,20 @@ function App() {
                 ))}
               </div>
             )}
-            <button onClick={() => { const sym = searchQuery.trim().toUpperCase(); if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); } }} disabled={loading || !searchQuery.trim()}
-              style={{ padding: "7px 20px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: loading ? "wait" : "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
-              {loading ? t("search.running") : t("search.analyze")}
-            </button>
+            <HelpWrap
+              enabled={helpMode}
+              onShow={showHelp}
+              onHide={hideHelp}
+              help={{
+                title: "Analyze",
+                body: "Fetches fresh data and updates the recommendation, signals, and charts.",
+              }}
+            >
+              <button onClick={() => { const sym = searchQuery.trim().toUpperCase(); if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); } }} disabled={loading || !searchQuery.trim()}
+                style={{ padding: "7px 20px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: loading ? "wait" : "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
+                {loading ? t("search.running") : t("search.analyze")}
+              </button>
+            </HelpWrap>
           </div>
         </div>
         <nav style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
@@ -5423,25 +5607,52 @@ function App() {
             })}
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
-            <LiteTools
-              onAnalyze={analyze}
-              watchlist={watchlist}
-              alerts={alerts}
-              onAddWatchlist={addToWatchlist}
-              onRemoveWatchlist={removeFromWatchlist}
-              onAddAlert={addAlert}
-              onRemoveAlert={removeAlert}
-            />
+            <button
+              onClick={() => setHelpMode(m => !m)}
+              style={utilityTabStyle(helpMode)}
+              aria-pressed={helpMode}
+            >
+              {t("nav.help")}
+            </button>
+            <HelpWrap
+              enabled={helpMode}
+              onShow={showHelp}
+              onHide={hideHelp}
+              help={{
+                title: "Tools",
+                body: "Open watchlist and alerts to manage tickers without leaving the page.",
+              }}
+            >
+              <LiteTools
+                onAnalyze={analyze}
+                watchlist={watchlist}
+                alerts={alerts}
+                onAddWatchlist={addToWatchlist}
+                onRemoveWatchlist={removeFromWatchlist}
+                onAddAlert={addAlert}
+                onRemoveAlert={removeAlert}
+              />
+            </HelpWrap>
             <div ref={accountMenuRef} style={{ position: "relative" }}>
-              <button
-                onClick={() => setAccountMenuOpen(o => !o)}
-                onKeyDown={e => {
-                  if (e.key === "Escape") { setAccountMenuOpen(false); setLangMenuOpen(false); }
+              <HelpWrap
+                enabled={helpMode}
+                onShow={showHelp}
+                onHide={hideHelp}
+                help={{
+                  title: "Account",
+                  body: "Access settings, language, upgrades, and sign out.",
                 }}
-                style={tabStyle("account")}
               >
-                {t("nav.account")}
-              </button>
+                <button
+                  onClick={() => setAccountMenuOpen(o => !o)}
+                  onKeyDown={e => {
+                    if (e.key === "Escape") { setAccountMenuOpen(false); setLangMenuOpen(false); }
+                  }}
+                  style={tabStyle("account")}
+                >
+                  {t("nav.account")}
+                </button>
+              </HelpWrap>
               {accountMenuOpen && (
                 <div style={{
                   position: "absolute",
@@ -5598,8 +5809,24 @@ function App() {
             onSignOut={handleSignOut}
           />
         )}
-        {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} chartLivePrice={chartLivePrice} latency={latency} isPro={isPro} period={period} interval={interval} onReanalyze={reanalyze} />}
-        {!loading && !error && tab === "charts" && <ChartsTab result={result} chartLivePrice={chartLivePrice} period={period} interval={interval} onReanalyze={reanalyze} />}
+        {!loading && !error && tab === "analysis" && (
+          <AnalysisTab
+            result={result}
+            livePrice={livePrice}
+            chartLivePrice={chartLivePrice}
+            latency={latency}
+            isPro={isPro}
+            period={period}
+            interval={interval}
+            onReanalyze={reanalyze}
+            onOpenCharts={openCharts}
+            openChartsLabel={t("chart.openCharts")}
+            helpMode={helpMode}
+            onShowHelp={showHelp}
+            onHideHelp={hideHelp}
+          />
+        )}
+        {!loading && !error && tab === "charts" && <ChartsTab result={result} chartLivePrice={chartLivePrice} period={period} interval={interval} onReanalyze={reanalyze} intent={chartIntent} onConsumeIntent={consumeChartIntent} />}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab /> : (
           <ProGate
             title={t("pro.heatmap.title")}
@@ -5631,6 +5858,33 @@ function App() {
           <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v0.3.12</span>
         </div>
       </footer>
+
+      {helpMode && (
+        <div style={{ position: "fixed", right: 16, bottom: 16, width: 280, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.12)", padding: 12, zIndex: 5500 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>
+            {t("help.title")}
+          </div>
+          <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", lineHeight: 1.5, marginBottom: 10 }}>
+            {t("help.body")}
+          </div>
+          <button onClick={() => setHelpMode(false)} style={{ padding: "6px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            {t("help.exit")}
+          </button>
+        </div>
+      )}
+
+      {helpMode && helpTooltip && (
+        <div style={{ position: "fixed", left: helpTooltip.x, top: helpTooltip.y, width: 280, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 20px rgba(0,0,0,0.12)", padding: 12, zIndex: 6000, pointerEvents: "none" }}>
+          {helpTooltip.title && (
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, fontFamily: "var(--body)", marginBottom: 6 }}>
+              {helpTooltip.title}
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", lineHeight: 1.5 }}>
+            {helpTooltip.body}
+          </div>
+        </div>
+      )}
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
       {showPerf && <PerfMonitor onClose={() => setShowPerf(false)} />}
