@@ -4451,7 +4451,7 @@ function AuthModal({ open, onClose }) {
 
         {!hasSupabaseConfig && (
           <div style={{ background: C.warmWhite, padding: 12, border: `1px dashed ${C.rule}`, fontSize: 12, color: C.inkMuted, marginBottom: 12 }}>
-            Supabase config missing. Add your `REACT_APP_SUPABASE_URL` and publishable key, then restart the dev server.
+            Supabase config missing. Add your `VITE_SUPABASE_URL` and publishable key, then restart the dev server.
           </div>
         )}
 
