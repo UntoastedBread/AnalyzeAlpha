@@ -3,7 +3,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ComposedChart, ReferenceLine, Brush, Customized,
   PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  Area, Treemap
+  Area
 } from "recharts";
 import "./App.css";
 
@@ -902,12 +902,13 @@ const MARKET_CALENDAR = [
   { date: "Feb 18", time: "14:00", event: "FOMC Minutes", impact: "High" },
 ];
 
-const SECTOR_SNAPSHOT = [
-  { sector: "Technology", changePct: 1.4 },
-  { sector: "Financials", changePct: -0.3 },
-  { sector: "Energy", changePct: 0.7 },
-  { sector: "Healthcare", changePct: -0.2 },
-  { sector: "Industrials", changePct: 0.5 },
+const GLOBAL_INDICES = [
+  { symbol: "^GSPC", label: "S&P 500" },
+  { symbol: "^DJI", label: "Dow Jones" },
+  { symbol: "^IXIC", label: "Nasdaq" },
+  { symbol: "^FTSE", label: "FTSE 100" },
+  { symbol: "^N225", label: "Nikkei 225" },
+  { symbol: "^GDAXI", label: "DAX" },
 ];
 
 const ANALYST_FEED = [
@@ -1945,54 +1946,50 @@ function MarketCalendarCard({ items }) {
   );
 }
 
-function SectorSnapshotCard({ items }) {
-  const data = items.map((s) => ({
-    name: s.sector,
-    size: Math.max(10, Math.round(Math.abs(s.changePct) * 120)),
-    change: s.changePct,
-  }));
-  const renderTreemap = (props) => {
-    if (!props) return null;
-    const { x, y, width, height, payload, depth } = props;
-    if (depth === 0) return null;
-    if (width <= 0 || height <= 0) return null;
-    const data = payload?.payload || payload || {};
-    const change = data.change ?? 0;
-    const name = data.name || "";
-    const intensity = Math.min(0.9, Math.max(0.2, Math.abs(change) / 2));
-    const fill = change >= 0
-      ? `rgba(27,107,58,${0.12 + intensity * 0.35})`
-      : `rgba(155,27,27,${0.12 + intensity * 0.35})`;
-    const stroke = change >= 0 ? C.up : C.down;
-    const showLabel = width > 55 && height > 28 && name;
-    const showMini = width > 32 && height > 20 && name;
-    return (
-      <g>
-        <rect x={x} y={y} width={width} height={height} fill={fill} stroke={stroke} strokeWidth={1} />
-        {showLabel && (
-          <>
-            <text x={x + 8} y={y + 18} fill={C.ink} fontFamily="var(--mono)" fontSize="10" fontWeight="700">
-              {name}
-            </text>
-            <text x={x + 8} y={y + 34} fill={stroke} fontFamily="var(--mono)" fontSize="10">
-              {change >= 0 ? "+" : ""}{change.toFixed(2)}%
-            </text>
-          </>
-        )}
-        {!showLabel && showMini && (
-          <text x={x + 6} y={y + 16} fill={C.ink} fontFamily="var(--mono)" fontSize="9" fontWeight="700">
-            {name.slice(0, 3).toUpperCase()}
-          </text>
-        )}
-      </g>
-    );
-  };
+function GlobalIndexCard() {
+  const [data, setData] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.allSettled(GLOBAL_INDICES.map(idx => fetchQuickQuote(idx.symbol))).then(results => {
+      if (cancelled) return;
+      const items = GLOBAL_INDICES.map((idx, i) => {
+        const r = results[i];
+        if (r.status === "fulfilled") return { ...idx, price: r.value.price, changePct: r.value.changePct, ok: true };
+        return { ...idx, price: 0, changePct: 0, ok: false };
+      });
+      setData(items);
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
-    <MiniCard title="Sector Snapshot" style={{ padding: "12px 12px 14px" }}>
-      <div style={{ width: "100%", height: 140 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <Treemap data={data} dataKey="size" stroke={C.cream} content={renderTreemap} />
-        </ResponsiveContainer>
+    <MiniCard title="Global Indices">
+      <div style={{ display: "grid", gap: 0 }}>
+        {!loaded ? (
+          GLOBAL_INDICES.map((_, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+              <SkeletonBlock width={80} height={12} />
+              <SkeletonBlock width={60} height={12} />
+            </div>
+          ))
+        ) : (
+          data.filter(d => d.ok).map(d => (
+            <div key={d.symbol} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.ink, fontWeight: 600 }}>{d.label}</span>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>
+                  {d.price >= 100 ? d.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : d.price.toFixed(2)}
+                </span>
+                <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: d.changePct >= 0 ? C.up : C.down }}>
+                  {d.changePct >= 0 ? "+" : ""}{d.changePct.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </MiniCard>
   );
@@ -2444,11 +2441,15 @@ function HomeTab({ onAnalyze }) {
       {/* Market Brief */}
       <LazySection minHeight={220}>
         <Section title="Market Brief">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-            <MarketCalendarCard items={MARKET_CALENDAR} />
-            <SectorSnapshotCard items={SECTOR_SNAPSHOT} />
-            <AnalystFeedCard items={ANALYST_FEED} />
-            <InsiderFeedCard items={INSIDER_FEED} />
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
+            <div style={{ display: "grid", gap: 16 }}>
+              <GlobalIndexCard />
+              <MarketCalendarCard items={MARKET_CALENDAR} />
+            </div>
+            <div style={{ display: "grid", gap: 16 }}>
+              <AnalystFeedCard items={ANALYST_FEED} />
+              <InsiderFeedCard items={INSIDER_FEED} />
+            </div>
           </div>
         </Section>
       </LazySection>
