@@ -203,33 +203,37 @@ async function fetchStockData(ticker, period = "1y", interval = "1d") {
     debug.attempts.push({ source: "local-proxy", status: "failed", error: e.message });
   }
 
-  // Fallback: CORS proxy (for static hosting like GitHub Pages)
-  try {
-    const s = performance.now();
-    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${period}&interval=${interval}&includePrePost=false`;
-    const resp = await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`);
-    if (!resp.ok) throw new Error(`CORS proxy HTTP ${resp.status}`);
-    const json = await resp.json();
-    const r = json?.chart?.result?.[0];
-    if (!r?.timestamp || !r?.indicators?.quote?.[0]?.close) throw new Error("Bad response");
-    const q = r.indicators.quote[0];
-    const data = [];
-    for (let i = 0; i < r.timestamp.length; i++) {
-      const c = q.close[i], o = q.open[i], h = q.high[i], l = q.low[i], v = q.volume[i];
-      if (c == null || o == null) continue;
-      data.push({
-        date: formatDateLabel(r.timestamp[i], interval),
-        Open: +o.toFixed(2), High: +(h ?? Math.max(o, c)).toFixed(2),
-        Low: +(l ?? Math.min(o, c)).toFixed(2), Close: +c.toFixed(2), Volume: v || 0,
-      });
+  // Fallback: CORS proxy (dev only)
+  if (!import.meta.env.PROD) {
+    try {
+      const s = performance.now();
+      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${period}&interval=${interval}&includePrePost=false`;
+      const resp = await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`);
+      if (!resp.ok) throw new Error(`CORS proxy HTTP ${resp.status}`);
+      const json = await resp.json();
+      const r = json?.chart?.result?.[0];
+      if (!r?.timestamp || !r?.indicators?.quote?.[0]?.close) throw new Error("Bad response");
+      const q = r.indicators.quote[0];
+      const data = [];
+      for (let i = 0; i < r.timestamp.length; i++) {
+        const c = q.close[i], o = q.open[i], h = q.high[i], l = q.low[i], v = q.volume[i];
+        if (c == null || o == null) continue;
+        data.push({
+          date: formatDateLabel(r.timestamp[i], interval),
+          Open: +o.toFixed(2), High: +(h ?? Math.max(o, c)).toFixed(2),
+          Low: +(l ?? Math.min(o, c)).toFixed(2), Close: +c.toFixed(2), Volume: v || 0,
+        });
+      }
+      const minPoints = interval === "1d" ? 10 : 5;
+      if (data.length < minPoints) throw new Error(`Only ${data.length} data points`);
+      const lat = Math.round(performance.now() - s);
+      debug.attempts.push({ source: "cors-proxy", status: "success", latency: lat, points: data.length });
+      return { data, source: "Yahoo Finance", latency: lat, debug, isLive: true };
+    } catch (e) {
+      debug.attempts.push({ source: "cors-proxy", status: "failed", error: e.message });
     }
-    const minPoints = interval === "1d" ? 10 : 5;
-    if (data.length < minPoints) throw new Error(`Only ${data.length} data points`);
-    const lat = Math.round(performance.now() - s);
-    debug.attempts.push({ source: "cors-proxy", status: "success", latency: lat, points: data.length });
-    return { data, source: "Yahoo Finance", latency: lat, debug, isLive: true };
-  } catch (e) {
-    debug.attempts.push({ source: "cors-proxy", status: "failed", error: e.message });
+  } else {
+    debug.attempts.push({ source: "cors-proxy", status: "skipped", reason: "disabled in production" });
   }
 
   debug.totalTime = Math.round(performance.now() - t0);
@@ -4447,7 +4451,7 @@ function AuthModal({ open, onClose }) {
 
         {!hasSupabaseConfig && (
           <div style={{ background: C.warmWhite, padding: 12, border: `1px dashed ${C.rule}`, fontSize: 12, color: C.inkMuted, marginBottom: 12 }}>
-            Supabase config missing. Add your `REACT_APP_SUPABASE_URL` and publishable key, then restart the dev server.
+            Supabase config missing. Add your `VITE_SUPABASE_URL` and publishable key, then restart the dev server.
           </div>
         )}
 
