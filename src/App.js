@@ -1196,7 +1196,7 @@ function useInView(rootMargin = "200px 0px") {
     );
     if (ref.current) obs.observe(ref.current);
     return () => obs.disconnect();
-  }, [rootMargin]);
+  }, [inView, rootMargin]);
   return [ref, inView];
 }
 
