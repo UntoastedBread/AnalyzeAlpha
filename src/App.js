@@ -2427,7 +2427,7 @@ function HomeTab({ onAnalyze }) {
 
       {/* Headlines + Indexes */}
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 0.6fr)", gap: 16, alignItems: "start" }}>
-        <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
+        <div style={{ display: "grid", gap: 16, minWidth: 0, overflow: "hidden" }}>
           <Section title="Market News">
             <NewsSection news={news} loading={newsLoading} />
           </Section>
@@ -4073,7 +4073,7 @@ function App() {
     opacity: locked ? 0.7 : 1,
   });
   return (
-    <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", maxWidth: "70%", margin: "0 auto", width: "100%", boxShadow: "0 0 60px rgba(0,0,0,0.04)" }}>
+    <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", maxWidth: "70%", margin: "0 auto", width: "100%" }}>
       <header style={{ padding: "16px 24px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
