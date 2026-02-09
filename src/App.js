@@ -1196,7 +1196,7 @@ function useInView(rootMargin = "200px 0px") {
     );
     if (ref.current) obs.observe(ref.current);
     return () => obs.disconnect();
-  }, [inView, rootMargin]);
+  }, [rootMargin]);
   return [ref, inView];
 }
 
@@ -2331,9 +2331,7 @@ function HomeTab({ onAnalyze }) {
     };
     loadNews();
 
-    const refreshInterval = setInterval(() => loadRegionData(region, cancelled, false), 60000);
-
-    return () => { cancelled.current = true; clearInterval(refreshInterval); };
+    return () => { cancelled.current = true; };
   }, [region, loadRegionData, loadMovers, loadTrending]);
 
   // Live tickers polling — refreshes only strip + charts every 30s (lightweight)
