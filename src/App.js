@@ -1925,9 +1925,6 @@ function MarketScorecardCard() {
 
   useEffect(() => {
     let cancelled = false;
-    const now = new Date();
-    const ytdStart = new Date(now.getFullYear(), 0, 1);
-
     Promise.all([
       fetchStockData("^GSPC", "1y", "1d"),
       Promise.allSettled(SCORECARD_INDICATORS.map(ind => fetchQuickQuote(ind.symbol))),
@@ -1938,11 +1935,7 @@ function MarketScorecardCard() {
       const prev1d = hist.length > 1 ? hist[hist.length - 2]?.Close : latest;
       const prev1w = hist.length > 5 ? hist[hist.length - 6]?.Close : hist[0]?.Close;
       const prev1m = hist.length > 22 ? hist[hist.length - 23]?.Close : hist[0]?.Close;
-      const ytdClose = hist.find(d => {
-        const parts = d.date.split(/[\s/,-]+/);
-        return true;
-      });
-      const firstOfYear = hist.find((_, i) => i === 0)?.Close || latest;
+      const firstOfYear = hist[0]?.Close || latest;
       const calcRet = (from) => from ? ((latest - from) / from) * 100 : 0;
       setSpData({
         price: latest,
