@@ -1775,15 +1775,17 @@ function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
         <>
           {display.map((s) => (
             <button key={s.ticker} onClick={() => onAnalyze?.(s.ticker)}
-              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 4px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
+              style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", width: "100%", padding: "8px 4px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
               onMouseEnter={e => e.currentTarget.style.background = C.paper}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-              <div style={{ display: "grid", gap: 2, minWidth: 80 }}>
+              <div style={{ display: "grid", gap: 2, minWidth: 0, overflow: "hidden" }}>
                 <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
-                <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>{s.name}</span>
+                <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
               </div>
-              {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
-              <div style={{ textAlign: "right", minWidth: 80 }}>
+              <div style={{ padding: "0 8px" }}>
+                {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
+              </div>
+              <div style={{ textAlign: "right" }}>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: s.changePct >= 0 ? C.up : C.down, marginLeft: 8 }}>
                   {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
@@ -2140,7 +2142,6 @@ function ChangelogBanner() {
 function AssetRow({ section, onAnalyze }) {
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
-  const scrollRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -2157,86 +2158,55 @@ function AssetRow({ section, onAnalyze }) {
     return () => { cancelled = true; };
   }, [section]);
 
-  const scrollRight = () => {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollBy({ left: 220, behavior: "smooth" });
-  };
-
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0" }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)", minWidth: 100, flexShrink: 0 }}>
+    <div style={{ padding: "14px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.16em", fontFamily: "var(--mono)", marginBottom: 10 }}>
         {section.title}
       </div>
-      <div style={{ position: "relative", flex: 1 }}>
-        <div ref={scrollRef} style={{ display: "flex", gap: 8, overflowX: "auto", paddingRight: 34 }}>
-          {!loaded ? (
-            Array.from({ length: section.symbols.length }).map((_, i) => (
-              <div key={i} style={{ padding: "8px 12px", background: C.warmWhite, border: `1px solid ${C.rule}`, minWidth: 130 }}>
-                <SkeletonBlock width={60} height={10} style={{ marginBottom: 4 }} />
-                <SkeletonBlock width={80} height={14} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 2 }}>
+        {!loaded ? (
+          section.symbols.map((_, i) => (
+            <div key={i} style={{ padding: "8px 10px" }}>
+              <SkeletonBlock width={60} height={10} style={{ marginBottom: 4 }} />
+              <SkeletonBlock width={80} height={14} />
+            </div>
+          ))
+        ) : (
+          data.filter(d => d.ok).map(d => (
+            <button
+              key={d.symbol}
+              type="button"
+              onClick={() => onAnalyze?.(d.symbol)}
+              style={{
+                padding: "8px 10px",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                textAlign: "left",
+                borderRadius: 4,
+                transition: "background 0.15s",
+                minWidth: 0,
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = C.warmWhite}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
+                <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>{d.label}</span>
+                <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: d.changePct >= 0 ? C.up : C.down }}>
+                  {d.changePct >= 0 ? "+" : ""}{d.changePct.toFixed(2)}%
+                </span>
               </div>
-            ))
-          ) : (
-            data.filter(d => d.ok).map(d => (
-              <button
-                key={d.symbol}
-                type="button"
-                onClick={() => onAnalyze?.(d.symbol)}
-                style={{
-                  padding: "8px 12px",
-                  background: C.warmWhite,
-                  border: `1px solid ${C.rule}`,
-                  minWidth: 130,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  flexShrink: 0,
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = C.paper}
-                onMouseLeave={e => e.currentTarget.style.background = C.warmWhite}
-              >
-                <div>
-                  <div style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>{d.label}</div>
-                  <div style={{ fontSize: 13, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>{d.price >= 100 ? d.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : d.price.toFixed(2)}</div>
-                  <div style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: d.changePct >= 0 ? C.up : C.down }}>
-                    {d.changePct >= 0 ? "+" : ""}{d.changePct.toFixed(2)}%
-                  </div>
+              <div style={{ fontSize: 15, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink, marginBottom: 4 }}>
+                {d.price >= 100 ? d.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : d.price.toFixed(2)}
+              </div>
+              {d.spark && d.spark.length > 1 && (
+                <div style={{ opacity: 0.7 }}>
+                  <Sparkline data={d.spark} color={d.changePct >= 0 ? C.up : C.down} />
                 </div>
-                {d.spark && d.spark.length > 1 && <Sparkline data={d.spark} color={d.changePct >= 0 ? C.up : C.down} />}
-              </button>
-            ))
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={scrollRight}
-          aria-label={`Scroll ${section.title}`}
-          style={{
-            position: "absolute",
-            right: 0,
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: 28,
-            height: 28,
-            borderRadius: 14,
-            border: `1px solid ${C.rule}`,
-            background: C.cream,
-            color: C.inkMuted,
-            cursor: "pointer",
-            fontSize: 12,
-            fontFamily: "var(--mono)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.color = C.ink; e.currentTarget.style.borderColor = C.ink; }}
-          onMouseLeave={e => { e.currentTarget.style.color = C.inkMuted; e.currentTarget.style.borderColor = C.rule; }}
-        >
-          →
-        </button>
+              )}
+            </button>
+          ))
+        )}
       </div>
     </div>
   );
