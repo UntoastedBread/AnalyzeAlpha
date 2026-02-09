@@ -4454,6 +4454,7 @@ function App() {
   const [syncState, setSyncState] = useState({ status: "idle", last: null, error: null });
   const [remoteHydrated, setRemoteHydrated] = useState(false);
   const workspaceRef = useRef(initialWorkspace);
+  const userId = session?.user?.id || null;
   const [watchlist, setWatchlist] = useState(initialWorkspace.watchlist);
   const [alerts, setAlerts] = useState(initialWorkspace.alerts);
   const [recentAnalyses, setRecentAnalyses] = useState(initialWorkspace.recent);
@@ -4555,7 +4556,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!supabase || !session?.user) {
+    if (!supabase || !userId) {
       setRemoteHydrated(false);
       setSyncState({ status: "idle", last: null, error: null });
       return;
@@ -4566,7 +4567,7 @@ function App() {
       const { data, error: err } = await supabase
         .from("workspaces")
         .select("data, updated_at")
-        .eq("user_id", session.user.id)
+        .eq("user_id", userId)
         .maybeSingle();
       if (cancelled) return;
       if (err && err.code !== "PGRST116") {
@@ -4581,16 +4582,16 @@ function App() {
     };
     loadRemote();
     return () => { cancelled = true; };
-  }, [session?.user?.id, applyWorkspace]);
+  }, [userId, applyWorkspace]);
 
   useEffect(() => {
-    if (!supabase || !session?.user || !remoteHydrated) return;
+    if (!supabase || !userId || !remoteHydrated) return;
     const id = setTimeout(async () => {
       setSyncState(s => ({ ...s, status: "syncing", error: null }));
       const { error: err } = await supabase
         .from("workspaces")
         .upsert({
-          user_id: session.user.id,
+          user_id: userId,
           data: workspaceRef.current,
           updated_at: new Date().toISOString(),
         }, { onConflict: "user_id" });
@@ -4601,7 +4602,7 @@ function App() {
       }
     }, 800);
     return () => clearTimeout(id);
-  }, [workspaceData, session?.user?.id, remoteHydrated]);
+  }, [workspaceData, userId, remoteHydrated]);
 
   const intervalOptions = useMemo(() => {
     if (["1d", "5d"].includes(period)) {
