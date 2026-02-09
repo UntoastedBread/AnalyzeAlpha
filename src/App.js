@@ -91,6 +91,18 @@ function formatAgo(ts) {
   return `${day}d ago`;
 }
 
+function getFirstNameFromUser(user) {
+  const meta = user?.user_metadata || {};
+  const raw = meta.first_name || meta.firstName || meta.name || meta.full_name || meta.fullName || "";
+  if (!raw) return "";
+  return String(raw).trim().split(/\s+/)[0];
+}
+
+function shortRegimeLabel(regime) {
+  if (!regime) return "UNKNOWN";
+  return String(regime).replace(/STRONG_/g, "").replace(/TRENDING_/g, "").replace(/_/g, " ");
+}
+
 function mergeUnique(primary, secondary, keyFn) {
   const seen = new Set();
   const merged = [];
@@ -1181,24 +1193,6 @@ function ProTag({ small = false }) {
   );
 }
 
-function NewTag() {
-  return (
-    <span style={{
-      fontWeight: 700,
-      fontSize: 9,
-      color: C.cream,
-      background: C.ink,
-      fontFamily: "var(--mono)",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      padding: "2px 6px",
-      borderRadius: 10,
-    }}>
-      New
-    </span>
-  );
-}
-
 function ProGate({ title = "Pro Required", description, features }) {
   return (
     <div style={{ border: `1px dashed ${C.rule}`, background: C.warmWhite, padding: 28, textAlign: "center", display: "grid", gap: 8 }}>
@@ -1250,10 +1244,8 @@ function Section({ title, children, style, actions }) {
   );
 }
 
-function Sparkline({ data, color = C.ink, prevClose }) {
+function Sparkline({ data, color = C.ink, prevClose, width = 120, height = 36 }) {
   if (!data || data.length < 2) return null;
-  const width = 120;
-  const height = 36;
   const pad = 3;
   const min = Math.min(...data);
   const max = Math.max(...data);
@@ -2447,7 +2439,7 @@ function AssetRow({ section, onAnalyze }) {
 // ═══════════════════════════════════════════════════════════
 // HOME TAB
 // ═══════════════════════════════════════════════════════════
-function HomeTab({ onAnalyze, region = "Global", onRegionChange }) {
+function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName }) {
   const [indexPage, setIndexPage] = useState(0);
   const [stripData, setStripData] = useState([]);
   const [stripLoading, setStripLoading] = useState(true);
@@ -2609,8 +2601,53 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange }) {
     letterSpacing: "0.06em", transition: "all 0.15s",
   });
 
+  const greetingVariantRef = useRef(Math.floor(Math.random() * 5));
+  const dayPart = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "morning";
+    if (h < 18) return "afternoon";
+    if (h < 22) return "evening";
+    return "night";
+  })();
+  const greetingPhrases = greetingName ? [
+    `Good ${dayPart}`,
+    `Welcome back this ${dayPart}`,
+    `Nice to see you this ${dayPart}`,
+    `Hope your ${dayPart} is going well`,
+    `Here's your ${dayPart} read`,
+  ] : [
+    `Good ${dayPart}`,
+    `Market brief for this ${dayPart}`,
+    `Here's the market pulse`,
+    `A quick look at markets`,
+    `Your ${dayPart} snapshot`,
+  ];
+  const greetingBase = greetingPhrases[greetingVariantRef.current % greetingPhrases.length];
+  const greetingText = greetingName ? `${greetingBase}, ${greetingName}` : greetingBase;
+
   return (
     <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
+      {/* Greeting */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 2px 6px" }}>
+        <span style={{ width: 26, height: 26, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+            <g stroke={C.accent} strokeWidth="1.6" strokeLinecap="round">
+              <line x1="12" y1="2" x2="12" y2="6" />
+              <line x1="12" y1="18" x2="12" y2="22" />
+              <line x1="2" y1="12" x2="6" y2="12" />
+              <line x1="18" y1="12" x2="22" y2="12" />
+              <line x1="4.5" y1="4.5" x2="7.5" y2="7.5" />
+              <line x1="16.5" y1="16.5" x2="19.5" y2="19.5" />
+              <line x1="4.5" y1="19.5" x2="7.5" y2="16.5" />
+              <line x1="16.5" y1="7.5" x2="19.5" y2="4.5" />
+            </g>
+            <circle cx="12" cy="12" r="3" fill={C.accent} />
+          </svg>
+        </span>
+        <div style={{ fontSize: 26, fontFamily: "var(--display)", color: C.ink, letterSpacing: "-0.01em" }}>
+          {greetingText}
+        </div>
+      </div>
       {/* Ticker Strip */}
       <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} />
 
@@ -2693,9 +2730,9 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// WORKSPACE TAB
+// ACCOUNT TAB
 // ═══════════════════════════════════════════════════════════
-function WorkspaceTab({
+function AccountTab({
   onAnalyze,
   watchlist = [],
   alerts = [],
@@ -2708,10 +2745,20 @@ function WorkspaceTab({
   onOpenAuth,
   session,
   syncState,
+  profileName,
+  onUpdateName,
 }) {
+  const [subTab, setSubTab] = useState("overview");
   const [wlInput, setWlInput] = useState("");
   const [alForm, setAlForm] = useState({ ticker: "", type: "above", value: "" });
   const [busy, setBusy] = useState(false);
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [nameInput, setNameInput] = useState(profileName || "");
+  const [nameStatus, setNameStatus] = useState("");
+
+  useEffect(() => {
+    setNameInput(profileName || "");
+  }, [profileName]);
 
   const syncLabel = !session
     ? "Local only"
@@ -2741,117 +2788,218 @@ function WorkspaceTab({
     setAlForm({ ticker: "", type: "above", value: "" }); setBusy(false);
   };
 
+  const saveName = async () => {
+    const next = nameInput.trim();
+    if (!next) { setNameStatus("Enter a first name."); return; }
+    if (!session) { setNameStatus("Sign in to save."); return; }
+    setProfileBusy(true);
+    const res = await onUpdateName?.(next);
+    if (res?.error) setNameStatus(res.error);
+    else setNameStatus("Saved");
+    setProfileBusy(false);
+  };
+
   return (
     <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
-      <div style={{ border: `1px solid ${C.rule}`, background: C.warmWhite, padding: 16, display: "flex", gap: 16, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--mono)", color: C.inkFaint, marginBottom: 6 }}>Workspace Sync</div>
-          <div style={{ fontSize: 13, color: C.ink, fontFamily: "var(--body)" }}>
-            {session ? `Signed in as ${session?.user?.email || "user"}` : "Sign in to sync your workspace across devices."}
-          </div>
-          {syncState?.error && <div style={{ fontSize: 11, color: C.down, fontFamily: "var(--body)", marginTop: 4 }}>{syncState.error}</div>}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted }}>{syncLabel}</span>
-          {!session && (
-            <button onClick={onOpenAuth} style={{ padding: "8px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              Sign In
-            </button>
-          )}
-        </div>
-      </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
-        <Section title="Watchlist">
-          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-            <input value={wlInput} onChange={e => setWlInput(e.target.value)} placeholder="Ticker"
-              style={{ flex: 1, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", fontSize: 12, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}
-              onKeyDown={e => e.key === "Enter" && addWl()} />
-            <button onClick={addWl} disabled={busy} style={{ padding: "6px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>ADD</button>
+        <div style={{ border: `1px solid ${C.rule}`, background: C.warmWhite, padding: 16, display: "flex", gap: 16, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--mono)", color: C.inkFaint, marginBottom: 6 }}>Account Sync</div>
+            <div style={{ fontSize: 13, color: C.ink, fontFamily: "var(--body)" }}>
+              {session ? `Signed in as ${session?.user?.email || "user"}` : "Sign in to sync your account data across devices."}
+            </div>
+            {syncState?.error && <div style={{ fontSize: 11, color: C.down, fontFamily: "var(--body)", marginTop: 4 }}>{syncState.error}</div>}
           </div>
-          {watchlist.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>Empty watchlist</div>
-          ) : (
-            watchlist.map(w => (
-              <div key={w.ticker} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
-                <div>
-                  <span style={{ fontWeight: 700, fontFamily: "var(--mono)", fontSize: 13, color: C.ink }}>{w.ticker}</span>
-                  <span style={{ marginLeft: 8, fontFamily: "var(--mono)", fontSize: 12 }}>${fmt(w.price)}</span>
-                  <span style={{ marginLeft: 8, color: w.change >= 0 ? C.up : C.down, fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600 }}>{w.change >= 0 ? "+" : ""}{fmtPct(w.change)}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ color: recColor(w.rec), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{w.rec}</span>
-                  <button onClick={() => onAnalyze(w.ticker)} style={{ background: "transparent", border: `1px solid ${C.rule}`, color: C.ink, fontSize: 10, fontFamily: "var(--body)", padding: "4px 8px", cursor: "pointer" }}>Analyze</button>
-                  <button onClick={() => onRemoveWatchlist?.(w.ticker)} style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
-                </div>
-              </div>
-            ))
-          )}
-        </Section>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted }}>{syncLabel}</span>
+            {!session && (
+              <button onClick={onOpenAuth} style={{ padding: "8px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                Sign In
+              </button>
+            )}
+          </div>
+        </div>
 
-        <Section title="Alerts">
-          <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
-            <input value={alForm.ticker} onChange={e => setAlForm(p => ({ ...p, ticker: e.target.value }))} placeholder="Ticker"
-              style={{ width: 70, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", fontSize: 11, fontFamily: "var(--mono)", color: C.ink, outline: "none" }} />
-            <select value={alForm.type} onChange={e => setAlForm(p => ({ ...p, type: e.target.value }))}
-              style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 6px", fontSize: 11, fontFamily: "var(--body)", color: C.ink, outline: "none" }}>
-              <option value="above">Above</option><option value="below">Below</option>
-            </select>
-            <input value={alForm.value} onChange={e => setAlForm(p => ({ ...p, value: e.target.value }))} placeholder="$" type="number"
-              style={{ width: 80, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", fontSize: 11, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}
-              onKeyDown={e => e.key === "Enter" && addAlert()} />
-            <button onClick={addAlert} disabled={busy} style={{ padding: "6px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>SET</button>
-          </div>
-          {alerts.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>No alerts</div>
-          ) : (
-            alerts.map(a => (
-              <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
-                <div>
-                  <span style={{ fontWeight: 700, fontFamily: "var(--mono)", fontSize: 12 }}>{a.ticker}</span>
-                  <span style={{ color: C.inkMuted, fontSize: 11, marginLeft: 6 }}>{a.type === "above" ? "≥" : "≤"} ${fmt(a.value)}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)", color: a.triggered ? C.up : C.hold }}>{a.triggered ? "TRIGGERED" : "WATCHING"}</span>
-                  <button onClick={() => onRemoveAlert?.(a.id)} style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
-                </div>
+        <div style={{ border: `1px solid ${C.rule}`, background: C.warmWhite, padding: 16, display: "grid", gap: 10 }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--mono)", color: C.inkFaint }}>Profile</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 38, height: 38, borderRadius: "50%", background: C.ink, color: C.cream, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--mono)", fontWeight: 700 }}>
+              {(profileName || session?.user?.email || "?").slice(0, 1).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, display: "grid", gap: 6 }}>
+              <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="First name"
+                style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "8px 10px", fontSize: 12, fontFamily: "var(--body)", color: C.ink, outline: "none" }}
+                disabled={!session} />
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button onClick={saveName} disabled={!session || profileBusy} style={{ padding: "6px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: !session || profileBusy ? 0.5 : 1 }}>
+                  Save
+                </button>
+                {nameStatus && <span style={{ fontSize: 10, color: nameStatus === "Saved" ? C.up : C.inkMuted, fontFamily: "var(--mono)" }}>{nameStatus}</span>}
               </div>
-            ))
-          )}
-        </Section>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <Section title="Recent Analyses">
-        {recent.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>No analyses yet</div>
-        ) : (
-          <div style={{ display: "grid", gap: 6 }}>
-            {recent.map(r => (
-              <div key={`${r.ticker}-${r.ts || r.timestamp}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                    <span style={{ fontWeight: 700, fontFamily: "var(--mono)", fontSize: 13 }}>{r.ticker}</span>
-                    <span style={{ color: recColor(r.action), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{r.action || "NEUTRAL"}</span>
-                    <span style={{ color: C.inkFaint, fontSize: 10, fontFamily: "var(--mono)" }}>{r.period || prefs?.period}/{r.interval || prefs?.interval}</span>
-                  </div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)" }}>
-                    {r.price != null ? `$${fmt(r.price)}` : "—"} · {formatAgo(r.ts || r.timestamp)}
-                  </div>
-                </div>
-                <button onClick={() => onAnalyze(r.ticker)} style={{ background: "transparent", border: `1px solid ${C.rule}`, color: C.ink, fontSize: 10, fontFamily: "var(--body)", padding: "4px 8px", cursor: "pointer" }}>Analyze</button>
-              </div>
-            ))}
-          </div>
-        )}
-      </Section>
+      <div style={{ display: "flex", gap: 12, borderBottom: `1px solid ${C.rule}`, paddingBottom: 8 }}>
+        {["overview", "preferences"].map(t => (
+          <button
+            key={t}
+            onClick={() => setSubTab(t)}
+            style={{
+              background: "none",
+              border: "none",
+              color: subTab === t ? C.ink : C.inkMuted,
+              fontSize: 11,
+              fontWeight: subTab === t ? 700 : 400,
+              cursor: "pointer",
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              fontFamily: "var(--body)",
+              borderBottom: subTab === t ? `2px solid ${C.ink}` : "none",
+              paddingBottom: 6,
+            }}
+          >
+            {t === "overview" ? "Overview" : "Preferences"}
+          </button>
+        ))}
+      </div>
 
-      <Section title="Preferences">
-        <div style={{ display: "grid", gap: 6 }}>
-          <Row label="Default Period" value={prefs?.period || "1y"} />
-          <Row label="Default Interval" value={prefs?.interval || "1d"} />
-          <Row label="Home Region" value={prefs?.region || "Global"} border={false} />
-        </div>
-      </Section>
+      {subTab === "overview" ? (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+            <Section title="Watchlist">
+              <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                <input value={wlInput} onChange={e => setWlInput(e.target.value)} placeholder="Ticker"
+                  style={{ flex: 1, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", fontSize: 12, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}
+                  onKeyDown={e => e.key === "Enter" && addWl()} />
+                <button onClick={addWl} disabled={busy} style={{ padding: "6px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>ADD</button>
+              </div>
+              {watchlist.length === 0 ? (
+                <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>Empty watchlist</div>
+              ) : (
+                watchlist.map(w => (
+                  <div key={w.ticker} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                        <span style={{ fontWeight: 700, fontFamily: "var(--mono)", fontSize: 13, color: C.ink }}>{w.ticker}</span>
+                        <span style={{ fontFamily: "var(--mono)", fontSize: 12 }}>${fmt(w.price)}</span>
+                        <span style={{ color: w.change >= 0 ? C.up : C.down, fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600 }}>{w.change >= 0 ? "+" : ""}{fmtPct(w.change)}</span>
+                      </div>
+                      {w.spark && w.spark.length > 1 && (
+                        <div style={{ marginTop: 6, opacity: 0.7 }}>
+                          <Sparkline data={w.spark} color={w.change >= 0 ? C.up : C.down} prevClose={w.prevClose} width={160} height={44} />
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ color: recColor(w.rec), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{w.rec}</span>
+                      <button onClick={() => onAnalyze(w.ticker)} style={{ background: "transparent", border: `1px solid ${C.rule}`, color: C.ink, fontSize: 10, fontFamily: "var(--body)", padding: "4px 8px", cursor: "pointer" }}>Analyze</button>
+                      <button onClick={() => onRemoveWatchlist?.(w.ticker)} style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </Section>
+
+            <Section title="Alerts">
+              <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
+                <input value={alForm.ticker} onChange={e => setAlForm(p => ({ ...p, ticker: e.target.value }))} placeholder="Ticker"
+                  style={{ width: 70, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", fontSize: 11, fontFamily: "var(--mono)", color: C.ink, outline: "none" }} />
+                <select value={alForm.type} onChange={e => setAlForm(p => ({ ...p, type: e.target.value }))}
+                  style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 6px", fontSize: 11, fontFamily: "var(--body)", color: C.ink, outline: "none" }}>
+                  <option value="above">Above</option><option value="below">Below</option>
+                </select>
+                <input value={alForm.value} onChange={e => setAlForm(p => ({ ...p, value: e.target.value }))} placeholder="$" type="number"
+                  style={{ width: 80, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", fontSize: 11, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}
+                  onKeyDown={e => e.key === "Enter" && addAlert()} />
+                <button onClick={addAlert} disabled={busy} style={{ padding: "6px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>SET</button>
+              </div>
+              {alerts.length === 0 ? (
+                <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>No alerts</div>
+              ) : (
+                alerts.map(a => (
+                  <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+                    <div>
+                      <span style={{ fontWeight: 700, fontFamily: "var(--mono)", fontSize: 12 }}>{a.ticker}</span>
+                      <span style={{ color: C.inkMuted, fontSize: 11, marginLeft: 6 }}>{a.type === "above" ? "≥" : "≤"} ${fmt(a.value)}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)", color: a.triggered ? C.up : C.hold }}>{a.triggered ? "TRIGGERED" : "WATCHING"}</span>
+                      <button onClick={() => onRemoveAlert?.(a.id)} style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </Section>
+          </div>
+
+          <Section title="Recent Analyses">
+            {recent.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>No analyses yet</div>
+            ) : (
+              <div style={{ display: "grid", gap: 10 }}>
+                {recent.map(r => {
+                  const regimeLabel = shortRegimeLabel(r.regime);
+                  const riskTone = r.riskLevel === "HIGH" ? C.down : r.riskLevel === "MEDIUM" ? C.hold : C.up;
+                  return (
+                    <button
+                      key={`${r.ticker}-${r.ts || r.timestamp}`}
+                      onClick={() => onAnalyze(r.ticker)}
+                      style={{ textAlign: "left", border: `1px solid ${C.rule}`, background: C.warmWhite, padding: 14, display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 12, alignItems: "center", cursor: "pointer" }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontWeight: 700, fontFamily: "var(--mono)", fontSize: 13 }}>{r.ticker}</span>
+                          <span style={{ color: recColor(r.action), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{r.action || "NEUTRAL"}</span>
+                          <span style={{ color: C.inkFaint, fontSize: 10, fontFamily: "var(--mono)" }}>{r.period || prefs?.period}/{r.interval || prefs?.interval}</span>
+                        </div>
+                        <div style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)", marginTop: 4 }}>
+                          {r.price != null ? `$${fmt(r.price)}` : "—"} · {formatAgo(r.ts || r.timestamp)}
+                        </div>
+                        <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: recColor(r.action), display: "inline-block" }} />
+                            Signal {r.action || "NEUTRAL"}
+                          </span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, display: "inline-block" }} />
+                            Regime {regimeLabel}
+                          </span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: riskTone, display: "inline-block" }} />
+                            Risk {r.riskLevel || "—"}
+                          </span>
+                          {r.confidence != null && (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted }}>
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.inkSoft, display: "inline-block" }} />
+                              Conf {Math.round(r.confidence * 100)}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        {r.spark && r.spark.length > 1 && (
+                          <Sparkline data={r.spark} prevClose={r.prevClose} color={recColor(r.action)} width={200} height={64} />
+                        )}
+                        <span style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>View →</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </Section>
+        </>
+      ) : (
+        <Section title="Preferences">
+          <div style={{ display: "grid", gap: 6 }}>
+            <Row label="Default Period" value={prefs?.period || "1y"} />
+            <Row label="Default Interval" value={prefs?.interval || "1d"} />
+            <Row label="Home Region" value={prefs?.region || "Global"} border={false} />
+          </div>
+        </Section>
+      )}
     </div>
   );
 }
@@ -4163,6 +4311,11 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
                       <span style={{ marginLeft: 8, fontFamily: "var(--mono)", fontSize: 12 }}>${fmt(w.price)}</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {w.spark && w.spark.length > 1 && (
+                        <div style={{ opacity: 0.7 }}>
+                          <Sparkline data={w.spark} color={w.change >= 0 ? C.up : C.down} prevClose={w.prevClose} width={80} height={28} />
+                        </div>
+                      )}
                       <span style={{ color: w.change >= 0 ? C.up : C.down, fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600 }}>{w.change >= 0 ? "+" : ""}{fmtPct(w.change)}</span>
                       <span style={{ color: recColor(w.rec), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{w.rec}</span>
                       <button onClick={e => { e.stopPropagation(); onRemoveWatchlist?.(w.ticker); }}
@@ -4281,6 +4434,7 @@ function AccountMenu({ session, onOpenAuth, onSignOut }) {
 
 function AuthModal({ open, onClose }) {
   const [mode, setMode] = useState("signin");
+  const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -4291,19 +4445,21 @@ function AuthModal({ open, onClose }) {
     if (!open) return;
     setError("");
     setNotice("");
+    if (mode === "signin") setFirstName("");
   }, [open, mode]);
 
   if (!open) return null;
 
   const submitEmailAuth = async () => {
     if (!supabase) return;
+    if (mode === "signup" && !firstName.trim()) { setError("First name required."); return; }
     if (!email || !password) { setError("Email and password required."); return; }
     setBusy(true); setError(""); setNotice("");
     if (mode === "signup") {
       const { error: err } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: window.location.origin },
+        options: { emailRedirectTo: window.location.origin, data: { first_name: firstName.trim() } },
       });
       if (err) setError(err.message);
       else setNotice("Check your email to confirm your account.");
@@ -4368,6 +4524,10 @@ function AuthModal({ open, onClose }) {
         </div>
 
         <div style={{ display: "grid", gap: 8 }}>
+          {mode === "signup" && (
+            <input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First name"
+              style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "10px 12px", fontSize: 12, fontFamily: "var(--body)", color: C.ink, outline: "none" }} />
+          )}
           <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" type="email"
             style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "10px 12px", fontSize: 12, fontFamily: "var(--body)", color: C.ink, outline: "none" }} />
           <input value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" type="password"
@@ -4455,6 +4615,7 @@ function App() {
   const [remoteHydrated, setRemoteHydrated] = useState(false);
   const workspaceRef = useRef(initialWorkspace);
   const userId = session?.user?.id || null;
+  const profileName = useMemo(() => getFirstNameFromUser(session?.user), [session?.user]);
   const [watchlist, setWatchlist] = useState(initialWorkspace.watchlist);
   const [alerts, setAlerts] = useState(initialWorkspace.alerts);
   const [recentAnalyses, setRecentAnalyses] = useState(initialWorkspace.recent);
@@ -4627,8 +4788,17 @@ function App() {
     const fd = await fetchStockData(t, "3mo");
     if (!fd?.data) return;
     const a = runAnalysis(t, fd.data);
-    const pc = a.data.length > 1 ? a.data[a.data.length - 2].Close : a.currentPrice;
-    const entry = { ticker: t, price: a.currentPrice, change: ((a.currentPrice - pc) / pc) * 100, rec: a.recommendation.action, addedAt: Date.now() };
+    const closes = fd.data.map(d => d.Close).filter(v => v != null);
+    const prevClose = closes.length > 1 ? closes[closes.length - 2] : a.currentPrice;
+    const entry = {
+      ticker: t,
+      price: a.currentPrice,
+      change: prevClose ? ((a.currentPrice - prevClose) / prevClose) * 100 : 0,
+      rec: a.recommendation.action,
+      spark: closes.slice(-30),
+      prevClose,
+      addedAt: Date.now(),
+    };
     setWatchlist(prev => (prev.some(w => w.ticker === t) ? prev : [...prev, entry]));
   }, [watchlist]);
 
@@ -4651,20 +4821,46 @@ function App() {
 
   const recordRecent = useCallback((analysis) => {
     if (!analysis?.ticker) return;
+    const closes = analysis.data?.map(d => d.Close).filter(v => v != null) || [];
+    const prevClose = closes.length > 1 ? closes[closes.length - 2] : analysis.currentPrice;
     const entry = {
       ticker: analysis.ticker,
       ts: Date.now(),
       price: analysis.currentPrice,
       action: analysis.recommendation?.action,
+      confidence: analysis.recommendation?.confidence,
+      regime: analysis.regime?.overall,
+      riskLevel: analysis.risk?.riskLevel,
       period: analysis.period,
       interval: analysis.interval,
       source: analysis.source,
+      spark: closes.slice(-30),
+      prevClose,
     };
     setRecentAnalyses(prev => {
       const next = [entry, ...prev.filter(r => r.ticker !== entry.ticker)].slice(0, 20);
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    const missing = watchlist.filter(w => !w.spark || w.spark.length < 2).map(w => w.ticker);
+    if (!missing.length) return;
+    let cancelled = false;
+    Promise.allSettled(missing.map(t => fetchQuickQuote(t))).then(results => {
+      if (cancelled) return;
+      setWatchlist(prev => prev.map(w => {
+        const idx = missing.indexOf(w.ticker);
+        if (idx === -1) return w;
+        const r = results[idx];
+        if (r && r.status === "fulfilled") {
+          return { ...w, spark: r.value.spark || w.spark, prevClose: r.value.prevClose ?? w.prevClose };
+        }
+        return w;
+      }));
+    });
+    return () => { cancelled = true; };
+  }, [watchlist]);
 
   // Live price polling every 15s
   useEffect(() => {
@@ -4759,6 +4955,16 @@ function App() {
     setLoading(false);
   }, [recordRecent]);
 
+  const updateFirstName = useCallback(async (name) => {
+    if (!supabase || !userId) return { error: "Not signed in." };
+    const { data, error } = await supabase.auth.updateUser({ data: { first_name: name } });
+    if (error) return { error: error.message };
+    if (data?.user) {
+      setSession(prev => (prev ? { ...prev, user: data.user } : prev));
+    }
+    return { error: null };
+  }, [userId]);
+
   const handleSignOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -4822,7 +5028,7 @@ function App() {
           <div style={{ display: "flex" }}>
             {[
               { key: "home", label: "Home" },
-              { key: "workspace", label: "Workspace", badge: true },
+              { key: "account", label: "Account" },
               { key: "analysis", label: "Analysis" },
               { key: "charts", label: "Charts" },
               { key: "heatmap", label: "Heatmap", pro: true },
@@ -4834,7 +5040,6 @@ function App() {
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <span>{label}</span>
                     {locked && <ProTag small />}
-                    {badge && <NewTag />}
                   </span>
                 </button>
               );
@@ -4858,9 +5063,9 @@ function App() {
       <main style={{ flex: 1, padding: "20px 24px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1, minWidth: 0 }} key={tab + (result?.ticker || "")}>
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
-        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} region={homeRegion} onRegionChange={setHomeRegion} />}
-        {!loading && !error && tab === "workspace" && (
-          <WorkspaceTab
+        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} region={homeRegion} onRegionChange={setHomeRegion} greetingName={profileName} />}
+        {!loading && !error && tab === "account" && (
+          <AccountTab
             onAnalyze={analyze}
             watchlist={watchlist}
             alerts={alerts}
@@ -4873,6 +5078,8 @@ function App() {
             onOpenAuth={() => setAuthOpen(true)}
             session={session}
             syncState={syncState}
+            profileName={profileName}
+            onUpdateName={updateFirstName}
           />
         )}
         {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} chartLivePrice={chartLivePrice} latency={latency} isPro={isPro} period={period} interval={interval} onReanalyze={reanalyze} />}
