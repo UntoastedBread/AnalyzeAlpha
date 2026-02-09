@@ -72,6 +72,7 @@ module.exports = (req, res) => {
 
   const ip = getClientIp(req);
   if (isRateLimited(ip)) {
+    res.setHeader('Retry-After', String(Math.ceil(RATE_LIMIT_WINDOW_MS / 1000)));
     return res.status(429).json({ error: 'Rate limit exceeded' });
   }
 

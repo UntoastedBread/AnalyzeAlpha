@@ -11,6 +11,8 @@ const ALLOWED_RANGES = new Set(['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y
 const ALLOWED_INTERVALS = new Set(['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo']);
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX = 120;
+const MAX_MODULES_COUNT = 8;
+const MAX_MODULES_LEN = 160;
 const MAX_BYTES = 2 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 8000;
 const rateBuckets = new Map();
@@ -78,6 +80,7 @@ app.use((req, res, next) => {
   if (!req.path.startsWith('/api/')) return next();
   const ip = getClientIp(req);
   if (isRateLimited(ip)) {
+    res.setHeader('Retry-After', String(Math.ceil(RATE_LIMIT_WINDOW_MS / 1000)));
     return res.status(429).json({ error: 'Rate limit exceeded' });
   }
   return next();
@@ -271,11 +274,18 @@ app.get('/api/rss', (req, res) => {
 app.get('/api/summary/:ticker', (req, res) => {
   const ticker = normalizeParam(req.params.ticker);
   const modules = normalizeParam(req.query.modules) || 'price,financialData,defaultKeyStatistics,summaryDetail';
-  if (!/^[A-Za-z0-9=^.\-]+$/.test(ticker)) {
+  if (!/^[A-Za-z0-9=^.\-]{1,12}$/.test(ticker)) {
     return res.status(400).json({ error: 'Invalid ticker' });
   }
   if (!/^[A-Za-z0-9,]+$/.test(modules)) {
     return res.status(400).json({ error: 'Invalid modules' });
+  }
+  if (modules.length > MAX_MODULES_LEN) {
+    return res.status(400).json({ error: 'Modules too long' });
+  }
+  const moduleList = modules.split(',').filter(Boolean);
+  if (!moduleList.length || moduleList.length > MAX_MODULES_COUNT) {
+    return res.status(400).json({ error: 'Too many modules' });
   }
   const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}`;
   console.log(`[Proxy] Summary: ${ticker} modules=${modules}`);
@@ -324,7 +334,7 @@ app.get('/api/summary/:ticker', (req, res) => {
 
 app.get('/api/recommendations/:ticker', (req, res) => {
   const ticker = normalizeParam(req.params.ticker);
-  if (!/^[A-Za-z0-9=^.\-]+$/.test(ticker)) {
+  if (!/^[A-Za-z0-9=^.\-]{1,12}$/.test(ticker)) {
     return res.status(400).json({ error: 'Invalid ticker' });
   }
   const url = `https://query2.finance.yahoo.com/v6/finance/recommendationsbysymbol/${encodeURIComponent(ticker)}`;
