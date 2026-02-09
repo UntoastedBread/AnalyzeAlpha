@@ -1,5 +1,4 @@
 {
-  "homepage": ".",
   "name": "stock-analyzer-pro",
   "version": "0.3.12",
   "private": true,
@@ -11,20 +10,20 @@
     "express": "^4.18.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-scripts": "^5.0.1",
     "recharts": "^2.12.0",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "concurrently \"react-scripts start\" \"node server.js\"",
-    "start:react": "react-scripts start",
-    "start:server": "node server.js",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "predeploy": "react-scripts build",
-    "deploy": "gh-pages -d build"
+    "dev": "concurrently \"vite\" \"node server.js\"",
+    "dev:client": "vite",
+    "dev:server": "node server.js",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "echo \"No tests configured\"",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
-  "proxy": "http://localhost:3001",
   "eslintConfig": {
     "extends": [
       "react-app"
@@ -43,6 +42,8 @@
     ]
   },
   "devDependencies": {
-    "gh-pages": "^6.3.0"
+    "@vitejs/plugin-react": "^4.2.1",
+    "gh-pages": "^6.3.0",
+    "vite": "^5.4.2"
   }
 }

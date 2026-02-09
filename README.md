@@ -8,22 +8,22 @@ Quantitative stock analysis platform with live Yahoo Finance data, technical ind
 
 ```bash
 npm install
-npm start
+npm run dev
 ```
 
 This launches:
-- **React app** on `http://localhost:3000`
+- **Vite dev server** on `http://localhost:3000`
 - **Yahoo Finance proxy** on `http://localhost:3001`
 
-The proxy is needed because Yahoo Finance blocks browser CORS requests. The React dev server forwards `/api/*` requests to the proxy automatically.
+The proxy is needed because Yahoo Finance blocks browser CORS requests. The Vite dev server forwards `/api/*` requests to the proxy automatically.
 
 ## Auth + Workspace Sync (Supabase)
 
 Create a Supabase project and add these env vars (use `.env.local`):
 
 ```bash
-REACT_APP_SUPABASE_URL=your_project_url
-REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your_publishable_key
+VITE_SUPABASE_URL=your_project_url
+VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your_publishable_key
 ```
 
 Create the `workspaces` table and RLS policies:
@@ -96,10 +96,10 @@ Then restart the dev server.
 
 ## Tech Stack
 
-- **Frontend** — React 18, Recharts
+- **Frontend** — React 18, Recharts, Vite
 - **Backend** — Express proxy server (Node.js)
 - **Data** — Yahoo Finance public API (no API key required)
-- **Deployment** — GitHub Pages via `gh-pages`
+- **Deployment** — Vercel or GitHub Pages via `gh-pages`
 
 ## Architecture
 
@@ -122,7 +122,7 @@ Deploy to GitHub Pages:
 npm run deploy
 ```
 
-This runs `react-scripts build` followed by `gh-pages -d build`, publishing to the configured homepage.
+This runs `vite build` followed by `gh-pages -d dist`, publishing to the configured homepage.
 
 ## Notes
 

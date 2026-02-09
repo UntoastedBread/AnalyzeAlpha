@@ -1,0 +1,3 @@
+Contact: mailto:michael.kirkland939@gmail.com
+Preferred-Languages: en
+Policy: https://analyze-alpha.vercel.app
