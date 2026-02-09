@@ -2611,43 +2611,22 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
   })();
   const greetingPhrases = greetingName ? [
     `Good ${dayPart}`,
-    `Welcome back this ${dayPart}`,
-    `Nice to see you this ${dayPart}`,
-    `Hope your ${dayPart} is going well`,
-    `Here's your ${dayPart} read`,
+    "Hey",
+    "Welcome back",
+    "Nice to see you",
+    "Hello",
   ] : [
     `Good ${dayPart}`,
-    `Market brief for this ${dayPart}`,
-    `Here's the market pulse`,
-    `A quick look at markets`,
-    `Your ${dayPart} snapshot`,
+    "Market brief",
+    "Quick pulse",
+    "Snapshot",
+    "Today's glance",
   ];
   const greetingBase = greetingPhrases[greetingVariantRef.current % greetingPhrases.length];
   const greetingText = greetingName ? `${greetingBase}, ${greetingName}` : greetingBase;
 
   return (
     <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
-      {/* Greeting */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 2px 6px" }}>
-        <span style={{ width: 26, height: 26, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
-            <g stroke={C.accent} strokeWidth="1.6" strokeLinecap="round">
-              <line x1="12" y1="2" x2="12" y2="6" />
-              <line x1="12" y1="18" x2="12" y2="22" />
-              <line x1="2" y1="12" x2="6" y2="12" />
-              <line x1="18" y1="12" x2="22" y2="12" />
-              <line x1="4.5" y1="4.5" x2="7.5" y2="7.5" />
-              <line x1="16.5" y1="16.5" x2="19.5" y2="19.5" />
-              <line x1="4.5" y1="19.5" x2="7.5" y2="16.5" />
-              <line x1="16.5" y1="7.5" x2="19.5" y2="4.5" />
-            </g>
-            <circle cx="12" cy="12" r="3" fill={C.accent} />
-          </svg>
-        </span>
-        <div style={{ fontSize: 26, fontFamily: "var(--display)", color: C.ink, letterSpacing: "-0.01em" }}>
-          {greetingText}
-        </div>
-      </div>
       {/* Ticker Strip */}
       <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} />
 
@@ -2661,6 +2640,28 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
             Updated {agoText}
           </span>
         )}
+      </div>
+
+      {/* Greeting */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 2px 12px", marginTop: 6, marginBottom: 6 }}>
+        <span style={{ width: 22, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <g stroke={C.accent} strokeWidth="1.6" strokeLinecap="round">
+              <line x1="12" y1="2" x2="12" y2="6" />
+              <line x1="12" y1="18" x2="12" y2="22" />
+              <line x1="2" y1="12" x2="6" y2="12" />
+              <line x1="18" y1="12" x2="22" y2="12" />
+              <line x1="4.5" y1="4.5" x2="7.5" y2="7.5" />
+              <line x1="16.5" y1="16.5" x2="19.5" y2="19.5" />
+              <line x1="4.5" y1="19.5" x2="7.5" y2="16.5" />
+              <line x1="16.5" y1="7.5" x2="19.5" y2="4.5" />
+            </g>
+            <circle cx="12" cy="12" r="3" fill={C.accent} />
+          </svg>
+        </span>
+        <div style={{ fontSize: 22, fontFamily: "var(--display)", color: C.ink, letterSpacing: "-0.01em" }}>
+          {greetingText}
+        </div>
       </div>
 
       {/* Headlines + Indexes */}
@@ -2747,6 +2748,7 @@ function AccountTab({
   syncState,
   profileName,
   onUpdateName,
+  onSignOut,
 }) {
   const [subTab, setSubTab] = useState("overview");
   const [wlInput, setWlInput] = useState("");
@@ -2834,6 +2836,11 @@ function AccountTab({
                 <button onClick={saveName} disabled={!session || profileBusy} style={{ padding: "6px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: !session || profileBusy ? 0.5 : 1 }}>
                   Save
                 </button>
+                {session && (
+                  <button onClick={onSignOut} style={{ padding: "6px 12px", background: "transparent", color: C.ink, border: `1px solid ${C.rule}`, fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)" }}>
+                    Sign Out
+                  </button>
+                )}
                 {nameStatus && <span style={{ fontSize: 10, color: nameStatus === "Saved" ? C.up : C.inkMuted, fontFamily: "var(--mono)" }}>{nameStatus}</span>}
               </div>
             </div>
@@ -4361,77 +4368,8 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
 }
 
 // ═══════════════════════════════════════════════════════════
-// ACCOUNT MENU + AUTH MODAL
+// AUTH MODAL
 // ═══════════════════════════════════════════════════════════
-function AccountMenu({ session, onOpenAuth, onSignOut }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
-  if (!session) {
-    return (
-      <button
-        onClick={onOpenAuth}
-        style={{
-          padding: "0 0 10px 0",
-          background: "none",
-          border: "none",
-          borderBottom: "2px solid transparent",
-          color: C.inkMuted,
-          fontSize: 12,
-          fontWeight: 500,
-          cursor: "pointer",
-          textTransform: "uppercase",
-          letterSpacing: "0.12em",
-          fontFamily: "var(--body)",
-        }}
-      >
-        Sign In
-      </button>
-    );
-  }
-
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button
-        onClick={() => setOpen(p => !p)}
-        style={{
-          padding: "0 0 10px 0",
-          background: "none",
-          border: "none",
-          borderBottom: open ? `2px solid ${C.ink}` : "2px solid transparent",
-          color: open ? C.ink : C.inkMuted,
-          fontSize: 12,
-          fontWeight: open ? 700 : 500,
-          cursor: "pointer",
-          textTransform: "uppercase",
-          letterSpacing: "0.12em",
-          fontFamily: "var(--body)",
-        }}
-      >
-        Account ▾
-      </button>
-      {open && (
-        <div style={{ position: "absolute", top: "100%", right: 0, width: 260, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.08)", zIndex: 120, padding: 14 }}>
-          <div style={{ fontSize: 10, color: C.inkFaint, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--mono)", marginBottom: 8 }}>Signed In</div>
-          <div style={{ fontSize: 12, color: C.ink, fontFamily: "var(--body)", marginBottom: 12, wordBreak: "break-all" }}>{session?.user?.email || "Account"}</div>
-          <button
-            onClick={onSignOut}
-            style={{ width: "100%", padding: "8px 10px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}
-          >
-            Sign Out
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function AuthModal({ open, onClose }) {
   const [mode, setMode] = useState("signin");
   const [firstName, setFirstName] = useState("");
@@ -5028,7 +4966,6 @@ function App() {
           <div style={{ display: "flex" }}>
             {[
               { key: "home", label: "Home" },
-              { key: "account", label: "Account" },
               { key: "analysis", label: "Analysis" },
               { key: "charts", label: "Charts" },
               { key: "heatmap", label: "Heatmap", pro: true },
@@ -5055,7 +4992,7 @@ function App() {
               onAddAlert={addAlert}
               onRemoveAlert={removeAlert}
             />
-            <AccountMenu session={session} onOpenAuth={() => setAuthOpen(true)} onSignOut={handleSignOut} />
+            <button onClick={() => setTab("account")} style={tabStyle("account")}>Account</button>
           </div>
         </nav>
       </header>
@@ -5080,6 +5017,7 @@ function App() {
             syncState={syncState}
             profileName={profileName}
             onUpdateName={updateFirstName}
+            onSignOut={handleSignOut}
           />
         )}
         {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} chartLivePrice={chartLivePrice} latency={latency} isPro={isPro} period={period} interval={interval} onReanalyze={reanalyze} />}
