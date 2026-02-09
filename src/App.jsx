@@ -4701,7 +4701,7 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
         Tools ▾ {(watchlist.length + alerts.length) > 0 && <span style={{ fontSize: 9, background: C.ink, color: C.cream, borderRadius: "50%", padding: "1px 5px", marginLeft: 4 }}>{watchlist.length + alerts.length}</span>}
       </button>
       {open && (
-        <div style={{ position: "absolute", top: "100%", right: 0, width: 380, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.08)", zIndex: 100, padding: 16, maxHeight: 480, overflowY: "auto" }}>
+        <div style={{ position: "absolute", top: "100%", right: 0, width: 380, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.08)", zIndex: 2100, padding: 16, maxHeight: 480, overflowY: "auto" }}>
           <div style={{ display: "flex", gap: 12, borderBottom: `1px solid ${C.rule}`, marginBottom: 12, paddingBottom: 8 }}>
             {["watchlist", "alerts"].map(t => (
               <button key={t} onClick={() => setSubTab(t)} style={{ background: "none", border: "none", color: subTab === t ? C.ink : C.inkMuted, fontSize: 11, fontWeight: subTab === t ? 700 : 400, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)", borderBottom: subTab === t ? `2px solid ${C.ink}` : "none", paddingBottom: 4 }}>
@@ -5358,7 +5358,7 @@ function App() {
   });
   return (
     <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", maxWidth: "70%", margin: "0 auto", width: "100%" }}>
-      <header style={{ padding: "16px 24px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 1 }}>
+      <header style={{ padding: "16px 24px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 2000 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
             <BrandMark size={22} pro={isPro} />
@@ -5455,7 +5455,7 @@ function App() {
                   border: "1px solid rgba(255,255,255,0.08)",
                   boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
                   padding: "10px 8px",
-                  zIndex: 400,
+                  zIndex: 2200,
                 }}>
                   <div style={{ padding: "6px 12px 10px", fontSize: 12, color: "rgba(255,255,255,0.6)", fontFamily: "var(--mono)" }}>
                     {session?.user?.email || t("menu.signedOut")}
@@ -5502,7 +5502,7 @@ function App() {
                           border: "1px solid rgba(255,255,255,0.08)",
                           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
                           padding: "8px 6px",
-                          zIndex: 450,
+                          zIndex: 2300,
                         }}
                       >
                         {LANGUAGES.map((lang) => {
