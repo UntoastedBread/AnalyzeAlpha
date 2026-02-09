@@ -17,6 +17,45 @@ This launches:
 
 The proxy is needed because Yahoo Finance blocks browser CORS requests. The React dev server forwards `/api/*` requests to the proxy automatically.
 
+## Auth + Workspace Sync (Supabase)
+
+Create a Supabase project and add these env vars (use `.env.local`):
+
+```bash
+REACT_APP_SUPABASE_URL=your_project_url
+REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your_publishable_key
+```
+
+Create the `workspaces` table and RLS policies:
+
+```sql
+create table if not exists public.workspaces (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.workspaces enable row level security;
+
+create policy "Users can view own workspace"
+  on public.workspaces for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own workspace"
+  on public.workspaces for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own workspace"
+  on public.workspaces for update
+  using (auth.uid() = user_id);
+```
+
+Enable auth providers in Supabase:
+- Email/password
+- Google
+
+Then restart the dev server.
+
 ## Features
 
 ### Analysis

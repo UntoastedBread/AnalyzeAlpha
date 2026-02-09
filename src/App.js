@@ -5,6 +5,7 @@ import {
   PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   Area
 } from "recharts";
+import { supabase, hasSupabaseConfig } from "./supabaseClient";
 import "./App.css";
 
 // ═══════════════════════════════════════════════════════════
@@ -22,6 +23,99 @@ const INTERVAL_MS = {
   "1h": 60 * 60 * 1000,
   "1d": 24 * 60 * 60 * 1000,
 };
+
+const WORKSPACE_STORAGE_KEY = "aa_workspace_v1";
+const WORKSPACE_VERSION = 1;
+
+function emptyWorkspace() {
+  return {
+    version: WORKSPACE_VERSION,
+    watchlist: [],
+    alerts: [],
+    recent: [],
+    comparisons: [],
+    prefs: {
+      period: "1y",
+      interval: "1d",
+      region: "Global",
+      updatedAt: Date.now(),
+    },
+  };
+}
+
+function sanitizeWorkspace(data) {
+  if (!data || typeof data !== "object") return emptyWorkspace();
+  const base = emptyWorkspace();
+  return {
+    version: WORKSPACE_VERSION,
+    watchlist: Array.isArray(data.watchlist) ? data.watchlist : base.watchlist,
+    alerts: Array.isArray(data.alerts) ? data.alerts : base.alerts,
+    recent: Array.isArray(data.recent) ? data.recent : base.recent,
+    comparisons: Array.isArray(data.comparisons) ? data.comparisons : base.comparisons,
+    prefs: {
+      ...base.prefs,
+      ...(data.prefs && typeof data.prefs === "object" ? data.prefs : {}),
+    },
+  };
+}
+
+function loadLocalWorkspace() {
+  if (typeof window === "undefined") return emptyWorkspace();
+  try {
+    const raw = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+    if (!raw) return emptyWorkspace();
+    return sanitizeWorkspace(JSON.parse(raw));
+  } catch {
+    return emptyWorkspace();
+  }
+}
+
+function saveLocalWorkspace(data) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // ignore quota or access errors
+  }
+}
+
+function formatAgo(ts) {
+  if (!ts) return "just now";
+  const sec = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  return `${day}d ago`;
+}
+
+function mergeUnique(primary, secondary, keyFn) {
+  const seen = new Set();
+  const merged = [];
+  [...primary, ...secondary].forEach((item) => {
+    const key = keyFn(item);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(item);
+  });
+  return merged;
+}
+
+function mergeWorkspaces(local, remote) {
+  const a = sanitizeWorkspace(local);
+  const b = sanitizeWorkspace(remote);
+  const prefs = (a.prefs?.updatedAt || 0) >= (b.prefs?.updatedAt || 0) ? a.prefs : b.prefs;
+  return {
+    version: WORKSPACE_VERSION,
+    watchlist: mergeUnique(a.watchlist, b.watchlist, (w) => w.ticker),
+    alerts: mergeUnique(a.alerts, b.alerts, (al) => `${al.ticker}|${al.type}|${al.value}`),
+    recent: mergeUnique(a.recent, b.recent, (r) => `${r.ticker}|${r.ts || r.timestamp || ""}`),
+    comparisons: mergeUnique(a.comparisons, b.comparisons, (c) => c?.id || c?.key || JSON.stringify(c)),
+    prefs,
+  };
+}
 
 function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
@@ -1083,6 +1177,24 @@ function ProTag({ small = false }) {
       letterSpacing: "0.04em",
     }}>
       Pro
+    </span>
+  );
+}
+
+function NewTag() {
+  return (
+    <span style={{
+      fontWeight: 700,
+      fontSize: 9,
+      color: C.cream,
+      background: C.ink,
+      fontFamily: "var(--mono)",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      padding: "2px 6px",
+      borderRadius: 10,
+    }}>
+      New
     </span>
   );
 }
@@ -2335,8 +2447,7 @@ function AssetRow({ section, onAnalyze }) {
 // ═══════════════════════════════════════════════════════════
 // HOME TAB
 // ═══════════════════════════════════════════════════════════
-function HomeTab({ onAnalyze }) {
-  const [region, setRegion] = useState("Global");
+function HomeTab({ onAnalyze, region = "Global", onRegionChange }) {
   const [indexPage, setIndexPage] = useState(0);
   const [stripData, setStripData] = useState([]);
   const [stripLoading, setStripLoading] = useState(true);
@@ -2436,7 +2547,7 @@ function HomeTab({ onAnalyze }) {
 
   const handleRegionChange = (rgn) => {
     if (rgn === region) return;
-    setRegion(rgn);
+    onRegionChange?.(rgn);
     setIndexPage(0);
     setCharts([]);
     setMovers(null);
@@ -2577,6 +2688,170 @@ function HomeTab({ onAnalyze }) {
       <LazySection minHeight={120}>
         <ChangelogBanner />
       </LazySection>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// WORKSPACE TAB
+// ═══════════════════════════════════════════════════════════
+function WorkspaceTab({
+  onAnalyze,
+  watchlist = [],
+  alerts = [],
+  recent = [],
+  prefs,
+  onAddWatchlist,
+  onRemoveWatchlist,
+  onAddAlert,
+  onRemoveAlert,
+  onOpenAuth,
+  session,
+  syncState,
+}) {
+  const [wlInput, setWlInput] = useState("");
+  const [alForm, setAlForm] = useState({ ticker: "", type: "above", value: "" });
+  const [busy, setBusy] = useState(false);
+
+  const syncLabel = !session
+    ? "Local only"
+    : syncState?.status === "syncing"
+      ? "Syncing…"
+      : syncState?.status === "error"
+        ? "Sync error"
+        : syncState?.last
+          ? `Synced ${formatAgo(syncState.last)}`
+          : "Synced";
+
+  const addWl = async () => {
+    const t = wlInput.trim().toUpperCase();
+    if (!t) return;
+    setBusy(true);
+    try { await onAddWatchlist?.(t); } catch (e) { console.error(e); }
+    setWlInput(""); setBusy(false);
+  };
+
+  const addAlert = async () => {
+    if (!alForm.ticker || !alForm.value) return;
+    const t = alForm.ticker.trim().toUpperCase();
+    const v = parseFloat(alForm.value);
+    if (!t || Number.isNaN(v)) return;
+    setBusy(true);
+    try { await onAddAlert?.(t, alForm.type, v); } catch (e) { console.error(e); }
+    setAlForm({ ticker: "", type: "above", value: "" }); setBusy(false);
+  };
+
+  return (
+    <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
+      <div style={{ border: `1px solid ${C.rule}`, background: C.warmWhite, padding: 16, display: "flex", gap: 16, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--mono)", color: C.inkFaint, marginBottom: 6 }}>Workspace Sync</div>
+          <div style={{ fontSize: 13, color: C.ink, fontFamily: "var(--body)" }}>
+            {session ? `Signed in as ${session?.user?.email || "user"}` : "Sign in to sync your workspace across devices."}
+          </div>
+          {syncState?.error && <div style={{ fontSize: 11, color: C.down, fontFamily: "var(--body)", marginTop: 4 }}>{syncState.error}</div>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted }}>{syncLabel}</span>
+          {!session && (
+            <button onClick={onOpenAuth} style={{ padding: "8px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              Sign In
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+        <Section title="Watchlist">
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+            <input value={wlInput} onChange={e => setWlInput(e.target.value)} placeholder="Ticker"
+              style={{ flex: 1, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", fontSize: 12, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}
+              onKeyDown={e => e.key === "Enter" && addWl()} />
+            <button onClick={addWl} disabled={busy} style={{ padding: "6px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>ADD</button>
+          </div>
+          {watchlist.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>Empty watchlist</div>
+          ) : (
+            watchlist.map(w => (
+              <div key={w.ticker} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+                <div>
+                  <span style={{ fontWeight: 700, fontFamily: "var(--mono)", fontSize: 13, color: C.ink }}>{w.ticker}</span>
+                  <span style={{ marginLeft: 8, fontFamily: "var(--mono)", fontSize: 12 }}>${fmt(w.price)}</span>
+                  <span style={{ marginLeft: 8, color: w.change >= 0 ? C.up : C.down, fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600 }}>{w.change >= 0 ? "+" : ""}{fmtPct(w.change)}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: recColor(w.rec), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{w.rec}</span>
+                  <button onClick={() => onAnalyze(w.ticker)} style={{ background: "transparent", border: `1px solid ${C.rule}`, color: C.ink, fontSize: 10, fontFamily: "var(--body)", padding: "4px 8px", cursor: "pointer" }}>Analyze</button>
+                  <button onClick={() => onRemoveWatchlist?.(w.ticker)} style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
+                </div>
+              </div>
+            ))
+          )}
+        </Section>
+
+        <Section title="Alerts">
+          <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
+            <input value={alForm.ticker} onChange={e => setAlForm(p => ({ ...p, ticker: e.target.value }))} placeholder="Ticker"
+              style={{ width: 70, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", fontSize: 11, fontFamily: "var(--mono)", color: C.ink, outline: "none" }} />
+            <select value={alForm.type} onChange={e => setAlForm(p => ({ ...p, type: e.target.value }))}
+              style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 6px", fontSize: 11, fontFamily: "var(--body)", color: C.ink, outline: "none" }}>
+              <option value="above">Above</option><option value="below">Below</option>
+            </select>
+            <input value={alForm.value} onChange={e => setAlForm(p => ({ ...p, value: e.target.value }))} placeholder="$" type="number"
+              style={{ width: 80, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", fontSize: 11, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}
+              onKeyDown={e => e.key === "Enter" && addAlert()} />
+            <button onClick={addAlert} disabled={busy} style={{ padding: "6px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>SET</button>
+          </div>
+          {alerts.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>No alerts</div>
+          ) : (
+            alerts.map(a => (
+              <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+                <div>
+                  <span style={{ fontWeight: 700, fontFamily: "var(--mono)", fontSize: 12 }}>{a.ticker}</span>
+                  <span style={{ color: C.inkMuted, fontSize: 11, marginLeft: 6 }}>{a.type === "above" ? "≥" : "≤"} ${fmt(a.value)}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)", color: a.triggered ? C.up : C.hold }}>{a.triggered ? "TRIGGERED" : "WATCHING"}</span>
+                  <button onClick={() => onRemoveAlert?.(a.id)} style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
+                </div>
+              </div>
+            ))
+          )}
+        </Section>
+      </div>
+
+      <Section title="Recent Analyses">
+        {recent.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>No analyses yet</div>
+        ) : (
+          <div style={{ display: "grid", gap: 6 }}>
+            {recent.map(r => (
+              <div key={`${r.ticker}-${r.ts || r.timestamp}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ fontWeight: 700, fontFamily: "var(--mono)", fontSize: 13 }}>{r.ticker}</span>
+                    <span style={{ color: recColor(r.action), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{r.action || "NEUTRAL"}</span>
+                    <span style={{ color: C.inkFaint, fontSize: 10, fontFamily: "var(--mono)" }}>{r.period || prefs?.period}/{r.interval || prefs?.interval}</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)" }}>
+                    {r.price != null ? `$${fmt(r.price)}` : "—"} · {formatAgo(r.ts || r.timestamp)}
+                  </div>
+                </div>
+                <button onClick={() => onAnalyze(r.ticker)} style={{ background: "transparent", border: `1px solid ${C.rule}`, color: C.ink, fontSize: 10, fontFamily: "var(--body)", padding: "4px 8px", cursor: "pointer" }}>Analyze</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Preferences">
+        <div style={{ display: "grid", gap: 6 }}>
+          <Row label="Default Period" value={prefs?.period || "1y"} />
+          <Row label="Default Interval" value={prefs?.interval || "1d"} />
+          <Row label="Home Region" value={prefs?.region || "Global"} border={false} />
+        </div>
+      </Section>
     </div>
   );
 }
@@ -3827,11 +4102,9 @@ function ComparisonTab() {
 // ═══════════════════════════════════════════════════════════
 // LITE TOOLS (Watchlist + Alerts dropdown)
 // ═══════════════════════════════════════════════════════════
-function LiteTools({ onAnalyze }) {
+function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onRemoveWatchlist, onAddAlert, onRemoveAlert }) {
   const [open, setOpen] = useState(false);
   const [subTab, setSubTab] = useState("watchlist");
-  const [watchlist, setWatchlist] = useState([]);
-  const [alerts, setAlerts] = useState([]);
   const [wlInput, setWlInput] = useState("");
   const [alForm, setAlForm] = useState({ ticker: "", type: "above", value: "" });
   const [busy, setBusy] = useState(false);
@@ -3847,14 +4120,7 @@ function LiteTools({ onAnalyze }) {
     const t = wlInput.trim().toUpperCase();
     if (!t || watchlist.some(w => w.ticker === t)) return;
     setBusy(true);
-    try {
-      const fd = await fetchStockData(t, "3mo");
-      if (fd.data) {
-        const a = runAnalysis(t, fd.data);
-        const pc = a.data.length > 1 ? a.data[a.data.length - 2].Close : a.currentPrice;
-        setWatchlist(p => [...p, { ticker: t, price: a.currentPrice, change: ((a.currentPrice - pc) / pc) * 100, rec: a.recommendation.action }]);
-      }
-    } catch (e) { console.error(e); }
+    try { await onAddWatchlist?.(t); } catch (e) { console.error(e); }
     setWlInput(""); setBusy(false);
   };
 
@@ -3862,11 +4128,7 @@ function LiteTools({ onAnalyze }) {
     if (!alForm.ticker || !alForm.value) return;
     setBusy(true);
     const t = alForm.ticker.trim().toUpperCase(), v = parseFloat(alForm.value);
-    try {
-      const fd = await fetchStockData(t, "1mo");
-      const price = fd.data ? fd.data[fd.data.length - 1].Close : 0;
-      setAlerts(p => [...p, { id: Date.now(), ticker: t, type: alForm.type, value: v, current: price, triggered: alForm.type === "above" ? price >= v : price <= v }]);
-    } catch (e) { console.error(e); }
+    try { await onAddAlert?.(t, alForm.type, v); } catch (e) { console.error(e); }
     setAlForm({ ticker: "", type: "above", value: "" }); setBusy(false);
   };
 
@@ -3903,7 +4165,7 @@ function LiteTools({ onAnalyze }) {
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ color: w.change >= 0 ? C.up : C.down, fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600 }}>{w.change >= 0 ? "+" : ""}{fmtPct(w.change)}</span>
                       <span style={{ color: recColor(w.rec), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{w.rec}</span>
-                      <button onClick={e => { e.stopPropagation(); setWatchlist(p => p.filter(x => x.ticker !== w.ticker)); }}
+                      <button onClick={e => { e.stopPropagation(); onRemoveWatchlist?.(w.ticker); }}
                         style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
                     </div>
                   </div>
@@ -3933,7 +4195,7 @@ function LiteTools({ onAnalyze }) {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)", color: a.triggered ? C.up : C.hold }}>{a.triggered ? "TRIGGERED" : "WATCHING"}</span>
-                      <button onClick={() => setAlerts(p => p.filter(x => x.id !== a.id))} style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
+                      <button onClick={() => onRemoveAlert?.(a.id)} style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
                     </div>
                   </div>
                 ))}
@@ -3941,6 +4203,183 @@ function LiteTools({ onAnalyze }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACCOUNT MENU + AUTH MODAL
+// ═══════════════════════════════════════════════════════════
+function AccountMenu({ session, onOpenAuth, onSignOut }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  if (!session) {
+    return (
+      <button
+        onClick={onOpenAuth}
+        style={{
+          padding: "0 0 10px 0",
+          background: "none",
+          border: "none",
+          borderBottom: "2px solid transparent",
+          color: C.inkMuted,
+          fontSize: 12,
+          fontWeight: 500,
+          cursor: "pointer",
+          textTransform: "uppercase",
+          letterSpacing: "0.12em",
+          fontFamily: "var(--body)",
+        }}
+      >
+        Sign In
+      </button>
+    );
+  }
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen(p => !p)}
+        style={{
+          padding: "0 0 10px 0",
+          background: "none",
+          border: "none",
+          borderBottom: open ? `2px solid ${C.ink}` : "2px solid transparent",
+          color: open ? C.ink : C.inkMuted,
+          fontSize: 12,
+          fontWeight: open ? 700 : 500,
+          cursor: "pointer",
+          textTransform: "uppercase",
+          letterSpacing: "0.12em",
+          fontFamily: "var(--body)",
+        }}
+      >
+        Account ▾
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "100%", right: 0, width: 260, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.08)", zIndex: 120, padding: 14 }}>
+          <div style={{ fontSize: 10, color: C.inkFaint, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--mono)", marginBottom: 8 }}>Signed In</div>
+          <div style={{ fontSize: 12, color: C.ink, fontFamily: "var(--body)", marginBottom: 12, wordBreak: "break-all" }}>{session?.user?.email || "Account"}</div>
+          <button
+            onClick={onSignOut}
+            style={{ width: "100%", padding: "8px 10px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}
+          >
+            Sign Out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AuthModal({ open, onClose }) {
+  const [mode, setMode] = useState("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setError("");
+    setNotice("");
+  }, [open, mode]);
+
+  if (!open) return null;
+
+  const submitEmailAuth = async () => {
+    if (!supabase) return;
+    if (!email || !password) { setError("Email and password required."); return; }
+    setBusy(true); setError(""); setNotice("");
+    if (mode === "signup") {
+      const { error: err } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (err) setError(err.message);
+      else setNotice("Check your email to confirm your account.");
+    } else {
+      const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+      if (err) setError(err.message);
+      else onClose();
+    }
+    setBusy(false);
+  };
+
+  const oauth = async (provider) => {
+    if (!supabase) return;
+    setBusy(true); setError(""); setNotice("");
+    const options = { redirectTo: window.location.origin };
+    await supabase.auth.signInWithOAuth({ provider, options });
+    setBusy(false);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(20,16,12,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000 }}>
+      <div style={{ width: "min(520px, 92vw)", background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "0 12px 40px rgba(0,0,0,0.25)", padding: 24, position: "relative" }}>
+        <button onClick={onClose} style={{ position: "absolute", top: 10, right: 12, background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.inkFaint }}>×</button>
+        <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+          {["signin", "signup"].map(m => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: 11,
+                fontWeight: mode === m ? 700 : 500,
+                color: mode === m ? C.ink : C.inkMuted,
+                cursor: "pointer",
+                textTransform: "uppercase",
+                letterSpacing: "0.12em",
+                fontFamily: "var(--body)",
+                borderBottom: mode === m ? `2px solid ${C.ink}` : "2px solid transparent",
+                paddingBottom: 6,
+              }}
+            >
+              {m === "signin" ? "Sign In" : "Create Account"}
+            </button>
+          ))}
+        </div>
+
+        {!hasSupabaseConfig && (
+          <div style={{ background: C.warmWhite, padding: 12, border: `1px dashed ${C.rule}`, fontSize: 12, color: C.inkMuted, marginBottom: 12 }}>
+            Supabase config missing. Add your `REACT_APP_SUPABASE_URL` and publishable key, then restart the dev server.
+          </div>
+        )}
+
+        <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
+          <button onClick={() => oauth("google")} disabled={busy || !hasSupabaseConfig} style={{ padding: "10px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Continue with Google</button>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0 12px" }}>
+          <span style={{ flex: 1, height: 1, background: C.ruleFaint }} />
+          <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--mono)" }}>or</span>
+          <span style={{ flex: 1, height: 1, background: C.ruleFaint }} />
+        </div>
+
+        <div style={{ display: "grid", gap: 8 }}>
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" type="email"
+            style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "10px 12px", fontSize: 12, fontFamily: "var(--body)", color: C.ink, outline: "none" }} />
+          <input value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" type="password"
+            style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "10px 12px", fontSize: 12, fontFamily: "var(--body)", color: C.ink, outline: "none" }} />
+          <button onClick={submitEmailAuth} disabled={busy || !hasSupabaseConfig} style={{ padding: "10px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            {mode === "signin" ? "Sign In" : "Create Account"}
+          </button>
+        </div>
+
+        {error && <div style={{ marginTop: 10, fontSize: 11, color: C.down, fontFamily: "var(--body)" }}>{error}</div>}
+        {notice && <div style={{ marginTop: 10, fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>{notice}</div>}
+      </div>
     </div>
   );
 }
@@ -4007,11 +4446,23 @@ function PerfMonitor({ onClose }) {
 // MAIN APP
 // ═══════════════════════════════════════════════════════════
 function App() {
+  const initialWorkspace = useMemo(() => loadLocalWorkspace(), []);
   const [tab, setTab] = useState("home");
   const [isPro, setIsPro] = useState(false);
+  const [session, setSession] = useState(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [syncState, setSyncState] = useState({ status: "idle", last: null, error: null });
+  const [remoteHydrated, setRemoteHydrated] = useState(false);
+  const workspaceRef = useRef(initialWorkspace);
+  const [watchlist, setWatchlist] = useState(initialWorkspace.watchlist);
+  const [alerts, setAlerts] = useState(initialWorkspace.alerts);
+  const [recentAnalyses, setRecentAnalyses] = useState(initialWorkspace.recent);
+  const [savedComparisons, setSavedComparisons] = useState(initialWorkspace.comparisons);
+  const [prefs, setPrefs] = useState(initialWorkspace.prefs);
+  const [homeRegion, setHomeRegion] = useState(initialWorkspace.prefs?.region || "Global");
   const [ticker, setTicker] = useState("");
-  const [period, setPeriod] = useState("1y");
-  const [interval, setIntervalValue] = useState("1d");
+  const [period, setPeriod] = useState(initialWorkspace.prefs?.period || "1y");
+  const [interval, setIntervalValue] = useState(initialWorkspace.prefs?.interval || "1d");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -4047,6 +4498,111 @@ function App() {
     return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
   }, [searchQuery]);
 
+  const workspaceData = useMemo(() => ({
+    version: WORKSPACE_VERSION,
+    watchlist,
+    alerts,
+    recent: recentAnalyses,
+    comparisons: savedComparisons,
+    prefs,
+  }), [watchlist, alerts, recentAnalyses, savedComparisons, prefs]);
+
+  useEffect(() => {
+    workspaceRef.current = workspaceData;
+  }, [workspaceData]);
+
+  useEffect(() => {
+    const id = setTimeout(() => saveLocalWorkspace(workspaceData), 200);
+    return () => clearTimeout(id);
+  }, [workspaceData]);
+
+  useEffect(() => {
+    setPrefs(prev => {
+      if (prev.period === period && prev.interval === interval) return prev;
+      return { ...prev, period, interval, updatedAt: Date.now() };
+    });
+  }, [period, interval]);
+
+  useEffect(() => {
+    setPrefs(prev => {
+      if (prev.region === homeRegion) return prev;
+      return { ...prev, region: homeRegion, updatedAt: Date.now() };
+    });
+  }, [homeRegion]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setSession(data.session || null);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+    });
+    return () => { active = false; data?.subscription?.unsubscribe(); };
+  }, []);
+
+  const applyWorkspace = useCallback((ws) => {
+    const safe = sanitizeWorkspace(ws);
+    setWatchlist(safe.watchlist);
+    setAlerts(safe.alerts);
+    setRecentAnalyses(safe.recent);
+    setSavedComparisons(safe.comparisons);
+    setPrefs(safe.prefs);
+    setHomeRegion(safe.prefs?.region || "Global");
+    setPeriod(safe.prefs?.period || "1y");
+    setIntervalValue(safe.prefs?.interval || "1d");
+  }, []);
+
+  useEffect(() => {
+    if (!supabase || !session?.user) {
+      setRemoteHydrated(false);
+      setSyncState({ status: "idle", last: null, error: null });
+      return;
+    }
+    let cancelled = false;
+    const loadRemote = async () => {
+      setSyncState(s => ({ ...s, status: "syncing", error: null }));
+      const { data, error: err } = await supabase
+        .from("workspaces")
+        .select("data, updated_at")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (err && err.code !== "PGRST116") {
+        setSyncState({ status: "error", last: null, error: err.message });
+        return;
+      }
+      const remoteData = data?.data ? sanitizeWorkspace(data.data) : null;
+      const merged = mergeWorkspaces(workspaceRef.current, remoteData);
+      applyWorkspace(merged);
+      setRemoteHydrated(true);
+      setSyncState({ status: "synced", last: Date.now(), error: null });
+    };
+    loadRemote();
+    return () => { cancelled = true; };
+  }, [session?.user?.id, applyWorkspace]);
+
+  useEffect(() => {
+    if (!supabase || !session?.user || !remoteHydrated) return;
+    const id = setTimeout(async () => {
+      setSyncState(s => ({ ...s, status: "syncing", error: null }));
+      const { error: err } = await supabase
+        .from("workspaces")
+        .upsert({
+          user_id: session.user.id,
+          data: workspaceRef.current,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+      if (err) {
+        setSyncState({ status: "error", last: null, error: err.message });
+      } else {
+        setSyncState({ status: "synced", last: Date.now(), error: null });
+      }
+    }, 800);
+    return () => clearTimeout(id);
+  }, [workspaceData, session?.user?.id, remoteHydrated]);
+
   const intervalOptions = useMemo(() => {
     if (["1d", "5d"].includes(period)) {
       return [["1m", "1m"], ["5m", "5m"], ["15m", "15m"], ["30m", "30m"], ["60m", "1h"]];
@@ -4062,6 +4618,52 @@ function App() {
       setIntervalValue(intervalOptions[0][0]);
     }
   }, [intervalOptions, interval]);
+
+  const addToWatchlist = useCallback(async (symbol) => {
+    const t = (symbol || "").trim().toUpperCase();
+    if (!t) return;
+    if (watchlist.some(w => w.ticker === t)) return;
+    const fd = await fetchStockData(t, "3mo");
+    if (!fd?.data) return;
+    const a = runAnalysis(t, fd.data);
+    const pc = a.data.length > 1 ? a.data[a.data.length - 2].Close : a.currentPrice;
+    const entry = { ticker: t, price: a.currentPrice, change: ((a.currentPrice - pc) / pc) * 100, rec: a.recommendation.action, addedAt: Date.now() };
+    setWatchlist(prev => (prev.some(w => w.ticker === t) ? prev : [...prev, entry]));
+  }, [watchlist]);
+
+  const removeFromWatchlist = useCallback((ticker) => {
+    setWatchlist(prev => prev.filter(w => w.ticker !== ticker));
+  }, []);
+
+  const addAlert = useCallback(async (symbol, type, value) => {
+    const t = (symbol || "").trim().toUpperCase();
+    const v = parseFloat(value);
+    if (!t || Number.isNaN(v)) return;
+    const fd = await fetchStockData(t, "1mo");
+    const price = fd.data ? fd.data[fd.data.length - 1].Close : 0;
+    setAlerts(prev => [...prev, { id: Date.now(), ticker: t, type, value: v, current: price, triggered: type === "above" ? price >= v : price <= v, createdAt: Date.now() }]);
+  }, []);
+
+  const removeAlert = useCallback((id) => {
+    setAlerts(prev => prev.filter(a => a.id !== id));
+  }, []);
+
+  const recordRecent = useCallback((analysis) => {
+    if (!analysis?.ticker) return;
+    const entry = {
+      ticker: analysis.ticker,
+      ts: Date.now(),
+      price: analysis.currentPrice,
+      action: analysis.recommendation?.action,
+      period: analysis.period,
+      interval: analysis.interval,
+      source: analysis.source,
+    };
+    setRecentAnalyses(prev => {
+      const next = [entry, ...prev.filter(r => r.ticker !== entry.ticker)].slice(0, 20);
+      return next;
+    });
+  }, []);
 
   // Live price polling every 15s
   useEffect(() => {
@@ -4125,12 +4727,13 @@ function App() {
       analysis.debug = fd.debug;
       setResult(analysis);
       setLatency(fd.latency);
+      recordRecent(analysis);
       setTab("analysis");
     } catch (e) {
       setError({ message: e.message || "All data sources failed", debug: e.debug || { error: String(e) } });
     }
     setLoading(false);
-  }, [ticker, period, interval]);
+  }, [ticker, period, interval, recordRecent]);
 
   const reanalyze = useCallback(async (t, p, i) => {
     setPeriod(p);
@@ -4148,10 +4751,16 @@ function App() {
       analysis.debug = fd.debug;
       setResult(analysis);
       setLatency(fd.latency);
+      recordRecent(analysis);
     } catch (e) {
       setError({ message: e.message || "All data sources failed", debug: e.debug || { error: String(e) } });
     }
     setLoading(false);
+  }, [recordRecent]);
+
+  const handleSignOut = useCallback(async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
   }, []);
 
   const tabStyle = (t, locked = false) => ({
@@ -4212,30 +4821,59 @@ function App() {
           <div style={{ display: "flex" }}>
             {[
               { key: "home", label: "Home" },
+              { key: "workspace", label: "Workspace", badge: true },
               { key: "analysis", label: "Analysis" },
               { key: "charts", label: "Charts" },
               { key: "heatmap", label: "Heatmap", pro: true },
               { key: "comparison", label: "Comparison", pro: true },
-            ].map(({ key, label, pro }) => {
+            ].map(({ key, label, pro, badge }) => {
               const locked = !!pro && !isPro;
               return (
                 <button key={key} onClick={() => setTab(key)} style={tabStyle(key, locked)}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <span>{label}</span>
                     {locked && <ProTag small />}
+                    {badge && <NewTag />}
                   </span>
                 </button>
               );
             })}
           </div>
-          <LiteTools onAnalyze={analyze} />
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
+            <LiteTools
+              onAnalyze={analyze}
+              watchlist={watchlist}
+              alerts={alerts}
+              onAddWatchlist={addToWatchlist}
+              onRemoveWatchlist={removeFromWatchlist}
+              onAddAlert={addAlert}
+              onRemoveAlert={removeAlert}
+            />
+            <AccountMenu session={session} onOpenAuth={() => setAuthOpen(true)} onSignOut={handleSignOut} />
+          </div>
         </nav>
       </header>
 
       <main style={{ flex: 1, padding: "20px 24px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1, minWidth: 0 }} key={tab + (result?.ticker || "")}>
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
-        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} />}
+        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} region={homeRegion} onRegionChange={setHomeRegion} />}
+        {!loading && !error && tab === "workspace" && (
+          <WorkspaceTab
+            onAnalyze={analyze}
+            watchlist={watchlist}
+            alerts={alerts}
+            recent={recentAnalyses}
+            prefs={prefs}
+            onAddWatchlist={addToWatchlist}
+            onRemoveWatchlist={removeFromWatchlist}
+            onAddAlert={addAlert}
+            onRemoveAlert={removeAlert}
+            onOpenAuth={() => setAuthOpen(true)}
+            session={session}
+            syncState={syncState}
+          />
+        )}
         {!loading && !error && tab === "analysis" && <AnalysisTab result={result} livePrice={livePrice} chartLivePrice={chartLivePrice} latency={latency} isPro={isPro} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "charts" && <ChartsTab result={result} chartLivePrice={chartLivePrice} period={period} interval={interval} onReanalyze={reanalyze} />}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab /> : (
@@ -4270,6 +4908,7 @@ function App() {
         </div>
       </footer>
 
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
       {showPerf && <PerfMonitor onClose={() => setShowPerf(false)} />}
     </div>
   );
