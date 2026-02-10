@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ComposedChart, ReferenceLine, Brush, Customized,
@@ -2029,8 +2030,8 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
     textTransform: "uppercase",
   });
 
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(26,22,18,0.35)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+  const modal = (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(26,22,18,0.35)", zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ background: C.cream, border: `1px solid ${C.rule}`, width: "96%", height: "92%", maxWidth: 1400, boxShadow: "8px 16px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: `1px solid ${C.rule}` }}>
           <div style={{ fontFamily: "var(--display)", fontSize: 18, color: C.ink }}>{title}</div>
@@ -2145,6 +2146,8 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
       </div>
     </div>
   );
+  if (typeof document === "undefined") return modal;
+  return createPortal(modal, document.body);
 }
 
 function LoadingScreen({ ticker, isPro }) {
