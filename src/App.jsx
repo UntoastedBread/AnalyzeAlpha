@@ -29,6 +29,87 @@ const WORKSPACE_STORAGE_KEY = "aa_workspace_v1";
 const WORKSPACE_VERSION = 1;
 const LANG_STORAGE_KEY = "aa_lang_v1";
 
+const APP_TABS = ["home", "analysis", "charts", "heatmap", "comparison", "account"];
+const ANALYSIS_TABS = ["stock", "financials"];
+const ACCOUNT_TABS = ["overview", "preferences"];
+const CHART_MODES = ["price", "volume", "rsi", "macd", "stoch"];
+const CHART_TYPES = ["line", "candles"];
+
+const normalizeTab = (tab) => (APP_TABS.includes(tab) ? tab : "home");
+const normalizeAnalysisTab = (tab) => (ANALYSIS_TABS.includes(tab) ? tab : "stock");
+const normalizeAccountTab = (tab) => (ACCOUNT_TABS.includes(tab) ? tab : "overview");
+const normalizeChartMode = (mode) => {
+  if (!mode) return null;
+  const val = String(mode).toLowerCase();
+  return CHART_MODES.includes(val) ? val : null;
+};
+const normalizeChartType = (type) => {
+  if (!type) return "line";
+  const val = String(type).toLowerCase();
+  return CHART_TYPES.includes(val) ? val : "line";
+};
+
+const readRouteFromLocation = () => {
+  if (typeof window === "undefined") {
+    return { tab: "home", analysisSubTab: "stock", accountSubTab: "overview" };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const rawTab = params.get("tab");
+  let tab = normalizeTab(rawTab);
+  if (!rawTab) {
+    if (params.get("analysis")) tab = "analysis";
+    else if (params.get("account")) tab = "account";
+    else if (params.get("chart") || params.get("chartType")) tab = "charts";
+    else if (params.get("ticker")) tab = "analysis";
+  }
+  const rawTicker = params.get("ticker");
+  const ticker = rawTicker ? rawTicker.trim().toUpperCase() : "";
+  return {
+    tab,
+    analysisSubTab: normalizeAnalysisTab(params.get("analysis")),
+    accountSubTab: normalizeAccountTab(params.get("account")),
+    ticker,
+    chart: normalizeChartMode(params.get("chart")),
+    chartType: normalizeChartType(params.get("chartType")),
+  };
+};
+
+const buildUrlFromRoute = ({ tab, analysisSubTab, accountSubTab, ticker, chart, chartType }) => {
+  if (typeof window === "undefined") return "/";
+  const url = new URL(window.location.href);
+  const params = url.searchParams;
+
+  if (tab && tab !== "home") params.set("tab", tab);
+  else params.delete("tab");
+
+  if (tab === "analysis" && analysisSubTab && analysisSubTab !== "stock") {
+    params.set("analysis", analysisSubTab);
+  } else {
+    params.delete("analysis");
+  }
+
+  if (tab === "account" && accountSubTab && accountSubTab !== "overview") {
+    params.set("account", accountSubTab);
+  } else {
+    params.delete("account");
+  }
+
+  if (ticker) params.set("ticker", ticker);
+  else params.delete("ticker");
+
+  if (tab === "charts" && chart) params.set("chart", chart);
+  else params.delete("chart");
+
+  if (tab === "charts" && chartType && chartType !== "line") {
+    params.set("chartType", chartType);
+  } else {
+    params.delete("chartType");
+  }
+
+  const search = params.toString();
+  return `${url.pathname}${search ? `?${search}` : ""}${url.hash || ""}`;
+};
+
 const LANGUAGES = [
   { code: "en-US", label: "English (United States)" },
   { code: "fr-FR", label: "Français (France)" },
@@ -413,6 +494,244 @@ const TRANSLATIONS = {
     "help.statSignals.title": "Statistical Signals",
     "help.statSignals.body": "Z-score, momentum, and composite stats.",
     "footer.disclaimer": "For educational purposes only — not financial advice",
+    "common.retry": "Retry",
+    "common.debug": "Debug",
+    "common.hide": "Hide",
+    "common.info": "Info",
+    "common.noData": "No data available",
+    "common.showAll": "Show all {count}",
+    "common.na": "N/A",
+    "loading.analyzing": "Analyzing",
+    "loading.liveSource": "Live data via {source}",
+    "error.connectionTitle": "Connection Failed",
+    "error.connectionBody": "Unable to retrieve market data. If running locally, make sure the proxy server is running with",
+    "error.allSourcesFailed": "All data sources failed",
+    "error.notSignedIn": "Not signed in.",
+    "news.none": "No headlines available right now.",
+    "news.topStory": "Top Story",
+    "news.published": "Published {ago}",
+    "news.publishedRecently": "Published recently",
+    "news.sourceYahoo": "Yahoo Finance",
+    "news.fallback.0.title": "Mega-cap earnings set the tone for the week ahead",
+    "news.fallback.0.source": "Market Desk",
+    "news.fallback.0.desc": "Major technology companies report quarterly results this week.",
+    "news.fallback.1.title": "Rates pause keeps focus on growth and AI leaders",
+    "news.fallback.1.source": "Global Markets",
+    "news.fallback.1.desc": "Federal Reserve holds rates steady as inflation moderates.",
+    "news.fallback.2.title": "Energy rebounds while defensives stay bid",
+    "news.fallback.2.source": "Daily Brief",
+    "news.fallback.2.desc": "Oil prices recover on supply concerns and geopolitical tensions.",
+    "news.fallback.3.title": "Retail sales preview: expectations and risks",
+    "news.fallback.3.source": "Macro Wire",
+    "news.fallback.3.desc": "Consumer spending data expected to show continued resilience.",
+    "home.marketScorecard": "Market Scorecard",
+    "home.crossAssetPulse": "Cross-Asset Pulse",
+    "home.sectorPerformance": "Sector Performance",
+    "home.yieldCurve": "Yield Curve",
+    "home.portfolioSnapshot": "Portfolio Snapshot",
+    "home.yieldUnavailable": "Yield data unavailable",
+    "home.yieldLabel": "Yield",
+    "home.return1d": "1D",
+    "home.return1w": "1W",
+    "home.return1m": "1M",
+    "home.returnYtd": "YTD",
+    "home.todayChange": "{pct} today",
+    "perf.title": "PERF MONITOR",
+    "perf.pageLoad": "Page Load",
+    "perf.jsHeap": "JS Heap",
+    "perf.apiCalls": "API Calls",
+    "perf.lastLatency": "Last Latency",
+    "perf.domNodes": "DOM Nodes",
+    "perf.fps": "FPS",
+    "region.global": "Global",
+    "region.us": "US",
+    "region.europe": "Europe",
+    "region.asia": "Asia",
+    "assetSection.cryptocurrencies": "Cryptocurrencies",
+    "assetSection.rates": "Rates",
+    "assetSection.commodities": "Commodities",
+    "assetSection.currencies": "Currencies",
+    "label.sp500": "S&P 500",
+    "label.nasdaq": "Nasdaq",
+    "label.nasdaq100": "Nasdaq 100",
+    "label.dowJones": "Dow Jones",
+    "label.dow30": "Dow 30",
+    "label.russell2k": "Russell 2K",
+    "label.vix": "VIX",
+    "label.tenYearYield": "10Y Yield",
+    "label.ftse100": "FTSE 100",
+    "label.dax": "DAX",
+    "label.nikkei225": "Nikkei 225",
+    "label.hangSeng": "Hang Seng",
+    "label.cac40": "CAC 40",
+    "label.euroStoxx": "Euro Stoxx",
+    "label.shanghai": "Shanghai",
+    "label.kospi": "KOSPI",
+    "label.taiwan": "Taiwan",
+    "label.eurUsd": "EUR/USD",
+    "label.gbpUsd": "GBP/USD",
+    "label.usdJpy": "USD/JPY",
+    "label.usdCny": "USD/CNY",
+    "label.bitcoin": "Bitcoin",
+    "label.ethereum": "Ethereum",
+    "label.solana": "Solana",
+    "label.xrp": "XRP",
+    "label.cardano": "Cardano",
+    "label.dogecoin": "Dogecoin",
+    "label.gold": "Gold",
+    "label.silver": "Silver",
+    "label.crudeOil": "Crude Oil",
+    "label.natGas": "Nat Gas",
+    "label.copper": "Copper",
+    "label.corn": "Corn",
+    "label.dxy": "DXY",
+    "label.audUsd": "AUD/USD",
+    "label.us10y": "US 10Y",
+    "label.us30y": "US 30Y",
+    "label.us5y": "US 5Y",
+    "label.us3m": "US 3M",
+    "label.stocks": "Stocks",
+    "label.bonds": "Bonds",
+    "label.crypto": "Crypto",
+    "label.dollar": "Dollar",
+    "sector.technology": "Technology",
+    "sector.financials": "Financials",
+    "sector.energy": "Energy",
+    "sector.healthcare": "Healthcare",
+    "sector.industrials": "Industrials",
+    "sector.communication": "Communication Services",
+    "sector.consumerDiscretionary": "Consumer Discretionary",
+    "sector.consumerStaples": "Consumer Staples",
+    "sector.realEstate": "Real Estate",
+    "sector.materials": "Materials",
+    "sector.utilities": "Utilities",
+    "signal.STRONG_BUY": "STRONG BUY",
+    "signal.BUY": "BUY",
+    "signal.HOLD": "HOLD",
+    "signal.SELL": "SELL",
+    "signal.STRONG_SELL": "STRONG SELL",
+    "signal.NEUTRAL": "NEUTRAL",
+    "signal.OVERSOLD": "OVERSOLD",
+    "signal.OVERBOUGHT": "OVERBOUGHT",
+    "signal.BULLISH": "BULLISH",
+    "signal.BEARISH": "BEARISH",
+    "signal.STRONG": "STRONG",
+    "signal.MODERATE": "MODERATE",
+    "signal.WEAK": "WEAK",
+    "signal.HIGH": "HIGH",
+    "signal.MEDIUM": "MEDIUM",
+    "signal.LOW": "LOW",
+    "signal.NORMAL": "NORMAL",
+    "signal.ELEVATED": "ELEVATED",
+    "risk.HIGH": "High",
+    "risk.MEDIUM": "Medium",
+    "risk.LOW": "Low",
+    "risk.MODERATE": "Moderate",
+    "volatility.HIGH": "High",
+    "volatility.ELEVATED": "Elevated",
+    "volatility.NORMAL": "Normal",
+    "volatility.LOW": "Low",
+    "trend.UPTREND": "Uptrend",
+    "trend.DOWNTREND": "Downtrend",
+    "trend.SIDEWAYS": "Sideways",
+    "regime.STRONG_UPTREND": "Strong Uptrend",
+    "regime.TRENDING_UPTREND": "Trending Uptrend",
+    "regime.TRENDING_DOWNTREND": "Trending Downtrend",
+    "regime.STRONG_DOWNTREND": "Strong Downtrend",
+    "regime.MEAN_REVERTING": "Mean Reverting",
+    "regime.RANGING": "Ranging",
+    "regime.HIGH_VOLATILITY": "High Volatility",
+    "regime.TRANSITIONING": "Transitioning",
+    "regime.UNKNOWN": "Unknown",
+    "valuation.FAIRLY_VALUED": "Fairly Valued",
+    "valuation.SIGNIFICANTLY_OVERVALUED": "Significantly Overvalued",
+    "valuation.OVERVALUED": "Overvalued",
+    "valuation.SLIGHTLY_OVERVALUED": "Slightly Overvalued",
+    "valuation.SIGNIFICANTLY_UNDERVALUED": "Significantly Undervalued",
+    "valuation.UNDERVALUED": "Undervalued",
+    "valuation.SLIGHTLY_UNDERVALUED": "Slightly Undervalued",
+    "valuation.issueDiscountTerminal": "Discount rate must exceed terminal growth.",
+    "valuation.issueDiscountDividend": "Discount rate must exceed dividend growth.",
+    "strategy.name.STRONG_UPTREND": "Trend Following (Long)",
+    "strategy.name.STRONG_DOWNTREND": "Trend Following (Short)",
+    "strategy.name.TRENDING_UPTREND": "Trend Following with Caution",
+    "strategy.name.TRENDING_DOWNTREND": "Defensive or Short",
+    "strategy.name.MEAN_REVERTING": "Mean Reversion",
+    "strategy.name.RANGING": "Range Trading",
+    "strategy.name.HIGH_VOLATILITY": "Reduced Position Size",
+    "strategy.name.TRANSITIONING": "Wait and Observe",
+    "strategy.tactic.buyBreakouts": "Buy breakouts",
+    "strategy.tactic.holdPositions": "Hold positions",
+    "strategy.tactic.trailStops": "Trail stops",
+    "strategy.avoid.counterTrendTrades": "Counter-trend trades",
+    "strategy.tactic.shortBreakdowns": "Short breakdowns",
+    "strategy.tactic.tightStops": "Tight stops",
+    "strategy.tactic.capitalPreservation": "Capital preservation",
+    "strategy.avoid.catchingFallingKnives": "Catching falling knives",
+    "strategy.tactic.buyDips": "Buy dips",
+    "strategy.tactic.partialPositions": "Partial positions",
+    "strategy.tactic.takeProfits": "Take profits",
+    "strategy.avoid.overextension": "Overextension",
+    "strategy.tactic.reduceExposure": "Reduce exposure",
+    "strategy.tactic.hedgePositions": "Hedge positions",
+    "strategy.avoid.aggressiveLongs": "Aggressive longs",
+    "strategy.tactic.buyOversold": "Buy oversold",
+    "strategy.tactic.sellOverbought": "Sell overbought",
+    "strategy.tactic.rangeTrade": "Range trade",
+    "strategy.avoid.chasingMomentum": "Chasing momentum",
+    "strategy.tactic.supportResistance": "Support / resistance",
+    "strategy.tactic.oscillatorBased": "Oscillator-based",
+    "strategy.avoid.trendFollowing": "Trend following",
+    "strategy.tactic.widerStops": "Wider stops",
+    "strategy.tactic.optionsStrategies": "Options strategies",
+    "strategy.avoid.fullPositions": "Full positions",
+    "strategy.tactic.smallPositions": "Small positions",
+    "strategy.tactic.watchConfirmation": "Watch confirmation",
+    "strategy.avoid.largeCommitments": "Large commitments",
+    "changelog.title": "What's New v{version}",
+    "changelog.0.3.12.0": "GitHub Pages deployment support with gh-pages and homepage config",
+    "changelog.0.3.12.1": "Global markets grid with region movers and show-more popups",
+    "changelog.0.3.12.2": "Search bar with Yahoo Finance autocomplete and /api/search support",
+    "changelog.0.3.12.3": "Asset class sections (crypto, rates, commodities, FX) with live prices",
+    "changelog.0.3.12.4": "News cards now include images and expanded to 20 items",
+    "changelog.0.3.12.5": "Live ticker refresh runs immediately and avoids UI skeleton flashes",
+    "changelog.0.3.11.0": "Brand refresh: logo icon, refined typography, ambient glow",
+    "changelog.0.3.11.1": "Home page hero section with live market status",
+    "changelog.0.3.11.2": "Auto-scrolling marquee ticker strip with LIVE pulse badge",
+    "changelog.0.3.11.3": "Market region cycling with split red/green intraday charts",
+    "changelog.0.3.11.4": "DEV toggles for live tickers and performance monitor",
+    "changelog.0.3.11.5": "Longer sparklines and clearer mover/trending layouts",
+    "changelog.0.3.10.0": "Home dashboard with news, market snapshot, and popular tickers",
+    "changelog.0.3.10.1": "Financials visuals refresh with radar + cash/debt views",
+    "changelog.0.3.10.2": "Homepage overhaul into a live market dashboard",
+    "changelog.0.3.10.3": "Real-time ticker strip, intraday charts, movers, and trending sparklines",
+    "changelog.0.3.10.4": "RSS news feed, skeleton loading states, and collapsible changelog banner",
+    "changelog.0.3.9.0": "Stock vs Financials analysis split",
+    "changelog.0.3.9.1": "Valuation toolkit and fundamentals aggregator",
+    "help.newsHero.title": "Top Story",
+    "help.newsHero.body": "Featured headline with summary and source details.",
+    "help.newsList.title": "Headlines",
+    "help.newsList.body": "Additional headlines with images and quick links.",
+    "help.moverGainers.title": "Top Gainers",
+    "help.moverGainers.body": "Largest gainers for the current session.",
+    "help.moverLosers.title": "Top Losers",
+    "help.moverLosers.body": "Largest decliners for the current session.",
+    "help.moverTrending.title": "Trending",
+    "help.moverTrending.body": "Most active and trending tickers right now.",
+    "help.assetClasses.title": "Asset Classes",
+    "help.assetClasses.body": "Live snapshots for crypto, rates, commodities, and FX.",
+    "help.marketScorecard.title": "Market Scorecard",
+    "help.marketScorecard.body": "S&P 500 returns and key risk gauges.",
+    "help.crossAsset.title": "Cross-Asset Pulse",
+    "help.crossAsset.body": "Quick read on stocks, bonds, commodities, crypto, and USD.",
+    "help.sectorPerformance.title": "Sector Performance",
+    "help.sectorPerformance.body": "Sector ETFs ranked by today's move.",
+    "help.yieldCurve.title": "Yield Curve",
+    "help.yieldCurve.body": "Short vs long rates and curve shape.",
+    "help.portfolioSnapshot.title": "Portfolio Snapshot",
+    "help.portfolioSnapshot.body": "Model portfolio value, cash, and risk mix.",
+    "help.openCharts.title": "Open in Charts",
+    "help.openCharts.body": "Jump to the Charts tab and expand the full-period view.",
   },
   "fr-FR": {
     "tagline.quant": "Analyse quantitative",
@@ -4206,6 +4525,110 @@ function formatAgo(ts, t) {
   return fallback("time.daysAgo", { count: day }, `${day}d ago`);
 }
 
+function normalizeEnumValue(value) {
+  return String(value || "").toUpperCase().replace(/[\s-]+/g, "_");
+}
+
+function translateEnum(value, t, prefix) {
+  if (!value) return "";
+  const key = `${prefix}.${normalizeEnumValue(value)}`;
+  const translated = typeof t === "function" ? t(key) : "";
+  if (translated && translated !== key) return translated;
+  return String(value).replace(/_/g, " ");
+}
+
+function formatShortDate(dateStr, locale) {
+  if (!dateStr) return "";
+  const dt = new Date(dateStr);
+  if (Number.isNaN(dt.getTime())) return dateStr;
+  try {
+    return new Intl.DateTimeFormat(locale || undefined, { month: "short", day: "numeric", year: "numeric" }).format(dt);
+  } catch {
+    return dt.toLocaleDateString();
+  }
+}
+
+const LABEL_KEY_MAP = {
+  Global: "region.global",
+  US: "region.us",
+  Europe: "region.europe",
+  Asia: "region.asia",
+  Cryptocurrencies: "assetSection.cryptocurrencies",
+  Rates: "assetSection.rates",
+  Commodities: "assetSection.commodities",
+  Currencies: "assetSection.currencies",
+  "S&P 500": "label.sp500",
+  Nasdaq: "label.nasdaq",
+  "Nasdaq 100": "label.nasdaq100",
+  "Dow Jones": "label.dowJones",
+  "Dow 30": "label.dow30",
+  "Russell 2K": "label.russell2k",
+  VIX: "label.vix",
+  "10Y Yield": "label.tenYearYield",
+  "FTSE 100": "label.ftse100",
+  DAX: "label.dax",
+  "Nikkei 225": "label.nikkei225",
+  "Hang Seng": "label.hangSeng",
+  "CAC 40": "label.cac40",
+  "Euro Stoxx": "label.euroStoxx",
+  Shanghai: "label.shanghai",
+  KOSPI: "label.kospi",
+  Taiwan: "label.taiwan",
+  "EUR/USD": "label.eurUsd",
+  "GBP/USD": "label.gbpUsd",
+  "USD/JPY": "label.usdJpy",
+  "USD/CNY": "label.usdCny",
+  Bitcoin: "label.bitcoin",
+  Ethereum: "label.ethereum",
+  Solana: "label.solana",
+  XRP: "label.xrp",
+  Cardano: "label.cardano",
+  Dogecoin: "label.dogecoin",
+  Gold: "label.gold",
+  Silver: "label.silver",
+  "Crude Oil": "label.crudeOil",
+  "Nat Gas": "label.natGas",
+  Copper: "label.copper",
+  Corn: "label.corn",
+  DXY: "label.dxy",
+  "AUD/USD": "label.audUsd",
+  "US 10Y": "label.us10y",
+  "US 30Y": "label.us30y",
+  "US 5Y": "label.us5y",
+  "US 3M": "label.us3m",
+  Stocks: "label.stocks",
+  Bonds: "label.bonds",
+  Crypto: "label.crypto",
+  Dollar: "label.dollar",
+  Technology: "sector.technology",
+  Financials: "sector.financials",
+  Energy: "sector.energy",
+  Healthcare: "sector.healthcare",
+  Industrials: "sector.industrials",
+  "Comm. Services": "sector.communication",
+  Communication: "sector.communication",
+  "Communication Services": "sector.communication",
+  "Consumer Disc.": "sector.consumerDiscretionary",
+  "Consumer Discretionary": "sector.consumerDiscretionary",
+  "Consumer Staples": "sector.consumerStaples",
+  "Real Estate": "sector.realEstate",
+  Materials: "sector.materials",
+  Utilities: "sector.utilities",
+};
+
+function labelFor(label, t) {
+  if (!label) return "";
+  const key = LABEL_KEY_MAP[label];
+  const translated = key && typeof t === "function" ? t(key) : "";
+  if (translated && translated !== key) return translated;
+  return label;
+}
+
+function buildNewsPlaceholder(text) {
+  const safe = encodeURIComponent(text || "");
+  return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 500'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0%25' stop-color='%23EFE7DC'/><stop offset='100%25' stop-color='%23D7C8B4'/></linearGradient></defs><rect width='800' height='500' fill='url(%23g)'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Verdana' font-size='36' fill='%236B5E52'>${safe}</text></svg>`;
+}
+
 function getFirstNameFromUser(user) {
   const meta = user?.user_metadata || {};
   const raw = meta.first_name || meta.firstName || meta.name || meta.full_name || meta.fullName || "";
@@ -4848,10 +5271,10 @@ function runValuationModels(assumptions, price) {
   const a = assumptions;
   const issues = [];
   const dcf = dcfValue(a.fcfPerShare, a.growthRate, a.discountRate, a.terminalGrowth, a.years);
-  if (a.discountRate <= a.terminalGrowth) issues.push("Discount rate must exceed terminal growth.");
+  if (a.discountRate <= a.terminalGrowth) issues.push("valuation.issueDiscountTerminal");
   const ddmGrowth = Math.min(a.growthRate, 0.06);
   const ddm = a.dividendPerShare > 0 ? ddmValue(a.dividendPerShare, ddmGrowth, a.discountRate) : null;
-  if (a.dividendPerShare > 0 && a.discountRate <= ddmGrowth) issues.push("Discount rate must exceed dividend growth.");
+  if (a.dividendPerShare > 0 && a.discountRate <= ddmGrowth) issues.push("valuation.issueDiscountDividend");
   const multiples = a.eps && a.targetPE ? a.eps * a.targetPE : null;
   const vals = [dcf, ddm, multiples].filter(v => Number.isFinite(v) && v > 0);
   const anchor = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
@@ -4901,14 +5324,46 @@ function runAnalysis(ticker, rawData) {
 }
 
 const STRATEGIES = {
-  STRONG_UPTREND: { strategy: "Trend Following (Long)", tactics: ["Buy breakouts", "Hold positions", "Trail stops"], avoid: ["Counter-trend trades"] },
-  STRONG_DOWNTREND: { strategy: "Trend Following (Short)", tactics: ["Short breakdowns", "Tight stops", "Capital preservation"], avoid: ["Catching falling knives"] },
-  TRENDING_UPTREND: { strategy: "Trend Following with Caution", tactics: ["Buy dips", "Partial positions", "Take profits"], avoid: ["Overextension"] },
-  TRENDING_DOWNTREND: { strategy: "Defensive or Short", tactics: ["Reduce exposure", "Hedge positions"], avoid: ["Aggressive longs"] },
-  MEAN_REVERTING: { strategy: "Mean Reversion", tactics: ["Buy oversold", "Sell overbought", "Range trade"], avoid: ["Chasing momentum"] },
-  RANGING: { strategy: "Range Trading", tactics: ["Support / resistance", "Oscillator-based"], avoid: ["Trend following"] },
-  HIGH_VOLATILITY: { strategy: "Reduced Position Size", tactics: ["Wider stops", "Options strategies"], avoid: ["Full positions"] },
-  TRANSITIONING: { strategy: "Wait and Observe", tactics: ["Small positions", "Watch confirmation"], avoid: ["Large commitments"] },
+  STRONG_UPTREND: {
+    strategy: "strategy.name.STRONG_UPTREND",
+    tactics: ["strategy.tactic.buyBreakouts", "strategy.tactic.holdPositions", "strategy.tactic.trailStops"],
+    avoid: ["strategy.avoid.counterTrendTrades"],
+  },
+  STRONG_DOWNTREND: {
+    strategy: "strategy.name.STRONG_DOWNTREND",
+    tactics: ["strategy.tactic.shortBreakdowns", "strategy.tactic.tightStops", "strategy.tactic.capitalPreservation"],
+    avoid: ["strategy.avoid.catchingFallingKnives"],
+  },
+  TRENDING_UPTREND: {
+    strategy: "strategy.name.TRENDING_UPTREND",
+    tactics: ["strategy.tactic.buyDips", "strategy.tactic.partialPositions", "strategy.tactic.takeProfits"],
+    avoid: ["strategy.avoid.overextension"],
+  },
+  TRENDING_DOWNTREND: {
+    strategy: "strategy.name.TRENDING_DOWNTREND",
+    tactics: ["strategy.tactic.reduceExposure", "strategy.tactic.hedgePositions"],
+    avoid: ["strategy.avoid.aggressiveLongs"],
+  },
+  MEAN_REVERTING: {
+    strategy: "strategy.name.MEAN_REVERTING",
+    tactics: ["strategy.tactic.buyOversold", "strategy.tactic.sellOverbought", "strategy.tactic.rangeTrade"],
+    avoid: ["strategy.avoid.chasingMomentum"],
+  },
+  RANGING: {
+    strategy: "strategy.name.RANGING",
+    tactics: ["strategy.tactic.supportResistance", "strategy.tactic.oscillatorBased"],
+    avoid: ["strategy.avoid.trendFollowing"],
+  },
+  HIGH_VOLATILITY: {
+    strategy: "strategy.name.HIGH_VOLATILITY",
+    tactics: ["strategy.tactic.widerStops", "strategy.tactic.optionsStrategies"],
+    avoid: ["strategy.avoid.fullPositions"],
+  },
+  TRANSITIONING: {
+    strategy: "strategy.name.TRANSITIONING",
+    tactics: ["strategy.tactic.smallPositions", "strategy.tactic.watchConfirmation"],
+    avoid: ["strategy.avoid.largeCommitments"],
+  },
 };
 
 const HEATMAP_UNIVERSE = [
@@ -5111,13 +5566,13 @@ const DEFAULT_TRENDING = [
 ];
 
 const FALLBACK_NEWS = [
-  { title: "Mega-cap earnings set the tone for the week ahead", source: "Market Desk", pubDate: "", description: "Major technology companies report quarterly results this week." },
-  { title: "Rates pause keeps focus on growth and AI leaders", source: "Global Markets", pubDate: "", description: "Federal Reserve holds rates steady as inflation moderates." },
-  { title: "Energy rebounds while defensives stay bid", source: "Daily Brief", pubDate: "", description: "Oil prices recover on supply concerns and geopolitical tensions." },
-  { title: "Retail sales preview: expectations and risks", source: "Macro Wire", pubDate: "", description: "Consumer spending data expected to show continued resilience." },
+  { titleKey: "news.fallback.0.title", sourceKey: "news.fallback.0.source", pubDate: "", descriptionKey: "news.fallback.0.desc" },
+  { titleKey: "news.fallback.1.title", sourceKey: "news.fallback.1.source", pubDate: "", descriptionKey: "news.fallback.1.desc" },
+  { titleKey: "news.fallback.2.title", sourceKey: "news.fallback.2.source", pubDate: "", descriptionKey: "news.fallback.2.desc" },
+  { titleKey: "news.fallback.3.title", sourceKey: "news.fallback.3.source", pubDate: "", descriptionKey: "news.fallback.3.desc" },
 ];
 
-const NEWS_PLACEHOLDER_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 500'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0%25' stop-color='%23EFE7DC'/><stop offset='100%25' stop-color='%23D7C8B4'/></linearGradient></defs><rect width='800' height='500' fill='url(%23g)'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Verdana' font-size='36' fill='%236B5E52'>Market%20News</text></svg>";
+const NEWS_PLACEHOLDER_IMAGE = buildNewsPlaceholder("Market News");
 
 
 const SCORECARD_INDICATORS = [
@@ -5161,52 +5616,52 @@ const PORTFOLIO_TILE = {
   dayChangePct: 1.12,
   ytdPct: 8.6,
   cash: 12400,
-  risk: "Moderate",
+  risk: "MODERATE",
   top: ["AAPL", "NVDA", "MSFT", "AMZN", "META"],
 };
 
 const CHANGELOG = [
   {
     version: "0.3.12",
-    date: "Feb 8, 2026",
+    date: "2026-02-08",
     items: [
-      "GitHub Pages deployment support with gh-pages and homepage config",
-      "Global markets grid with region movers and show-more popups",
-      "Search bar with Yahoo Finance autocomplete and /api/search support",
-      "Asset class sections (crypto, rates, commodities, FX) with live prices",
-      "News cards now include images and expanded to 20 items",
-      "Live ticker refresh runs immediately and avoids UI skeleton flashes",
+      "changelog.0.3.12.0",
+      "changelog.0.3.12.1",
+      "changelog.0.3.12.2",
+      "changelog.0.3.12.3",
+      "changelog.0.3.12.4",
+      "changelog.0.3.12.5",
     ],
   },
   {
     version: "0.3.11",
-    date: "Feb 8, 2026",
+    date: "2026-02-08",
     items: [
-      "Brand refresh: logo icon, refined typography, ambient glow",
-      "Home page hero section with live market status",
-      "Auto-scrolling marquee ticker strip with LIVE pulse badge",
-      "Market region cycling with split red/green intraday charts",
-      "DEV toggles for live tickers and performance monitor",
-      "Longer sparklines and clearer mover/trending layouts",
+      "changelog.0.3.11.0",
+      "changelog.0.3.11.1",
+      "changelog.0.3.11.2",
+      "changelog.0.3.11.3",
+      "changelog.0.3.11.4",
+      "changelog.0.3.11.5",
     ],
   },
   {
     version: "0.3.10",
-    date: "Feb 8, 2026",
+    date: "2026-02-08",
     items: [
-      "Home dashboard with news, market snapshot, and popular tickers",
-      "Financials visuals refresh with radar + cash/debt views",
-      "Homepage overhaul into a live market dashboard",
-      "Real-time ticker strip, intraday charts, movers, and trending sparklines",
-      "RSS news feed, skeleton loading states, and collapsible changelog banner",
+      "changelog.0.3.10.0",
+      "changelog.0.3.10.1",
+      "changelog.0.3.10.2",
+      "changelog.0.3.10.3",
+      "changelog.0.3.10.4",
     ],
   },
   {
     version: "0.3.9",
-    date: "Feb 2026",
+    date: "2026-02-01",
     items: [
-      "Stock vs Financials analysis split",
-      "Valuation toolkit and fundamentals aggregator",
+      "changelog.0.3.9.0",
+      "changelog.0.3.9.1",
     ],
   },
 ];
@@ -5397,13 +5852,15 @@ function ProGate({ title = "Pro Required", description, features }) {
 }
 
 function Signal({ value }) {
+  const { t } = useI18n();
   const col = {
     STRONG_BUY: C.up, BUY: C.up, OVERSOLD: C.up, BULLISH: C.up,
     NEUTRAL: C.hold, SELL: C.down, STRONG_SELL: C.down, OVERBOUGHT: C.down, BEARISH: C.down,
     STRONG: C.up, MODERATE: C.hold, WEAK: C.inkMuted,
     HIGH: C.down, LOW: C.up, NORMAL: C.hold, ELEVATED: C.accent,
   }[value] || C.inkMuted;
-  return <span style={{ color: col, fontFamily: "var(--mono)", fontSize: 11, fontWeight: 600, letterSpacing: "0.04em" }}>{value}</span>;
+  const label = translateEnum(value, t, "signal");
+  return <span style={{ color: col, fontFamily: "var(--mono)", fontSize: 11, fontWeight: 600, letterSpacing: "0.04em" }}>{label}</span>;
 }
 
 function Row({ label, value, color, border = true }) {
@@ -5484,10 +5941,11 @@ function Sparkline({ data, color = C.ink, prevClose, width = 120, height = 36 })
 }
 
 function LiveBadge({ latency, source }) {
+  const { t } = useI18n();
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10, fontFamily: "var(--mono)", fontWeight: 600, letterSpacing: "0.04em" }}>
       <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.up, display: "inline-block", animation: "livePulse 2s ease infinite", boxShadow: `0 0 6px ${C.up}55` }} />
-      <span style={{ color: C.up }}>LIVE</span>
+      <span style={{ color: C.up }}>{t("common.live")}</span>
       <span style={{ color: C.inkFaint }}>·</span>
       <span style={{ color: C.inkMuted, fontSize: 9 }}>{source}</span>
       <span style={{ color: latColor(latency), fontSize: 9 }}>{latency}ms</span>
@@ -5884,6 +6342,7 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
 }
 
 function LoadingScreen({ ticker, isPro }) {
+  const { t } = useI18n();
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 420, gap: 20, position: "relative" }}>
       <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, zIndex: 1 }}>
@@ -5895,28 +6354,33 @@ function LoadingScreen({ ticker, isPro }) {
         <BrandMark size={28} pro={isPro} weight={300} />
       </div>
       <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.inkMuted, zIndex: 1 }}>
-        Analyzing <span style={{ fontWeight: 700, color: C.ink, fontFamily: "var(--mono)" }}>{ticker}</span>
+        {t("loading.analyzing")} <span style={{ fontWeight: 700, color: C.ink, fontFamily: "var(--mono)" }}>{ticker}</span>
       </div>
       <div style={{ width: 200, height: 2, background: C.ruleFaint, borderRadius: 2, overflow: "hidden", zIndex: 1 }}>
         <div style={{ width: "55%", height: "100%", background: "linear-gradient(90deg, rgba(26,22,18,0), rgba(26,22,18,0.7), rgba(26,22,18,0))", animation: "proSweep 1.6s ease infinite" }} />
       </div>
-      <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--mono)", zIndex: 1, letterSpacing: "0.04em" }}>Live data via Yahoo Finance</div>
+      <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--mono)", zIndex: 1, letterSpacing: "0.04em" }}>
+        {t("loading.liveSource", { source: t("news.sourceYahoo") })}
+      </div>
     </div>
   );
 }
 
 function ErrorScreen({ error, debugInfo, onRetry }) {
+  const { t } = useI18n();
   const [showDebug, setShowDebug] = useState(false);
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 400, gap: 16 }}>
       <BrandMark size={24} muted />
-      <div style={{ fontSize: 24, fontFamily: "var(--display)", color: C.ink, fontWeight: 600 }}>Connection Failed</div>
+      <div style={{ fontSize: 24, fontFamily: "var(--display)", color: C.ink, fontWeight: 600 }}>{t("error.connectionTitle")}</div>
       <div style={{ fontSize: 14, color: C.inkMuted, fontFamily: "var(--body)", textAlign: "center", maxWidth: 440, lineHeight: 1.6 }}>
-        Unable to retrieve market data. If running locally, make sure the proxy server is running with <code style={{ background: C.paper, padding: "2px 6px", fontFamily: "var(--mono)", fontSize: 12 }}>npm start</code>.
+        {t("error.connectionBody")} <code style={{ background: C.paper, padding: "2px 6px", fontFamily: "var(--mono)", fontSize: 12 }}>npm start</code>.
       </div>
       <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
-        <button onClick={onRetry} style={{ padding: "10px 28px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Retry</button>
-        <button onClick={() => setShowDebug(!showDebug)} style={{ padding: "10px 20px", background: "transparent", color: C.inkMuted, border: `1px solid ${C.rule}`, fontSize: 11, cursor: "pointer", fontFamily: "var(--mono)", letterSpacing: "0.04em" }}>{showDebug ? "Hide" : "Debug"} Info</button>
+        <button onClick={onRetry} style={{ padding: "10px 28px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{t("common.retry")}</button>
+        <button onClick={() => setShowDebug(!showDebug)} style={{ padding: "10px 20px", background: "transparent", color: C.inkMuted, border: `1px solid ${C.rule}`, fontSize: 11, cursor: "pointer", fontFamily: "var(--mono)", letterSpacing: "0.04em" }}>
+          {showDebug ? t("common.hide") : t("common.debug")} {t("common.info")}
+        </button>
       </div>
       {showDebug && debugInfo && (
         <div style={{ marginTop: 12, padding: 16, background: C.warmWhite, border: `1px solid ${C.rule}`, maxWidth: 600, width: "100%", fontSize: 11, fontFamily: "var(--mono)", color: C.inkSoft, lineHeight: 1.6, whiteSpace: "pre-wrap", maxHeight: 300, overflowY: "auto" }}>
@@ -5962,7 +6426,7 @@ function TickerStrip({ data, loading, onAnalyze }) {
       onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
       onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = "transparent"; }}
     >
-      <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", fontWeight: 600 }}>{item.label}</span>
+      <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", fontWeight: 600 }}>{labelFor(item.label, t)}</span>
       <span style={{ fontSize: 12, fontFamily: "var(--mono)", color: "#fff", fontWeight: 600 }}>
         {item.loaded ? (item.price >= 1000 ? item.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : item.price.toFixed(2)) : "—"}
       </span>
@@ -6025,6 +6489,7 @@ function MiniIntradayChart({ data, label, loading, onAnalyze, ticker, compact = 
   const color = lastPrice >= prevClose ? C.up : C.down;
   const changeBg = lastPrice >= prevClose ? C.upBg : C.downBg;
   const safeLabel = label.replace(/[^a-zA-Z0-9]/g, "");
+  const displayLabel = labelFor(label, t);
   const clickable = !!onAnalyze && !!ticker;
   return (
     <button
@@ -6041,7 +6506,7 @@ function MiniIntradayChart({ data, label, loading, onAnalyze, ticker, compact = 
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
         <div>
-          <span style={{ fontSize: compact ? 9 : 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600 }}>{label}</span>
+          <span style={{ fontSize: compact ? 9 : 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600 }}>{displayLabel}</span>
           <span style={{ fontSize: compact ? 22 : 30, fontFamily: "var(--display)", color: C.inkSoft, fontWeight: 600, marginLeft: 12 }}>{fmt(lastPrice)}</span>
         </div>
         <span style={{ fontSize: compact ? 12 : 14, fontFamily: "var(--mono)", fontWeight: 800, color, background: changeBg, padding: compact ? "3px 6px" : "4px 8px", borderRadius: 10 }}>
@@ -6111,6 +6576,7 @@ function MoverPopup({ title, stocks, onAnalyze, onClose }) {
 }
 
 function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
+  const { t } = useI18n();
   const [showPopup, setShowPopup] = useState(false);
   const display = stocks ? stocks.slice(0, 5) : [];
 
@@ -6131,7 +6597,7 @@ function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
     <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}`, minWidth: 0, width: "100%" }}>
       <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600, marginBottom: 12 }}>{title}</div>
       {(!display || display.length === 0) ? (
-        <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)", padding: "12px 0" }}>No data available</div>
+        <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)", padding: "12px 0" }}>{t("common.noData")}</div>
       ) : (
         <>
           {display.map((s) => (
@@ -6159,7 +6625,7 @@ function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
               style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: "8px 4px", background: "transparent", border: "none", cursor: "pointer", color: C.inkMuted, fontSize: 11, fontFamily: "var(--body)", fontWeight: 600, gap: 4, marginTop: 4, transition: "color 0.15s" }}
               onMouseEnter={e => e.currentTarget.style.color = C.ink}
               onMouseLeave={e => e.currentTarget.style.color = C.inkMuted}>
-              Show all {allStocks.length} →
+              {t("common.showAll", { count: allStocks.length })} →
             </button>
           )}
         </>
@@ -6171,19 +6637,17 @@ function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
   );
 }
 
-function timeAgo(dateStr) {
+function timeAgo(dateStr, t) {
   if (!dateStr) return "";
   try {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
+    const ts = new Date(dateStr).getTime();
+    if (!Number.isFinite(ts)) return "";
+    return formatAgo(ts, t);
   } catch { return ""; }
 }
 
 function NewsSection({ news, loading }) {
+  const { t } = useI18n();
   if (loading) {
     return (
       <div style={{ display: "grid", gap: 1 }}>
@@ -6199,62 +6663,72 @@ function NewsSection({ news, loading }) {
   if (!news || news.length === 0) {
     return (
       <div style={{ padding: "16px", background: C.warmWhite, border: `1px solid ${C.rule}`, fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>
-        No headlines available right now.
+        {t("news.none")}
       </div>
     );
   }
   const hero = news[0];
-  const heroImage = hero.image || NEWS_PLACEHOLDER_IMAGE;
+  const placeholder = buildNewsPlaceholder(t("home.marketNews"));
+  const heroTitle = hero.titleKey ? t(hero.titleKey) : hero.title;
+  const heroDesc = hero.descriptionKey ? t(hero.descriptionKey) : hero.description;
+  const heroSource = hero.sourceKey ? t(hero.sourceKey) : hero.source || t("news.sourceYahoo");
+  const heroImage = hero.image || placeholder || NEWS_PLACEHOLDER_IMAGE;
   const rest = news.slice(1);
   const cards = rest.slice(0, 6);
-  const publishedText = hero.pubDate ? `Published ${timeAgo(hero.pubDate)}` : "Published recently";
+  const publishedText = hero.pubDate ? t("news.published", { ago: timeAgo(hero.pubDate, t) }) : t("news.publishedRecently");
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <a href={hero.link || "#"} target="_blank" rel="noopener noreferrer"
-        style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", minHeight: 260, background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 16, textDecoration: "none", color: C.ink, overflow: "hidden" }}>
+      <HelpWrap help={{ title: t("help.newsHero.title"), body: t("help.newsHero.body") }} block>
+        <a href={hero.link || "#"} target="_blank" rel="noopener noreferrer"
+          style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", minHeight: 260, background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 16, textDecoration: "none", color: C.ink, overflow: "hidden" }}>
         <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 14 }}>
-          <div style={{ fontSize: 10, fontFamily: "var(--mono)", letterSpacing: "0.24em", textTransform: "uppercase", color: C.inkFaint }}>Top Story</div>
+          <div style={{ fontSize: 10, fontFamily: "var(--mono)", letterSpacing: "0.24em", textTransform: "uppercase", color: C.inkFaint }}>{t("news.topStory")}</div>
           <div>
-            <div style={{ fontSize: 28, fontFamily: "var(--display)", lineHeight: 1.2, color: C.inkSoft }}>{hero.title}</div>
-            {hero.description && (
-              <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.6, marginTop: 10 }}>{hero.description}</div>
+            <div style={{ fontSize: 28, fontFamily: "var(--display)", lineHeight: 1.2, color: C.inkSoft }}>{heroTitle}</div>
+            {heroDesc && (
+              <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.6, marginTop: 10 }}>{heroDesc}</div>
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
             <span>{publishedText}</span>
             <span style={{ color: C.ruleFaint }}>·</span>
-            <span style={{ fontWeight: 600 }}>{hero.source || "Yahoo Finance"}</span>
+            <span style={{ fontWeight: 600 }}>{heroSource}</span>
           </div>
         </div>
         <div style={{ position: "relative", background: C.paper }}>
-          <img src={heroImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = NEWS_PLACEHOLDER_IMAGE; }} />
+          <img src={heroImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = placeholder || NEWS_PLACEHOLDER_IMAGE; }} />
         </div>
-      </a>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
-        {cards.map((n, i) => {
-          const cardImage = n.image || NEWS_PLACEHOLDER_IMAGE;
-          return (
-            <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
-              style={{ display: "grid", gridTemplateRows: "120px auto", background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 14, textDecoration: "none", color: C.ink, overflow: "hidden", transition: "transform 0.15s" }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}>
-              <div style={{ position: "relative", background: C.paper }}>
-                <img src={cardImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = NEWS_PLACEHOLDER_IMAGE; }} />
-              </div>
-              <div style={{ padding: "12px 14px", display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{n.title}</div>
-                <div style={{ display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
-                  <span style={{ fontWeight: 600 }}>{n.source || "Yahoo Finance"}</span>
-                  {n.pubDate && <>
-                    <span style={{ color: C.ruleFaint }}>|</span>
-                    <span>{timeAgo(n.pubDate)}</span>
-                  </>}
+        </a>
+      </HelpWrap>
+      <HelpWrap help={{ title: t("help.newsList.title"), body: t("help.newsList.body") }} block>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+          {cards.map((n, i) => {
+            const cardImage = n.image || placeholder || NEWS_PLACEHOLDER_IMAGE;
+            const cardTitle = n.titleKey ? t(n.titleKey) : n.title;
+            const cardSource = n.sourceKey ? t(n.sourceKey) : n.source || t("news.sourceYahoo");
+            return (
+              <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
+                style={{ display: "grid", gridTemplateRows: "120px auto", background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 14, textDecoration: "none", color: C.ink, overflow: "hidden", transition: "transform 0.15s" }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}>
+                <div style={{ position: "relative", background: C.paper }}>
+                  <img src={cardImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = placeholder || NEWS_PLACEHOLDER_IMAGE; }} />
                 </div>
-              </div>
-            </a>
-          );
-        })}
-      </div>
+                <div style={{ padding: "12px 14px", display: "grid", gap: 8 }}>
+                  <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{cardTitle}</div>
+                  <div style={{ display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
+                    <span style={{ fontWeight: 600 }}>{cardSource}</span>
+                    {n.pubDate && <>
+                      <span style={{ color: C.ruleFaint }}>|</span>
+                      <span>{timeAgo(n.pubDate, t)}</span>
+                    </>}
+                  </div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </HelpWrap>
     </div>
   );
 }
@@ -6273,6 +6747,7 @@ function MiniCard({ title, children, style }) {
 }
 
 function MarketScorecardCard() {
+  const { t } = useI18n();
   const [spData, setSpData] = useState(null);
   const [indicators, setIndicators] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -6323,7 +6798,7 @@ function MarketScorecardCard() {
   );
 
   return (
-    <MiniCard title="Market Scorecard">
+    <MiniCard title={t("home.marketScorecard")}>
       {!loaded ? (
         <div style={{ display: "grid", gap: 8 }}>
           <SkeletonBlock height={24} />
@@ -6335,16 +6810,16 @@ function MarketScorecardCard() {
         <div style={{ display: "grid", gap: 10 }}>
           <div style={{ display: "grid", gap: 6 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>S&P 500</span>
+              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>{labelFor("S&P 500", t)}</span>
               <span style={{ fontSize: 16, fontFamily: "var(--mono)", fontWeight: 700, color: C.ink }}>
                 {spData.price.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </span>
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <ReturnPill label="1D" value={spData.ret1d} />
-              <ReturnPill label="1W" value={spData.ret1w} />
-              <ReturnPill label="1M" value={spData.ret1m} />
-              <ReturnPill label="YTD" value={spData.retYtd} />
+              <ReturnPill label={t("home.return1d")} value={spData.ret1d} />
+              <ReturnPill label={t("home.return1w")} value={spData.ret1w} />
+              <ReturnPill label={t("home.return1m")} value={spData.ret1m} />
+              <ReturnPill label={t("home.returnYtd")} value={spData.retYtd} />
             </div>
           </div>
           {indicators.find(d => d.label === "VIX" && d.ok) && (() => {
@@ -6352,7 +6827,7 @@ function MarketScorecardCard() {
             return (
               <div style={{ display: "grid", gap: 4 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>VIX</span>
+                  <span style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>{labelFor("VIX", t)}</span>
                   <span style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 700, color: vixColor(vix.price) }}>{vix.price.toFixed(1)}</span>
                 </div>
                 <div style={{ height: 6, background: C.paper, borderRadius: 3, overflow: "hidden" }}>
@@ -6364,7 +6839,7 @@ function MarketScorecardCard() {
           <div style={{ display: "grid", gap: 0 }}>
             {indicators.filter(d => d.label !== "VIX" && d.ok).map(d => (
               <div key={d.symbol} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
-                <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>{d.label}</span>
+                <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>{labelFor(d.label, t)}</span>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                   <span style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>
                     {d.price >= 100 ? d.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : d.price.toFixed(2)}
@@ -6383,6 +6858,7 @@ function MarketScorecardCard() {
 }
 
 function CrossAssetCard() {
+  const { t } = useI18n();
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -6401,7 +6877,7 @@ function CrossAssetCard() {
   }, []);
 
   return (
-    <MiniCard title="Cross-Asset Pulse">
+    <MiniCard title={t("home.crossAssetPulse")}>
       <div style={{ display: "grid", gap: 0 }}>
         {!loaded ? (
           CROSS_ASSET_SYMBOLS.map((_, i) => (
@@ -6414,7 +6890,7 @@ function CrossAssetCard() {
         ) : (
           data.filter(d => d.ok).map(d => (
             <div key={d.symbol} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
-              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.ink, fontWeight: 600, minWidth: 50 }}>{d.label}</span>
+              <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.ink, fontWeight: 600, minWidth: 50 }}>{labelFor(d.label, t)}</span>
               <Sparkline data={d.spark} color={d.changePct >= 0 ? C.up : C.down} prevClose={d.prevClose} />
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 90, justifyContent: "flex-end" }}>
                 <span style={{ fontSize: 12, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>
@@ -6433,6 +6909,7 @@ function CrossAssetCard() {
 }
 
 function SectorPerformanceCard() {
+  const { t } = useI18n();
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -6455,7 +6932,7 @@ function SectorPerformanceCard() {
   const barCap = Math.max(maxAbs, 0.5);
 
   return (
-    <MiniCard title="Sector Performance">
+    <MiniCard title={t("home.sectorPerformance")}>
       <div style={{ display: "grid", gap: 0 }}>
         {!loaded ? (
           SECTOR_ETFS.slice(0, 6).map((_, i) => (
@@ -6473,7 +6950,7 @@ function SectorPerformanceCard() {
             const opacity = 0.3 + 0.7 * Math.min(pct / barCap, 1);
             return (
               <div key={d.symbol} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
-                <span style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, minWidth: 90, flexShrink: 0 }}>{d.label}</span>
+                <span style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, minWidth: 90, flexShrink: 0 }}>{labelFor(d.label, t)}</span>
                 <div style={{ flex: 1, height: 8, background: C.paper, borderRadius: 4, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${barW}%`, background: color, opacity, borderRadius: 4, transition: "width 0.3s" }} />
                 </div>
@@ -6490,6 +6967,7 @@ function SectorPerformanceCard() {
 }
 
 function YieldCurveCard() {
+  const { t } = useI18n();
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -6512,18 +6990,18 @@ function YieldCurveCard() {
   const lineColor = isNormal ? C.up : C.down;
 
   return (
-    <MiniCard title="Yield Curve">
+    <MiniCard title={t("home.yieldCurve")}>
       {!loaded ? (
         <SkeletonBlock height={140} />
       ) : data.length < 2 ? (
-        <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, padding: 20, textAlign: "center" }}>Yield data unavailable</div>
+        <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, padding: 20, textAlign: "center" }}>{t("home.yieldUnavailable")}</div>
       ) : (
         <div style={{ width: "100%", height: 140 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 20, right: 20, bottom: 5, left: 10 }}>
               <XAxis dataKey="label" tick={{ fontSize: 10, fontFamily: "var(--mono)", fill: C.inkMuted }} axisLine={{ stroke: C.rule }} tickLine={false} />
               <YAxis domain={["auto", "auto"]} tick={{ fontSize: 10, fontFamily: "var(--mono)", fill: C.inkMuted }} axisLine={false} tickLine={false} width={30} tickFormatter={v => v.toFixed(1) + "%"} />
-              <Tooltip contentStyle={{ background: C.warmWhite, border: `1px solid ${C.rule}`, fontSize: 11, fontFamily: "var(--mono)" }} formatter={v => [v.toFixed(2) + "%", "Yield"]} />
+              <Tooltip contentStyle={{ background: C.warmWhite, border: `1px solid ${C.rule}`, fontSize: 11, fontFamily: "var(--mono)" }} formatter={v => [v.toFixed(2) + "%", t("home.yieldLabel")]} />
               <Line type="monotone" dataKey="yield" stroke={lineColor} strokeWidth={2} dot={{ fill: lineColor, r: 4 }} label={{ position: "top", fontSize: 10, fontFamily: "var(--mono)", fill: C.ink, formatter: v => v.toFixed(2) + "%" }} />
             </LineChart>
           </ResponsiveContainer>
@@ -6534,28 +7012,30 @@ function YieldCurveCard() {
 }
 
 function PortfolioTileCard({ data }) {
+  const { t } = useI18n();
   const changeColor = data.dayChangePct >= 0 ? C.up : C.down;
+  const changeText = t("home.todayChange", { pct: `${data.dayChangePct >= 0 ? "+" : ""}${data.dayChangePct.toFixed(2)}%` });
   return (
-    <MiniCard title="Portfolio Snapshot">
+    <MiniCard title={t("home.portfolioSnapshot")}>
       <div style={{ display: "grid", gap: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <div style={{ fontSize: 30, fontFamily: "var(--display)", color: C.ink }}>{fmtMoney(data.value)}</div>
           <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700, color: changeColor }}>
-            {data.dayChangePct >= 0 ? "+" : ""}{data.dayChangePct.toFixed(2)}% today
+            {changeText}
           </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
           <div>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>YTD</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>{t("home.returnYtd")}</div>
             <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700, color: C.up }}>{data.ytdPct.toFixed(2)}%</div>
           </div>
           <div>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Cash</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>{t("analysis.cash")}</div>
             <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700 }}>{fmtMoney(data.cash)}</div>
           </div>
           <div>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Risk</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700 }}>{data.risk}</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>{t("account.risk")}</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700 }}>{translateEnum(data.risk, t, "risk")}</div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -6571,8 +7051,11 @@ function PortfolioTileCard({ data }) {
 }
 
 function ChangelogBanner() {
+  const { t, locale } = useI18n();
+  const latestVersion = CHANGELOG[0]?.version || "0.3.12";
+  const storageKey = `changelog_dismissed_${latestVersion}`;
   const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem("changelog_dismissed_0.3.12") === "true"; } catch { return false; }
+    try { return localStorage.getItem(storageKey) === "true"; } catch { return false; }
   });
   const [expanded, setExpanded] = useState(false);
 
@@ -6583,10 +7066,10 @@ function ChangelogBanner() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
         <button onClick={() => setExpanded(!expanded)}
           style={{ display: "flex", alignItems: "center", gap: 8, background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-          <span style={{ fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>What's New v0.3.12</span>
+          <span style={{ fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600, color: C.ink }}>{t("changelog.title", { version: latestVersion })}</span>
           <span style={{ fontSize: 10, color: C.inkFaint, transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
         </button>
-        <button onClick={() => { setDismissed(true); try { localStorage.setItem("changelog_dismissed_0.3.12", "true"); } catch {} }}
+        <button onClick={() => { setDismissed(true); try { localStorage.setItem(storageKey, "true"); } catch {} }}
           style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 14, color: C.inkFaint, padding: "0 4px", lineHeight: 1 }}>×</button>
       </div>
       {expanded && (
@@ -6595,13 +7078,13 @@ function ChangelogBanner() {
             <div key={entry.version}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 11, fontWeight: 600, color: C.ink }}>v{entry.version}</span>
-                <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: C.inkFaint }}>{entry.date}</span>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: C.inkFaint }}>{formatShortDate(entry.date, locale)}</span>
               </div>
               <div style={{ display: "grid", gap: 4, marginTop: 6 }}>
                 {entry.items.map((it) => (
                   <div key={it} style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", lineHeight: 1.5, paddingLeft: 12, position: "relative" }}>
                     <span style={{ position: "absolute", left: 0, color: C.inkFaint }}>+</span>
-                    {it}
+                    {t(it)}
                   </div>
                 ))}
               </div>
@@ -6614,6 +7097,7 @@ function ChangelogBanner() {
 }
 
 function AssetRow({ section, onAnalyze }) {
+  const { t } = useI18n();
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -6635,7 +7119,7 @@ function AssetRow({ section, onAnalyze }) {
   return (
     <div style={{ padding: "14px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
       <div style={{ fontSize: 9, fontWeight: 700, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.16em", fontFamily: "var(--mono)", marginBottom: 10 }}>
-        {section.title}
+        {labelFor(section.title, t)}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 2 }}>
         {!loaded ? (
@@ -6665,7 +7149,7 @@ function AssetRow({ section, onAnalyze }) {
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}
             >
               <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
-                <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>{d.label}</span>
+                <span style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, fontWeight: 600 }}>{labelFor(d.label, t)}</span>
                 <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: d.changePct >= 0 ? C.up : C.down }}>
                   {d.changePct >= 0 ? "+" : ""}{d.changePct.toFixed(2)}%
                 </span>
@@ -6891,7 +7375,7 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
       <HelpWrap help={{ title: t("help.region.title"), body: t("help.region.body") }} block>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           {Object.keys(MARKET_REGIONS).map((r) => (
-            <button key={r} onClick={() => handleRegionChange(r)} style={regionTabStyle(r)}>{r}</button>
+            <button key={r} onClick={() => handleRegionChange(r)} style={regionTabStyle(r)}>{labelFor(r, t)}</button>
           ))}
           {lastRefresh && (
             <span style={{ marginLeft: "auto", fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.04em" }}>
@@ -6932,7 +7416,9 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
           >
             <NewsSection news={news} loading={newsLoading} />
           </Section>
-          <PortfolioTileCard data={PORTFOLIO_TILE} />
+          <HelpWrap help={{ title: t("help.portfolioSnapshot.title"), body: t("help.portfolioSnapshot.body") }} block>
+            <PortfolioTileCard data={PORTFOLIO_TILE} />
+          </HelpWrap>
         </div>
         <Section
           title={t("home.indexes")}
@@ -6963,9 +7449,15 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
       <LazySection minHeight={240}>
         <HelpWrap help={{ title: t("help.movers.title"), body: t("help.movers.body") }} block>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-            <MoverColumn title={t("home.topGainers")} stocks={movers?.gainers} allStocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
-            <MoverColumn title={t("home.topLosers")} stocks={movers?.losers} allStocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
-            <MoverColumn title={t("home.trendingStocks")} stocks={trending} allStocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
+            <HelpWrap help={{ title: t("help.moverGainers.title"), body: t("help.moverGainers.body") }} block>
+              <MoverColumn title={t("home.topGainers")} stocks={movers?.gainers} allStocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
+            </HelpWrap>
+            <HelpWrap help={{ title: t("help.moverLosers.title"), body: t("help.moverLosers.body") }} block>
+              <MoverColumn title={t("home.topLosers")} stocks={movers?.losers} allStocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
+            </HelpWrap>
+            <HelpWrap help={{ title: t("help.moverTrending.title"), body: t("help.moverTrending.body") }} block>
+              <MoverColumn title={t("home.trendingStocks")} stocks={trending} allStocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
+            </HelpWrap>
           </div>
         </HelpWrap>
       </LazySection>
@@ -6974,7 +7466,9 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
       <LazySection minHeight={200}>
         <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
           {ASSET_SECTIONS.map(section => (
-            <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
+            <HelpWrap key={section.title} help={{ title: t("help.assetClasses.title"), body: t("help.assetClasses.body") }} block>
+              <AssetRow section={section} onAnalyze={onAnalyze} />
+            </HelpWrap>
           ))}
         </div>
       </LazySection>
@@ -6986,10 +7480,18 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
           help={{ title: t("help.marketBrief.title"), body: t("help.marketBrief.body") }}
         >
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
-            <MarketScorecardCard />
-            <CrossAssetCard />
-            <SectorPerformanceCard />
-            <YieldCurveCard />
+            <HelpWrap help={{ title: t("help.marketScorecard.title"), body: t("help.marketScorecard.body") }} block>
+              <MarketScorecardCard />
+            </HelpWrap>
+            <HelpWrap help={{ title: t("help.crossAsset.title"), body: t("help.crossAsset.body") }} block>
+              <CrossAssetCard />
+            </HelpWrap>
+            <HelpWrap help={{ title: t("help.sectorPerformance.title"), body: t("help.sectorPerformance.body") }} block>
+              <SectorPerformanceCard />
+            </HelpWrap>
+            <HelpWrap help={{ title: t("help.yieldCurve.title"), body: t("help.yieldCurve.body") }} block>
+              <YieldCurveCard />
+            </HelpWrap>
           </div>
         </Section>
       </LazySection>
@@ -7013,6 +7515,8 @@ function AccountTab({
   alerts = [],
   recent = [],
   prefs,
+  subTab = "overview",
+  onSubTabChange,
   onAddWatchlist,
   onRemoveWatchlist,
   onAddAlert,
@@ -7025,7 +7529,8 @@ function AccountTab({
   onSignOut,
 }) {
   const { t } = useI18n();
-  const [subTab, setSubTab] = useState("overview");
+  const activeSubTab = subTab || "overview";
+  const setActiveSubTab = onSubTabChange || (() => {});
   const [wlInput, setWlInput] = useState("");
   const [alForm, setAlForm] = useState({ ticker: "", type: "above", value: "" });
   const [busy, setBusy] = useState(false);
@@ -7131,18 +7636,18 @@ function AccountTab({
         {["overview", "preferences"].map(t => (
           <button
             key={t}
-            onClick={() => setSubTab(t)}
+            onClick={() => setActiveSubTab(t)}
             style={{
               background: "none",
               border: "none",
-              color: subTab === t ? C.ink : C.inkMuted,
+              color: activeSubTab === t ? C.ink : C.inkMuted,
               fontSize: 11,
-              fontWeight: subTab === t ? 700 : 400,
+              fontWeight: activeSubTab === t ? 700 : 400,
               cursor: "pointer",
               textTransform: "uppercase",
               letterSpacing: "0.1em",
               fontFamily: "var(--body)",
-              borderBottom: subTab === t ? `2px solid ${C.ink}` : "none",
+              borderBottom: activeSubTab === t ? `2px solid ${C.ink}` : "none",
               paddingBottom: 6,
             }}
           >
@@ -7151,7 +7656,7 @@ function AccountTab({
         ))}
       </div>
 
-      {subTab === "overview" ? (
+      {activeSubTab === "overview" ? (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
             <Section title={t("tools.watchlist")} help={{ title: t("help.accountWatchlist.title"), body: t("help.accountWatchlist.body") }}>
@@ -7179,7 +7684,9 @@ function AccountTab({
                       )}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ color: recColor(w.rec), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{w.rec}</span>
+                      <span style={{ color: recColor(w.rec), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>
+                        {w.rec ? translateEnum(w.rec, t, "signal") : t("common.na")}
+                      </span>
                       <button onClick={() => onAnalyze(w.ticker)} style={{ background: "transparent", border: `1px solid ${C.rule}`, color: C.ink, fontSize: 10, fontFamily: "var(--body)", padding: "4px 8px", cursor: "pointer" }}>{t("search.analyze")}</button>
                       <button onClick={() => onRemoveWatchlist?.(w.ticker)} style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
                     </div>
@@ -7226,7 +7733,7 @@ function AccountTab({
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
                 {recent.map(r => {
-                  const regimeLabel = shortRegimeLabel(r.regime);
+                  const regimeLabel = r.regime ? translateEnum(r.regime, t, "regime") : t("common.na");
                   const riskTone = r.riskLevel === "HIGH" ? C.down : r.riskLevel === "MEDIUM" ? C.hold : C.up;
                   return (
                     <button
@@ -7237,7 +7744,9 @@ function AccountTab({
                       <div style={{ minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
                           <span style={{ fontWeight: 700, fontFamily: "var(--mono)", fontSize: 13 }}>{r.ticker}</span>
-                          <span style={{ color: recColor(r.action), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{r.action || t("analysis.neutral")}</span>
+                          <span style={{ color: recColor(r.action), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>
+                            {r.action ? translateEnum(r.action, t, "signal") : t("analysis.neutral")}
+                          </span>
                           <span style={{ color: C.inkFaint, fontSize: 10, fontFamily: "var(--mono)" }}>{r.period || prefs?.period}/{r.interval || prefs?.interval}</span>
                         </div>
                         <div style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)", marginTop: 4 }}>
@@ -7246,7 +7755,7 @@ function AccountTab({
                         <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted }}>
                             <span style={{ width: 6, height: 6, borderRadius: "50%", background: recColor(r.action), display: "inline-block" }} />
-                            {t("account.signal")} {r.action || t("analysis.neutral")}
+                            {t("account.signal")} {r.action ? translateEnum(r.action, t, "signal") : t("analysis.neutral")}
                           </span>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted }}>
                             <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, display: "inline-block" }} />
@@ -7254,7 +7763,7 @@ function AccountTab({
                           </span>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted }}>
                             <span style={{ width: 6, height: 6, borderRadius: "50%", background: riskTone, display: "inline-block" }} />
-                            {t("account.risk")} {r.riskLevel || "—"}
+                            {t("account.risk")} {r.riskLevel ? translateEnum(r.riskLevel, t, "risk") : t("common.na")}
                           </span>
                           {r.confidence != null && (
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted }}>
@@ -7282,7 +7791,7 @@ function AccountTab({
           <div style={{ display: "grid", gap: 6 }}>
             <Row label={t("account.defaultPeriod")} value={prefs?.period || "1y"} />
             <Row label={t("account.defaultInterval")} value={prefs?.interval || "1d"} />
-            <Row label={t("account.homeRegion")} value={prefs?.region || "Global"} border={false} />
+            <Row label={t("account.homeRegion")} value={labelFor(prefs?.region || "Global", t)} border={false} />
           </div>
         </Section>
       )}
@@ -7293,9 +7802,26 @@ function AccountTab({
 // ═══════════════════════════════════════════════════════════
 // ANALYSIS TAB
 // ═══════════════════════════════════════════════════════════
-function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period, interval, onReanalyze, onOpenCharts, openChartsLabel, helpMode, onShowHelp, onHideHelp }) {
+function AnalysisTab({
+  result,
+  livePrice,
+  chartLivePrice,
+  latency,
+  isPro,
+  period,
+  interval,
+  subTab = "stock",
+  onSubTabChange,
+  onReanalyze,
+  onOpenCharts,
+  openChartsLabel,
+  helpMode,
+  onShowHelp,
+  onHideHelp,
+}) {
   const { t } = useI18n();
-  const [subTab, setSubTab] = useState("stock");
+  const activeSubTab = subTab || "stock";
+  const setActiveSubTab = onSubTabChange || (() => {});
   const [finPeriod, setFinPeriod] = useState("LTM");
   const [assumptions, setAssumptions] = useState(null);
   const [chartType, setChartType] = useState("line");
@@ -7369,11 +7895,11 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
 
   useEffect(() => {
     if (!result) return;
-    setSubTab("stock");
+    onSubTabChange?.("stock");
     setFinPeriod(result.fundamentals?.periods?.[0]?.label || "LTM");
     setAssumptions(result.valuationModels?.assumptions || null);
     setChartType("line");
-  }, [result]);
+  }, [result, onSubTabChange]);
 
   if (!result) {
     return (
@@ -7417,8 +7943,8 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
   const inputVal = (v, d = 2) => Number.isFinite(v) ? Number(v).toFixed(d) : "";
   const subTabStyle = (t, locked = false) => ({
     padding: "6px 0", marginRight: 18, background: "none", border: "none",
-    borderBottom: subTab === t ? `2px solid ${C.ink}` : "2px solid transparent",
-    color: subTab === t ? C.ink : locked ? C.inkFaint : C.inkMuted, fontSize: 11, fontWeight: subTab === t ? 700 : 500,
+    borderBottom: activeSubTab === t ? `2px solid ${C.ink}` : "2px solid transparent",
+    color: activeSubTab === t ? C.ink : locked ? C.inkFaint : C.inkMuted, fontSize: 11, fontWeight: activeSubTab === t ? 700 : 500,
     cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)",
     opacity: locked ? 0.7 : 1,
   });
@@ -7460,8 +7986,8 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
   return (
     <div>
       <div style={{ display: "flex", gap: 18, borderBottom: `1px solid ${C.rule}`, paddingBottom: 8, marginBottom: 18 }}>
-        <button onClick={() => setSubTab("stock")} style={subTabStyle("stock")}>{t("analysis.stockTab")}</button>
-        <button onClick={() => setSubTab("financials")} style={subTabStyle("financials", !isPro)}>
+        <button onClick={() => setActiveSubTab("stock")} style={subTabStyle("stock")}>{t("analysis.stockTab")}</button>
+        <button onClick={() => setActiveSubTab("financials")} style={subTabStyle("financials", !isPro)}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
             {t("analysis.financialsTab")}
             {!isPro && <ProTag small />}
@@ -7469,7 +7995,7 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
         </button>
       </div>
 
-      {subTab === "stock" && (
+      {activeSubTab === "stock" && (
         <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 20 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div>
@@ -7484,7 +8010,9 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
             </div>
             <div style={{ padding: "16px 0", borderTop: `2px solid ${C.ink}`, borderBottom: `1px solid ${C.rule}` }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8, fontFamily: "var(--body)" }}>{t("analysis.verdict")}</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: recColor(rec.action), fontFamily: "var(--display)", lineHeight: 1 }}>{rec.action}</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: recColor(rec.action), fontFamily: "var(--display)", lineHeight: 1 }}>
+                {translateEnum(rec.action, t, "signal")}
+              </div>
               <div style={{ display: "flex", gap: 16, marginTop: 10, fontSize: 12, fontFamily: "var(--body)" }}>
                 <span style={{ color: C.inkMuted }}>{t("analysis.confidence")} <strong style={{ color: C.ink }}>{fmtPct(rec.confidence * 100, 0)}</strong></span>
                 <span style={{ color: C.inkMuted }}>{t("analysis.score")} <strong style={{ color: C.ink }}>{fmt(rec.score)}</strong></span>
@@ -7513,7 +8041,7 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
               ))}
             </Section>
             <Section title={t("analysis.riskProfile")} help={{ title: t("help.riskProfile.title"), body: t("help.riskProfile.body") }}>
-              <Row label={t("analysis.riskLevel")} value={risk.riskLevel} color={risk.riskLevel === "HIGH" ? C.down : risk.riskLevel === "MEDIUM" ? C.hold : C.up} />
+              <Row label={t("analysis.riskLevel")} value={translateEnum(risk.riskLevel, t, "risk")} color={risk.riskLevel === "HIGH" ? C.down : risk.riskLevel === "MEDIUM" ? C.hold : C.up} />
               <Row label={t("analysis.volatility")} value={fmtPct(risk.volatility)} />
               <Row label={t("analysis.maxDrawdown")} value={fmtPct(risk.maxDrawdown)} color={C.down} />
               <Row label={t("analysis.sharpe")} value={fmt(risk.sharpe)} color={risk.sharpe > 1 ? C.up : risk.sharpe > 0 ? C.hold : C.down} />
@@ -7600,12 +8128,19 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
             (onReanalyze || onOpenCharts) && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 {onOpenCharts && (
-                  <button
-                    onClick={() => onOpenCharts({ mode: "price", title: `${ticker} — Full Period` })}
-                    style={openChartsBtn}
+                  <HelpWrap
+                    enabled={helpMode}
+                    onShow={onShowHelp}
+                    onHide={onHideHelp}
+                    help={{ title: t("help.openCharts.title"), body: t("help.openCharts.body") }}
                   >
-                    {openChartsLabel || "Open in Charts"}
-                  </button>
+                    <button
+                      onClick={() => onOpenCharts({ mode: "price", title: `${ticker} — Full Period` })}
+                      style={openChartsBtn}
+                    >
+                      {openChartsLabel || t("chart.openCharts")}
+                    </button>
+                  </HelpWrap>
                 )}
                 {onReanalyze && (
                   <>
@@ -7650,7 +8185,9 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                 title={t("analysis.valuationAnalysis")}
                 help={{ title: t("help.valuationAnalysis.title"), body: t("help.valuationAnalysis.body") }}
               >
-                <div style={{ fontSize: 16, fontWeight: 700, color: valColor(marketValuation.verdict), fontFamily: "var(--display)", marginBottom: 10, lineHeight: 1.2 }}>{marketValuation.verdict}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: valColor(marketValuation.verdict), fontFamily: "var(--display)", marginBottom: 10, lineHeight: 1.2 }}>
+                  {translateEnum(marketValuation.verdict, t, "valuation")}
+                </div>
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.stretchIndex")}</div>
                   <div style={{ height: 10, background: C.paper, position: "relative", overflow: "hidden", borderRadius: 6 }}>
@@ -7680,15 +8217,17 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                 title={t("analysis.marketRegime")}
                 help={{ title: t("help.marketRegime.title"), body: t("help.marketRegime.body") }}
               >
-                <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, fontFamily: "var(--display)", marginBottom: 12, lineHeight: 1.2 }}>{regime.overall.replace(/_/g, " ")}</div>
-                <Row label={t("analysis.direction")} value={regime.trend.direction} color={regime.trend.direction === "UPTREND" ? C.up : regime.trend.direction === "DOWNTREND" ? C.down : C.hold} />
+                <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, fontFamily: "var(--display)", marginBottom: 12, lineHeight: 1.2 }}>
+                  {translateEnum(regime.overall, t, "regime")}
+                </div>
+                <Row label={t("analysis.direction")} value={translateEnum(regime.trend.direction, t, "trend")} color={regime.trend.direction === "UPTREND" ? C.up : regime.trend.direction === "DOWNTREND" ? C.down : C.hold} />
                 <Row label={t("analysis.strength")} value={`${fmt(regime.trend.strength, 0)} / 100`} />
-                <Row label={t("analysis.volatility")} value={regime.volatility.classification} />
+                <Row label={t("analysis.volatility")} value={translateEnum(regime.volatility.classification, t, "volatility")} />
                 <Row label={t("analysis.hurst")} value={fmt(regime.hurst, 3)} color={regime.hurst > 0.5 ? C.up : C.down} />
                 <div style={{ marginTop: 12, padding: "10px 12px", background: C.paper, borderLeft: `3px solid ${C.accent}` }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.inkSoft, fontFamily: "var(--body)" }}>{strat.strategy}</div>
-                  <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 4, lineHeight: 1.5, fontFamily: "var(--body)" }}>{strat.tactics.join(" · ")}</div>
-                  <div style={{ fontSize: 10, color: C.down, marginTop: 4, fontFamily: "var(--body)" }}>{t("analysis.avoid")}: {strat.avoid.join(", ")}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.inkSoft, fontFamily: "var(--body)" }}>{t(strat.strategy)}</div>
+                  <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 4, lineHeight: 1.5, fontFamily: "var(--body)" }}>{strat.tactics.map(k => t(k)).join(" · ")}</div>
+                  <div style={{ fontSize: 10, color: C.down, marginTop: 4, fontFamily: "var(--body)" }}>{t("analysis.avoid")}: {strat.avoid.map(k => t(k)).join(", ")}</div>
                 </div>
               </Section>
             </div>
@@ -7815,7 +8354,7 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
         </div>
       )}
 
-      {subTab === "financials" && !isPro && (
+      {activeSubTab === "financials" && !isPro && (
         <ProGate
           title={t("analysis.financialsProTitle")}
           description={t("analysis.financialsProDesc")}
@@ -7827,7 +8366,7 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
         />
       )}
 
-      {subTab === "financials" && isPro && (
+      {activeSubTab === "financials" && isPro && (
         <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 20 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <Section
@@ -8058,7 +8597,9 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
               </div>
               <div style={{ marginTop: 12, padding: "10px 12px", background: C.paper, borderLeft: `3px solid ${valColor(liveModels.signal)}` }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)" }}>{t("analysis.valuationAnchor")}</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: valColor(liveModels.signal), fontFamily: "var(--display)", marginTop: 4 }}>{liveModels.signal}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: valColor(liveModels.signal), fontFamily: "var(--display)", marginTop: 4 }}>
+                  {translateEnum(liveModels.signal, t, "valuation")}
+                </div>
                 <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 4, fontFamily: "var(--mono)" }}>
                   {t("analysis.anchor")} {liveModels.anchor ? `$${fmt(liveModels.anchor)}` : "—"} · {t("analysis.upside")} {liveModels.upside != null ? `${liveModels.upside >= 0 ? "+" : ""}${fmtPct(liveModels.upside * 100, 1)}` : "—"}
                 </div>
@@ -8066,7 +8607,7 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
               </div>
               {liveModels.issues.length > 0 && (
                 <div style={{ marginTop: 10, fontSize: 10, color: C.down, fontFamily: "var(--body)" }}>
-                  {liveModels.issues.join(" ")}
+                  {liveModels.issues.map(k => t(k)).join(" ")}
                 </div>
               )}
             </Section>
@@ -8080,14 +8621,25 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
 // ═══════════════════════════════════════════════════════════
 // CHARTS TAB
 // ═══════════════════════════════════════════════════════════
-function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, intent, onConsumeIntent }) {
+function ChartsTab({
+  result,
+  chartLivePrice,
+  period,
+  interval,
+  onReanalyze,
+  intent,
+  onConsumeIntent,
+  expandedMode,
+  onExpandedModeChange,
+  chartType,
+  onChartTypeChange,
+}) {
   const { t } = useI18n();
   const [show, setShow] = useState({ sma: true, bb: true, vol: true, rsi: true, macd: false, stoch: false });
-  const [chartType, setChartType] = useState("line");
-  const [expanded, setExpanded] = useState(null);
   const data = result?.data;
   const ticker = result?.ticker || "";
   const toggle = k => setShow(p => ({ ...p, [k]: !p[k] }));
+  const activeChartType = chartType || "line";
   const cd = useMemo(() => {
     if (!data || !data.length) return [];
     const base = applyLivePoint(data, chartLivePrice, interval || result?.interval);
@@ -8108,15 +8660,26 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
   const expandBtn = { padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" };
 
   useEffect(() => {
-    setChartType("line");
-    setExpanded(null);
-  }, [result?.ticker]);
+    onChartTypeChange?.("line");
+    onExpandedModeChange?.(null);
+  }, [result?.ticker, onChartTypeChange, onExpandedModeChange]);
 
   useEffect(() => {
     if (!intent || !result) return;
-    setExpanded({ mode: intent.mode || "price", title: intent.title || `${ticker} — Full Period` });
+    onExpandedModeChange?.(normalizeChartMode(intent.mode) || "price");
     onConsumeIntent?.();
-  }, [intent, result, ticker, onConsumeIntent]);
+  }, [intent, result, ticker, onConsumeIntent, onExpandedModeChange]);
+
+  const expandedTitle = useMemo(() => {
+    if (!expandedMode) return "";
+    if (expandedMode === "price") return t("charts.fullPeriod", { ticker });
+    if (expandedMode === "volume") return `${ticker} — ${t("charts.volumeTitle")}`;
+    if (expandedMode === "rsi") return `${ticker} — ${t("charts.rsiTitle")}`;
+    if (expandedMode === "macd") return `${ticker} — ${t("charts.macdTitle")}`;
+    if (expandedMode === "stoch") return `${ticker} — ${t("charts.stochTitle")}`;
+    return `${ticker} — ${t("charts.fullPeriod", { ticker })}`;
+  }, [expandedMode, ticker, t]);
+  const expanded = expandedMode ? { mode: expandedMode, title: expandedTitle } : null;
 
   if (!result) {
     return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 400, color: C.inkMuted, fontFamily: "var(--display)", fontSize: 24 }}>{t("charts.runAnalysisFirst")}</div>;
@@ -8137,8 +8700,8 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
             <button key={k} onClick={() => toggle(k)} style={btn(show[k])}>{l}</button>
           ))}
           <span style={{ marginLeft: 8, fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.1em" }}>{t("charts.chart")}</span>
-          <button onClick={() => setChartType("line")} style={btn(chartType === "line")}>{t("common.line")}</button>
-          <button onClick={() => setChartType("candles")} style={btn(chartType === "candles")}>{t("common.candles")}</button>
+          <button onClick={() => onChartTypeChange?.("line")} style={btn(activeChartType === "line")}>{t("common.line")}</button>
+          <button onClick={() => onChartTypeChange?.("candles")} style={btn(activeChartType === "candles")}>{t("common.candles")}</button>
           {onReanalyze && (
             <>
               <span style={{ marginLeft: 8, fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.1em" }}>{t("charts.period")}</span>
@@ -8154,7 +8717,7 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
           )}
         </div>
       </HelpWrap>
-      <Section title={t("charts.fullPeriod", { ticker })} actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "price", title: t("charts.fullPeriod", { ticker }) })}>{t("common.expand")}</button>}>
+      <Section title={t("charts.fullPeriod", { ticker })} actions={<button style={expandBtn} onClick={() => onExpandedModeChange?.("price")}>{t("common.expand")}</button>}>
         <ResponsiveContainer width="100%" height={h}>
           <ComposedChart data={cd} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
@@ -8163,14 +8726,14 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
             <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }} />
             {show.bb && <><Line dataKey="bu" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" /><Line dataKey="bl" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" /><Line dataKey="bm" stroke={C.inkFaint} dot={false} strokeWidth={1} opacity={0.4} /></>}
             {show.sma && <><Line dataKey="s20" stroke={C.accent} dot={false} strokeWidth={1} /><Line dataKey="s50" stroke={C.chart4} dot={false} strokeWidth={1} /><Line dataKey="s200" stroke={C.down + "66"} dot={false} strokeWidth={1} /></>}
-            {chartType === "candles" ? <Customized component={CandlestickSeries} /> : <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={1.5} isAnimationActive animationDuration={CHART_ANIM_MS} />}
+            {activeChartType === "candles" ? <Customized component={CandlestickSeries} /> : <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={1.5} isAnimationActive animationDuration={CHART_ANIM_MS} />}
             <Brush dataKey="n" height={18} stroke={C.rule} fill={C.warmWhite} travellerWidth={7} />
           </ComposedChart>
         </ResponsiveContainer>
       </Section>
       {show.vol && (
         <LazySection minHeight={120}>
-          <Section title={t("charts.volumeTitle")} actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "volume", title: `${ticker} — ${t("charts.volumeTitle")}` })}>{t("common.expand")}</button>}>
+          <Section title={t("charts.volumeTitle")} actions={<button style={expandBtn} onClick={() => onExpandedModeChange?.("volume")}>{t("common.expand")}</button>}>
             <ResponsiveContainer width="100%" height={80}>
               <BarChart data={cd} margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
                 <XAxis dataKey="n" hide /><YAxis hide />
@@ -8183,7 +8746,7 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
       <LazySection minHeight={180}>
         <div style={{ display: "grid", gridTemplateColumns: [show.rsi, show.macd, show.stoch].filter(Boolean).length > 1 ? "1fr 1fr" : "1fr", gap: 16 }}>
           {show.rsi && (
-            <Section title={t("charts.rsiTitle")} actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "rsi", title: `${ticker} — ${t("charts.rsiTitle")}` })}>{t("common.expand")}</button>}>
+            <Section title={t("charts.rsiTitle")} actions={<button style={expandBtn} onClick={() => onExpandedModeChange?.("rsi")}>{t("common.expand")}</button>}>
               <ResponsiveContainer width="100%" height={110}>
                 <LineChart data={cd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                   <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
@@ -8196,7 +8759,7 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
             </Section>
           )}
           {show.macd && (
-            <Section title={t("charts.macdTitle")} actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "macd", title: `${ticker} — ${t("charts.macdTitle")}` })}>{t("common.expand")}</button>}>
+            <Section title={t("charts.macdTitle")} actions={<button style={expandBtn} onClick={() => onExpandedModeChange?.("macd")}>{t("common.expand")}</button>}>
               <ResponsiveContainer width="100%" height={110}>
                 <ComposedChart data={cd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                   <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
@@ -8210,7 +8773,7 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
             </Section>
           )}
           {show.stoch && (
-            <Section title={t("charts.stochTitle")} actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "stoch", title: `${ticker} — ${t("charts.stochTitle")}` })}>{t("common.expand")}</button>}>
+            <Section title={t("charts.stochTitle")} actions={<button style={expandBtn} onClick={() => onExpandedModeChange?.("stoch")}>{t("common.expand")}</button>}>
               <ResponsiveContainer width="100%" height={110}>
                 <LineChart data={cd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                   <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
@@ -8231,7 +8794,7 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
           mode={expanded.mode}
           data={cd}
           dataKey={ticker}
-          onClose={() => setExpanded(null)}
+          onClose={() => onExpandedModeChange?.(null)}
           period={period}
           interval={interval}
           onReanalyze={onReanalyze}
@@ -8314,7 +8877,7 @@ function HeatmapPanel({ indexName, universe }) {
           const ret = analysis.data.length > 1 ? ((analysis.currentPrice - analysis.data[0].Close) / analysis.data[0].Close * 100) : 0;
           return { ...s, sharpe: analysis.risk.sharpe, vol: analysis.risk.volatility, ret, price: analysis.currentPrice, rec: analysis.recommendation.action };
         }
-        return { ...s, sharpe: 0, vol: 0, ret: 0, price: 0, rec: "N/A" };
+          return { ...s, sharpe: 0, vol: 0, ret: 0, price: 0, rec: "N/A" };
       } catch (e) {
         return { ...s, sharpe: 0, vol: 0, ret: 0, price: 0, rec: "N/A" };
       } finally {
@@ -8354,7 +8917,7 @@ function HeatmapPanel({ indexName, universe }) {
     <div ref={viewRef} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, fontFamily: "var(--display)", letterSpacing: "-0.01em" }}>{indexName}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, fontFamily: "var(--display)", letterSpacing: "-0.01em" }}>{labelFor(indexName, t)}</div>
           <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 1 }}>
             {t("heatmap.panelMeta", { count: universe.length })}
           </div>
@@ -8383,13 +8946,13 @@ function HeatmapPanel({ indexName, universe }) {
             style={{ position: "absolute", left: r.x, top: r.y, width: r.w - 1, height: r.h - 1, background: sharpeToColor(r.sharpe), display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", border: `1px solid ${C.cream}33`, transition: "opacity 0.15s", opacity: hover && hover.ticker !== r.ticker ? 0.7 : 1 }}>
             {r.w > 40 && r.h > 25 && <span style={{ fontSize: Math.min(14, r.w / 5), fontWeight: 700, color: "#fff", fontFamily: "var(--mono)", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>{r.ticker}</span>}
             {r.w > 60 && r.h > 40 && <span style={{ fontSize: Math.min(10, r.w / 8), color: "#ffffffCC", fontFamily: "var(--mono)", marginTop: 2 }}>{r.ret > 0 ? "+" : ""}{fmt(r.ret, 1)}%</span>}
-            {r.w > 80 && r.h > 55 && <span style={{ fontSize: 8, color: "#ffffff88", fontFamily: "var(--body)", marginTop: 1 }}>{r.sector}</span>}
+            {r.w > 80 && r.h > 55 && <span style={{ fontSize: 8, color: "#ffffff88", fontFamily: "var(--body)", marginTop: 1 }}>{labelFor(r.sector, t)}</span>}
           </div>
         ))}
         {hover && (
           <div style={{ position: "absolute", bottom: 8, left: 8, background: C.cream + "F0", border: `1px solid ${C.rule}`, padding: "8px 12px", fontFamily: "var(--mono)", fontSize: 11, lineHeight: 1.6, zIndex: 10, boxShadow: "2px 4px 12px rgba(0,0,0,0.06)" }}>
             <strong>{hover.ticker}</strong> — {hover.name}<br />
-            <span style={{ color: C.inkMuted }}>{t("heatmap.sector")}:</span> {hover.sector} · ${fmt(hover.price)} · {t("heatmap.sharpe")} {fmt(hover.sharpe)} · {fmtPct(hover.ret)} {t("heatmap.sixMonths")} · {hover.rec}
+            <span style={{ color: C.inkMuted }}>{t("heatmap.sector")}:</span> {labelFor(hover.sector, t)} · ${fmt(hover.price)} · {t("heatmap.sharpe")} {fmt(hover.sharpe)} · {fmtPct(hover.ret)} {t("heatmap.sixMonths")} · {hover.rec === "N/A" ? t("common.na") : translateEnum(hover.rec, t, "signal")}
           </div>
         )}
         {stocks && (
@@ -8413,7 +8976,7 @@ function HeatmapPanel({ indexName, universe }) {
               <div key={sectorName} style={{ background: C.warmWhite, border: `1px solid ${C.rule}`, padding: "10px 12px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                   <span style={{ width: 8, height: 8, borderRadius: 2, background: SECTOR_COLORS[sectorName] || C.inkMuted, flexShrink: 0 }} />
-                  <span style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)" }}>{sectorName}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)" }}>{labelFor(sectorName, t)}</span>
                   <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--mono)", marginLeft: "auto" }}>{sectorStocks.length}</span>
                 </div>
                 {sectorStocks.sort((a, b) => b.cap - a.cap).map(s => (
@@ -8590,7 +9153,11 @@ function ComparisonTab() {
                     <tr key={r.ticker} style={{ borderBottom: `1px solid ${C.ruleFaint}`, background: i % 2 ? C.warmWhite + "80" : "transparent" }}>
                       <td style={{ padding: "8px", fontWeight: 700, color: C.ink, fontFamily: "var(--mono)", fontSize: 12 }}>{r.ticker}</td>
                       <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 12 }}>${fmt(r.price)}</td>
-                      <td style={{ padding: "8px", textAlign: "right" }}><span style={{ color: recColor(r.rec), fontWeight: 700, fontSize: 10, fontFamily: "var(--mono)" }}>{r.rec}</span></td>
+                      <td style={{ padding: "8px", textAlign: "right" }}>
+                        <span style={{ color: recColor(r.rec), fontWeight: 700, fontSize: 10, fontFamily: "var(--mono)" }}>
+                          {r.rec === "N/A" || !r.rec ? t("common.na") : translateEnum(r.rec, t, "signal")}
+                        </span>
+                      </td>
                       <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11 }}>{fmtPct(r.conf * 100, 0)}</td>
                       <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: r.sharpe > 1 ? C.up : r.sharpe > 0 ? C.hold : C.down }}>{fmt(r.sharpe)}</td>
                       <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11 }}>{fmtPct(r.vol)}</td>
@@ -8710,7 +9277,9 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
                         </div>
                       )}
                       <span style={{ color: w.change >= 0 ? C.up : C.down, fontSize: 11, fontFamily: "var(--mono)", fontWeight: 600 }}>{w.change >= 0 ? "+" : ""}{fmtPct(w.change)}</span>
-                      <span style={{ color: recColor(w.rec), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{w.rec}</span>
+                      <span style={{ color: recColor(w.rec), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>
+                        {w.rec ? translateEnum(w.rec, t, "signal") : t("common.na")}
+                      </span>
                       <button onClick={e => { e.stopPropagation(); onRemoveWatchlist?.(w.ticker); }}
                         style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
                     </div>
@@ -8873,6 +9442,7 @@ function AuthModal({ open, onClose }) {
 // PERF MONITOR
 // ═══════════════════════════════════════════════════════════
 function PerfMonitor({ onClose }) {
+  const { t } = useI18n();
   const [metrics, setMetrics] = useState({});
   const fpsRef = useRef({ frames: 0, last: performance.now(), fps: 0 });
 
@@ -8893,9 +9463,9 @@ function PerfMonitor({ onClose }) {
 
     const id = setInterval(() => {
       const nav = performance.getEntriesByType("navigation")[0];
-      const heap = performance.memory ? `${(performance.memory.usedJSHeapSize / 1048576).toFixed(1)} MB` : "N/A";
+      const heap = performance.memory ? `${(performance.memory.usedJSHeapSize / 1048576).toFixed(1)} MB` : t("common.na");
       setMetrics({
-        pageLoad: nav ? `${Math.round(nav.loadEventEnd)}ms` : "N/A",
+        pageLoad: nav ? `${Math.round(nav.loadEventEnd)}ms` : t("common.na"),
         jsHeap: heap,
         apiCalls: apiCallCount,
         lastLatency: `${lastApiLatency}ms`,
@@ -8914,15 +9484,15 @@ function PerfMonitor({ onClose }) {
   return (
     <div style={{ position: "fixed", top: 12, right: 12, background: "rgba(26,22,18,0.92)", borderRadius: 8, padding: "12px 16px", fontFamily: "var(--mono)", zIndex: 9999, minWidth: 200, backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.1)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span style={{ fontSize: 10, color: "#4ADE80", fontWeight: 700, letterSpacing: "0.08em" }}>PERF MONITOR</span>
+        <span style={{ fontSize: 10, color: "#4ADE80", fontWeight: 700, letterSpacing: "0.08em" }}>{t("perf.title")}</span>
         <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
       </div>
-      <div style={row}><span style={label}>Page Load</span><span style={val}>{metrics.pageLoad}</span></div>
-      <div style={row}><span style={label}>JS Heap</span><span style={val}>{metrics.jsHeap}</span></div>
-      <div style={row}><span style={label}>API Calls</span><span style={val}>{metrics.apiCalls}</span></div>
-      <div style={row}><span style={label}>Last Latency</span><span style={val}>{metrics.lastLatency}</span></div>
-      <div style={row}><span style={label}>DOM Nodes</span><span style={val}>{metrics.domNodes}</span></div>
-      <div style={row}><span style={label}>FPS</span><span style={val}>{metrics.fps}</span></div>
+      <div style={row}><span style={label}>{t("perf.pageLoad")}</span><span style={val}>{metrics.pageLoad}</span></div>
+      <div style={row}><span style={label}>{t("perf.jsHeap")}</span><span style={val}>{metrics.jsHeap}</span></div>
+      <div style={row}><span style={label}>{t("perf.apiCalls")}</span><span style={val}>{metrics.apiCalls}</span></div>
+      <div style={row}><span style={label}>{t("perf.lastLatency")}</span><span style={val}>{metrics.lastLatency}</span></div>
+      <div style={row}><span style={label}>{t("perf.domNodes")}</span><span style={val}>{metrics.domNodes}</span></div>
+      <div style={row}><span style={label}>{t("perf.fps")}</span><span style={val}>{metrics.fps}</span></div>
     </div>
   );
 }
@@ -8932,7 +9502,13 @@ function PerfMonitor({ onClose }) {
 // ═══════════════════════════════════════════════════════════
 function App() {
   const initialWorkspace = useMemo(() => loadLocalWorkspace(), []);
-  const [tab, setTab] = useState("home");
+  const initialRoute = useMemo(() => readRouteFromLocation(), []);
+  const [tab, setTab] = useState(initialRoute.tab);
+  const [analysisSubTab, setAnalysisSubTab] = useState(initialRoute.analysisSubTab);
+  const [accountSubTab, setAccountSubTab] = useState(initialRoute.accountSubTab);
+  const [routeTicker, setRouteTicker] = useState(initialRoute.ticker);
+  const [chartSelection, setChartSelection] = useState(initialRoute.chart);
+  const [chartType, setChartType] = useState(initialRoute.chartType);
   const [locale, setLocale] = useState(() => {
     if (typeof window === "undefined") return "en-US";
     const saved = localStorage.getItem(LANG_STORAGE_KEY);
@@ -8978,6 +9554,9 @@ function App() {
   const [helpMode, setHelpMode] = useState(false);
   const [helpTooltip, setHelpTooltip] = useState(null);
   const [chartIntent, setChartIntent] = useState(null);
+  const routeSyncRef = useRef(false);
+  const routeHydratedRef = useRef(false);
+  const routedTickerRef = useRef(null);
 
   const t = useCallback((key, vars) => {
     let value = (TRANSLATIONS[locale] && TRANSLATIONS[locale][key])
@@ -9038,6 +9617,52 @@ function App() {
       document.documentElement.lang = locale;
     }
   }, [locale]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const onPop = () => {
+      routeSyncRef.current = true;
+      const nextRoute = readRouteFromLocation();
+      setTab(nextRoute.tab);
+      setAnalysisSubTab(nextRoute.analysisSubTab);
+      setAccountSubTab(nextRoute.accountSubTab);
+      setRouteTicker(nextRoute.ticker);
+      setChartSelection(nextRoute.chart);
+      setChartType(nextRoute.chartType);
+      setTimeout(() => { routeSyncRef.current = false; }, 0);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const nextUrl = buildUrlFromRoute({
+      tab,
+      analysisSubTab,
+      accountSubTab,
+      ticker: routeTicker,
+      chart: chartSelection,
+      chartType,
+    });
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextUrl === currentUrl) {
+      routeHydratedRef.current = true;
+      return;
+    }
+    if (!routeHydratedRef.current || routeSyncRef.current) {
+      window.history.replaceState({}, "", nextUrl);
+      routeHydratedRef.current = true;
+      return;
+    }
+    window.history.pushState({}, "", nextUrl);
+  }, [tab, analysisSubTab, accountSubTab, routeTicker, chartSelection, chartType]);
+
+  useEffect(() => {
+    if (tab === "charts") return;
+    if (routeSyncRef.current) return;
+    if (chartSelection) setChartSelection(null);
+  }, [tab, chartSelection]);
 
   useEffect(() => {
     if (!helpMode) setHelpTooltip(null);
@@ -9305,7 +9930,7 @@ function App() {
     return () => { if (chartTimerRef.current) clearTimeout(chartTimerRef.current); };
   }, [livePrice]);
 
-  const analyze = useCallback(async (t) => {
+  const analyze = useCallback(async (t, options = {}) => {
     const sym = (t || ticker).trim().toUpperCase();
     if (!sym) return;
     setTicker(sym); setLoading(true); setError(null); setLivePrice(null); setLatency(null);
@@ -9320,12 +9945,26 @@ function App() {
       setResult(analysis);
       setLatency(fd.latency);
       recordRecent(analysis);
-      setTab("analysis");
+      if (!options.preserveTab) setTab("analysis");
     } catch (e) {
-      setError({ message: e.message || "All data sources failed", debug: e.debug || { error: String(e) } });
+      setError({ message: t("error.allSourcesFailed"), debug: e.debug || { error: String(e) } });
     }
     setLoading(false);
   }, [ticker, period, interval, recordRecent]);
+
+  useEffect(() => {
+    if (!routeTicker) return;
+    const next = routeTicker.trim().toUpperCase();
+    if (!next) return;
+    if (result?.ticker === next) {
+      routedTickerRef.current = next;
+      return;
+    }
+    if (routedTickerRef.current === next) return;
+    if (loading) return;
+    routedTickerRef.current = next;
+    analyze(next, { preserveTab: true });
+  }, [routeTicker, result?.ticker, loading, analyze]);
 
   const reanalyze = useCallback(async (t, p, i) => {
     setPeriod(p);
@@ -9345,20 +9984,27 @@ function App() {
       setLatency(fd.latency);
       recordRecent(analysis);
     } catch (e) {
-      setError({ message: e.message || "All data sources failed", debug: e.debug || { error: String(e) } });
+      setError({ message: t("error.allSourcesFailed"), debug: e.debug || { error: String(e) } });
     }
     setLoading(false);
   }, [recordRecent]);
 
+  useEffect(() => {
+    if (!result?.ticker) return;
+    const next = result.ticker.trim().toUpperCase();
+    if (!next || next === routeTicker) return;
+    setRouteTicker(next);
+  }, [result?.ticker, routeTicker]);
+
   const updateFirstName = useCallback(async (name) => {
-    if (!supabase || !userId) return { error: "Not signed in." };
+    if (!supabase || !userId) return { error: t("error.notSignedIn") };
     const { data, error } = await supabase.auth.updateUser({ data: { first_name: name } });
     if (error) return { error: error.message };
     if (data?.user) {
       setSession(prev => (prev ? { ...prev, user: data.user } : prev));
     }
     return { error: null };
-  }, [userId]);
+  }, [userId, t]);
 
   const handleSignOut = useCallback(async () => {
     if (!supabase) return;
@@ -9387,6 +10033,7 @@ function App() {
     fontFamily: "var(--body)",
   });
   const openCharts = useCallback((intent) => {
+    if (intent?.mode) setChartSelection(normalizeChartMode(intent.mode));
     setChartIntent(intent);
     setTab("charts");
   }, []);
@@ -9686,6 +10333,8 @@ function App() {
             alerts={alerts}
             recent={recentAnalyses}
             prefs={prefs}
+            subTab={accountSubTab}
+            onSubTabChange={setAccountSubTab}
             onAddWatchlist={addToWatchlist}
             onRemoveWatchlist={removeFromWatchlist}
             onAddAlert={addAlert}
@@ -9707,6 +10356,8 @@ function App() {
             isPro={isPro}
             period={period}
             interval={interval}
+            subTab={analysisSubTab}
+            onSubTabChange={setAnalysisSubTab}
             onReanalyze={reanalyze}
             onOpenCharts={openCharts}
             openChartsLabel={t("chart.openCharts")}
@@ -9715,7 +10366,21 @@ function App() {
             onHideHelp={hideHelp}
           />
         )}
-        {!loading && !error && tab === "charts" && <ChartsTab result={result} chartLivePrice={chartLivePrice} period={period} interval={interval} onReanalyze={reanalyze} intent={chartIntent} onConsumeIntent={consumeChartIntent} />}
+        {!loading && !error && tab === "charts" && (
+          <ChartsTab
+            result={result}
+            chartLivePrice={chartLivePrice}
+            period={period}
+            interval={interval}
+            onReanalyze={reanalyze}
+            intent={chartIntent}
+            onConsumeIntent={consumeChartIntent}
+            expandedMode={chartSelection}
+            onExpandedModeChange={setChartSelection}
+            chartType={chartType}
+            onChartTypeChange={setChartType}
+          />
+        )}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab /> : (
           <ProGate
             title={t("pro.heatmap.title")}
