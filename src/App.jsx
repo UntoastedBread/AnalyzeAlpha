@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo, useContext } from "react";
 import { createPortal } from "react-dom";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -56,16 +56,213 @@ const TRANSLATIONS = {
     "nav.comparison": "Comparison",
     "nav.account": "Account",
     "nav.help": "Help",
+    "nav.tools": "Tools",
+    "common.line": "Line",
+    "common.candles": "Candles",
+    "common.expand": "Expand",
+    "common.close": "Close",
+    "common.save": "Save",
+    "common.signIn": "Sign In",
+    "common.signOut": "Sign Out",
+    "common.zoomIn": "Zoom In",
+    "common.zoomOut": "Zoom Out",
+    "common.reset": "Reset",
     "menu.settings": "Settings",
     "menu.language": "Language",
     "menu.upgrade": "Upgrade to Pro",
     "menu.gift": "Gift AnalyzeAlpha",
     "menu.logout": "Log out",
     "menu.signedOut": "Not signed in",
+    "tools.watchlist": "Watchlist",
+    "tools.alerts": "Alerts",
+    "tools.ticker": "Ticker",
+    "tools.add": "Add",
+    "tools.emptyWatchlist": "Empty watchlist",
+    "tools.noAlerts": "No alerts",
+    "tools.above": "Above",
+    "tools.below": "Below",
+    "tools.set": "Set",
+    "tools.triggered": "TRIGGERED",
+    "tools.watching": "WATCHING",
+    "auth.missingConfig": "Supabase config missing. Add your `VITE_SUPABASE_URL` and publishable key, then restart the dev server.",
+    "auth.continueGoogle": "Continue with Google",
+    "auth.or": "or",
+    "auth.firstName": "First name",
+    "auth.email": "Email",
+    "auth.password": "Password",
+    "auth.signIn": "Sign In",
+    "auth.createAccount": "Create Account",
+    "auth.checkEmail": "Check your email to confirm your account.",
+    "auth.errFirstName": "First name required.",
+    "auth.errEmailPassword": "Email and password required.",
+    "time.secondsAgo": "{count}s ago",
+    "time.minutesAgo": "{count}m ago",
+    "day.morning": "morning",
+    "day.afternoon": "afternoon",
+    "day.evening": "evening",
+    "day.night": "night",
+    "greeting.goodDaypart": "Good {dayPart}",
+    "greeting.hey": "Hey",
+    "greeting.welcomeBack": "Welcome back",
+    "greeting.niceToSeeYou": "Nice to see you",
+    "greeting.hello": "Hello",
+    "greeting.marketBrief": "Market brief",
+    "greeting.quickPulse": "Quick pulse",
+    "greeting.snapshot": "Snapshot",
+    "greeting.todaysGlance": "Today's glance",
+    "home.updated": "Updated {ago}",
+    "home.marketNews": "Market News",
+    "home.indexes": "Indexes",
+    "home.topGainers": "Top Gainers",
+    "home.topLosers": "Top Losers",
+    "home.trendingStocks": "Trending Stocks",
+    "home.marketBriefSection": "Market Brief",
     "chart.openCharts": "Open in Charts",
     "help.title": "Help Mode",
     "help.body": "Hover any highlighted element to learn what it does. Click Help again to exit.",
     "help.exit": "Exit Help",
+    "help.search.title": "Search",
+    "help.search.body": "Type a ticker or company name. Press Enter or click Analyze to run the model.",
+    "help.analyze.title": "Analyze",
+    "help.analyze.body": "Fetches fresh data and updates the recommendation, signals, and charts.",
+    "help.tools.title": "Tools",
+    "help.tools.body": "Open watchlist and alerts to manage tickers without leaving the page.",
+    "help.account.title": "Account",
+    "help.account.body": "Access settings, language, upgrades, and sign out.",
+    "help.priceChart.title": "Price Chart",
+    "help.priceChart.body": "Shows the last 60 sessions with live overlays and indicators. Use the controls to change period or interval.",
+    "help.nav.home.title": "Home",
+    "help.nav.home.body": "Market overview and live snapshots.",
+    "help.nav.analysis.title": "Analysis",
+    "help.nav.analysis.body": "Full signal stack, valuation, and risk.",
+    "help.nav.charts.title": "Charts",
+    "help.nav.charts.body": "Advanced charting and indicators.",
+    "help.nav.heatmap.title": "Heatmap",
+    "help.nav.heatmap.body": "Sector and market map (Pro).",
+    "help.nav.comparison.title": "Comparison",
+    "help.nav.comparison.body": "Compare multiple tickers (Pro).",
+    "help.tickerStrip.title": "Live Ticker Strip",
+    "help.tickerStrip.body": "Scrolling snapshot of key markets. Click any ticker to analyze.",
+    "help.region.title": "Region Filters",
+    "help.region.body": "Switch the market region to update news and charts.",
+    "help.marketNews.title": "Market News",
+    "help.marketNews.body": "Latest headlines for the selected region.",
+    "help.indexes.title": "Indexes",
+    "help.indexes.body": "Intraday charts for major indexes.",
+    "help.movers.title": "Market Movers",
+    "help.movers.body": "Top gainers, losers, and trending tickers.",
+    "help.marketBrief.title": "Market Brief",
+    "help.marketBrief.body": "Cross-asset summary and risk signals.",
+    "help.changelog.title": "Changelog",
+    "help.changelog.body": "What’s new in the latest release.",
+    "help.accountSync.title": "Account Sync",
+    "help.accountSync.body": "Sign in to sync preferences and watchlists across devices.",
+    "help.profile.title": "Profile",
+    "help.profile.body": "Update your display name and manage sign-in.",
+    "help.accountWatchlist.title": "Watchlist",
+    "help.accountWatchlist.body": "Manage saved tickers from your account.",
+    "help.accountAlerts.title": "Alerts",
+    "help.accountAlerts.body": "Set price alerts and monitor triggers.",
+    "help.accountRecent.title": "Recent Analyses",
+    "help.accountRecent.body": "Quick access to your latest runs.",
+    "help.accountPreferences.title": "Preferences",
+    "help.accountPreferences.body": "Default period, interval, and region.",
+    "help.chartsControls.title": "Chart Controls",
+    "help.chartsControls.body": "Toggle indicators and switch chart style.",
+    "analysis.stockTab": "Stock",
+    "analysis.financialsTab": "Financials",
+    "analysis.enterTicker": "Enter a ticker to begin",
+    "analysis.typeSymbol": "Type a symbol above and press Analyze",
+    "analysis.verdict": "Verdict",
+    "analysis.confidence": "Confidence",
+    "analysis.score": "Score",
+    "analysis.priceTargets": "Price Targets",
+    "analysis.target": "Target",
+    "analysis.stopLoss": "Stop Loss",
+    "analysis.riskReward": "Risk / Reward",
+    "analysis.technicalSignals": "Technical Signals",
+    "analysis.riskProfile": "Risk Profile",
+    "analysis.riskLevel": "Risk Level",
+    "analysis.volatility": "Volatility",
+    "analysis.maxDrawdown": "Max Drawdown",
+    "analysis.sharpe": "Sharpe",
+    "analysis.sortino": "Sortino",
+    "analysis.var95": "VaR 95%",
+    "analysis.statSignals": "Statistical Signals",
+    "analysis.zscore": "Z-Score",
+    "analysis.zscoreDesc": "Price deviation from 20-period mean",
+    "analysis.momentum": "Momentum",
+    "analysis.momentumDesc": "Avg return across 5, 10, 20, 50-day periods",
+    "analysis.volume": "Volume",
+    "analysis.volumeDesc": "Current volume vs 20-period avg",
+    "analysis.composite": "Composite",
+    "analysis.compositeDesc": "Weighted combination of all signals",
+    "analysis.buy": "Buy",
+    "analysis.sell": "Sell",
+    "analysis.current": "Current",
+    "analysis.avg": "Avg",
+    "analysis.confidenceLabel": "Confidence",
+    "analysis.direction": "Direction",
+    "analysis.valuationAnchor": "Valuation Anchor",
+    "analysis.priceChartTitle": "Price — Last 60 Sessions",
+    "analysis.valuationToolkit": "Valuation Model Toolkit",
+    "analysis.valuationDesc": "Estimates intrinsic value using DCF, dividend discount, and multiples analysis. Use auto-estimates or override assumptions below to run what-if scenarios.",
+    "analysis.fcfPerShare": "FCF / Share",
+    "analysis.eps": "EPS",
+    "analysis.dividendPerShare": "Dividend / Share",
+    "analysis.growth5y": "Growth (5y %)",
+    "analysis.discountWacc": "Discount / WACC %",
+    "analysis.terminalGrowth": "Terminal Growth %",
+    "analysis.targetPE": "Target P/E",
+    "analysis.projectionYears": "Projection Years",
+    "analysis.dcf": "DCF",
+    "analysis.dividendDiscount": "Dividend Discount",
+    "analysis.multiples": "Multiples",
+    "analysis.anchor": "Anchor",
+    "analysis.upside": "Upside",
+    "analysis.usedAsContext": "Used as long-term context alongside technical signals.",
+    "analysis.neutral": "NEUTRAL",
+    "charts.runAnalysisFirst": "Run an analysis first",
+    "charts.movingAvg": "Moving Avg",
+    "charts.bollinger": "Bollinger",
+    "charts.volume": "Volume",
+    "charts.rsi": "RSI",
+    "charts.macd": "MACD",
+    "charts.stochastic": "Stochastic",
+    "charts.chart": "Chart",
+    "charts.period": "Period",
+    "charts.fullPeriod": "{ticker} — Full Period",
+    "charts.volumeTitle": "Volume",
+    "charts.rsiTitle": "RSI (14)",
+    "charts.macdTitle": "MACD",
+    "charts.stochTitle": "Stochastic",
+    "charts.windowHint": "Horizontal scroll pans. Vertical scroll adjusts the selection window. Drag to move. Window: {count} / {total}",
+    "account.syncLocal": "Local only",
+    "account.syncing": "Syncing…",
+    "account.syncError": "Sync error",
+    "account.synced": "Synced",
+    "account.syncedAgo": "Synced {ago}",
+    "account.syncTitle": "Account Sync",
+    "account.signedInAs": "Signed in as {email}",
+    "account.user": "user",
+    "account.signInToSync": "Sign in to sync your account data across devices.",
+    "account.profile": "Profile",
+    "account.firstName": "First name",
+    "account.saved": "Saved",
+    "account.enterFirstName": "Enter a first name.",
+    "account.signInToSave": "Sign in to save.",
+    "account.overview": "Overview",
+    "account.preferences": "Preferences",
+    "account.recentAnalyses": "Recent Analyses",
+    "account.noAnalyses": "No analyses yet",
+    "account.signal": "Signal",
+    "account.regime": "Regime",
+    "account.risk": "Risk",
+    "account.conf": "Conf",
+    "account.view": "View",
+    "account.defaultPeriod": "Default Period",
+    "account.defaultInterval": "Default Interval",
+    "account.homeRegion": "Home Region",
     "pro.heatmap.title": "Heatmap Is Pro",
     "pro.heatmap.desc": "Unlock the S&P heatmap with live Sharpe, volatility, and relative performance.",
     "pro.heatmap.f0": "Parallel data fetches",
@@ -76,6 +273,145 @@ const TRANSLATIONS = {
     "pro.comparison.f0": "Side-by-side signal scores",
     "pro.comparison.f1": "Sharpe and drawdown rankings",
     "pro.comparison.f2": "Export-ready table view",
+    "common.live": "LIVE",
+    "common.price": "Price",
+    "time.justNow": "just now",
+    "time.hoursAgo": "{count}h ago",
+    "time.daysAgo": "{count}d ago",
+    "analysis.valuationAnalysis": "Valuation Analysis",
+    "analysis.stretchIndex": "Stretch Index",
+    "analysis.undervalued": "Undervalued",
+    "analysis.overvalued": "Overvalued",
+    "analysis.vsSma200": "vs SMA 200",
+    "analysis.vsSma50": "vs SMA 50",
+    "analysis.bollingerPercentB": "Bollinger %B",
+    "analysis.range52w": "52W Range",
+    "analysis.fromLow": "from low",
+    "analysis.fairValueEst": "Fair Value Est.",
+    "analysis.marketRegime": "Market Regime",
+    "analysis.strength": "Strength",
+    "analysis.hurst": "Hurst",
+    "analysis.avoid": "Avoid",
+    "analysis.analystTargets": "Analyst Price Targets",
+    "analysis.past12Months": "Past 12 months",
+    "analysis.target12Month": "12-month price target",
+    "analysis.companyMetrics": "Company Metrics",
+    "analysis.earningsPerShare": "Earnings Per Share",
+    "analysis.epsUnavailable": "EPS series unavailable.",
+    "analysis.revenue": "Revenue",
+    "analysis.netProfitMargin": "Net Profit Margin",
+    "analysis.currentRatio": "Current Ratio",
+    "analysis.debtToEquity": "Debt / Equity",
+    "analysis.returnOnEquityTtm": "Return on Equity (TTM)",
+    "analysis.financialsProTitle": "Financials Are Pro",
+    "analysis.financialsProDesc": "Unlock company financials, valuation tooling, and multi-period statement analysis.",
+    "analysis.financialsProF0": "Income statements · Cash flow · Balance sheet",
+    "analysis.financialsProF1": "DCF, DDM, and multiples modeling",
+    "analysis.financialsProF2": "Historical margin and growth trends",
+    "analysis.fundamentalSnapshot": "Fundamental Snapshot",
+    "analysis.marketCap": "Market Cap",
+    "analysis.netIncome": "Net Income",
+    "analysis.freeCashFlow": "Free Cash Flow",
+    "analysis.revenueGrowth": "Revenue Growth",
+    "analysis.grossMargin": "Gross Margin",
+    "analysis.operatingMargin": "Operating Margin",
+    "analysis.netMargin": "Net Margin",
+    "analysis.balanceSheet": "Balance Sheet",
+    "analysis.cash": "Cash",
+    "analysis.debt": "Debt",
+    "analysis.perShare": "Per Share",
+    "analysis.keyRatios": "Key Ratios",
+    "analysis.roe": "ROE",
+    "analysis.roa": "ROA",
+    "analysis.pe": "P/E",
+    "analysis.pfcf": "P/FCF",
+    "analysis.financialsOverview": "Financials Overview",
+    "analysis.revenueFcfMargin": "Revenue + FCF Margin",
+    "analysis.fcfMargin": "FCF Margin",
+    "analysis.marginTrends": "Margin Trends",
+    "analysis.grossMarginShort": "Gross",
+    "analysis.operatingMarginShort": "Operating",
+    "analysis.netMarginShort": "Net",
+    "analysis.marginRadar": "Margin Radar",
+    "analysis.cashVsDebt": "Cash vs Debt",
+    "analysis.netCash": "Net Cash",
+    "analysis.netIncomeByPeriod": "Net Income by Period",
+    "analysis.fundamentalDataAggregator": "Fundamental Data Aggregator",
+    "analysis.fundamentalDataDesc": "Collects revenue, earnings, margins, debt, and cash flow by ticker and fiscal period. Designed to plug into APIs or SEC filings — this build uses modeled data for demonstration.",
+    "analysis.fiscalPeriod": "Fiscal Period",
+    "analysis.source": "Source",
+    "analysis.period": "Period",
+    "analysis.fcf": "FCF",
+    "analysis.bbUpper": "BB Upper",
+    "analysis.bbLower": "BB Lower",
+    "analysis.sma20": "SMA 20",
+    "analysis.sma50": "SMA 50",
+    "analysis.close": "Close",
+    "heatmap.marketHeatmaps": "Market Heatmaps",
+    "heatmap.subtitle": "Treemap visualizations by index, sized by market cap, colored by 6-month Sharpe ratio. Stocks sorted by sector.",
+    "heatmap.panelMeta": "{count} stocks · Size: market cap · Color: Sharpe (6mo)",
+    "heatmap.load": "Load Heatmap",
+    "heatmap.fetches": "Fetches {count} stocks from Yahoo Finance",
+    "heatmap.fetching": "Fetching {count} stocks…",
+    "heatmap.refresh": "Refresh",
+    "heatmap.sector": "Sector",
+    "heatmap.sharpe": "Sharpe",
+    "heatmap.sixMonths": "6mo",
+    "comparison.placeholder": "AAPL, MSFT, GOOGL...",
+    "comparison.running": "Running…",
+    "comparison.compare": "Compare",
+    "comparison.normalizedPerformance": "Normalized Performance (6mo)",
+    "comparison.ticker": "Ticker",
+    "comparison.price": "Price",
+    "comparison.signal": "Signal",
+    "comparison.conf": "Conf.",
+    "comparison.sharpe": "Sharpe",
+    "comparison.vol": "Vol.",
+    "comparison.maxDD": "Max DD",
+    "comparison.momentum": "Mom.",
+    "comparison.stretch": "Stretch",
+    "comparison.sharpeComparison": "Sharpe Comparison",
+    "comparison.volatilityComparison": "Volatility Comparison",
+    "comparison.volatility": "Volatility",
+    "comparison.failed": "failed",
+    "help.valuationAnalysis.title": "Valuation Analysis",
+    "help.valuationAnalysis.body": "Measures stretch, SMA deviations, and fair value signals.",
+    "help.marketRegime.title": "Market Regime",
+    "help.marketRegime.body": "Summarizes trend, volatility, and tactical posture.",
+    "help.analystTargets.title": "Analyst Targets",
+    "help.analystTargets.body": "Consensus targets and the last 12 months of revisions.",
+    "help.companyMetrics.title": "Company Metrics",
+    "help.companyMetrics.body": "Key operating and balance sheet ratios over time.",
+    "help.fundamentalSnapshot.title": "Fundamental Snapshot",
+    "help.fundamentalSnapshot.body": "Top-line fundamentals for the selected period.",
+    "help.balanceSheet.title": "Balance Sheet",
+    "help.balanceSheet.body": "Liquidity and leverage positioning.",
+    "help.perShare.title": "Per Share",
+    "help.perShare.body": "Per-share earnings, cash flow, and dividends.",
+    "help.keyRatios.title": "Key Ratios",
+    "help.keyRatios.body": "Profitability and valuation ratios.",
+    "help.financialsOverview.title": "Financials Overview",
+    "help.financialsOverview.body": "Visual summary of margins, cash vs debt, and earnings.",
+    "help.fundamentalData.title": "Fundamental Data",
+    "help.fundamentalData.body": "Modeled fundamentals by fiscal period.",
+    "help.comparisonInput.title": "Comparison Input",
+    "help.comparisonInput.body": "Enter tickers separated by commas to compare.",
+    "help.comparisonPerformance.title": "Performance Overlay",
+    "help.comparisonPerformance.body": "Normalized returns over 6 months.",
+    "help.comparisonTable.title": "Comparison Table",
+    "help.comparisonTable.body": "Sortable table of signals, risk, and valuation metrics.",
+    "help.heatmapOverview.title": "Market Heatmaps",
+    "help.heatmapOverview.body": "Treemap by sector with Sharpe-based coloring.",
+    "help.valuationToolkit.title": "Valuation Toolkit",
+    "help.valuationToolkit.body": "Tune DCF/DDM assumptions and compare anchors.",
+    "help.priceTargets.title": "Price Targets",
+    "help.priceTargets.body": "Bull, base, and stop levels plus risk/reward.",
+    "help.technicalSignals.title": "Technical Signals",
+    "help.technicalSignals.body": "Momentum, trend, and indicator-based signals.",
+    "help.riskProfile.title": "Risk Profile",
+    "help.riskProfile.body": "Volatility, drawdown, and risk metrics.",
+    "help.statSignals.title": "Statistical Signals",
+    "help.statSignals.body": "Z-score, momentum, and composite stats.",
     "footer.disclaimer": "For educational purposes only — not financial advice",
   },
   "fr-FR": {
@@ -90,16 +426,213 @@ const TRANSLATIONS = {
     "nav.comparison": "Comparaison",
     "nav.account": "Compte",
     "nav.help": "Aide",
+    "nav.tools": "Outils",
+    "common.line": "Ligne",
+    "common.candles": "Bougies",
+    "common.expand": "Agrandir",
+    "common.close": "Fermer",
+    "common.save": "Enregistrer",
+    "common.signIn": "Se connecter",
+    "common.signOut": "Se déconnecter",
+    "common.zoomIn": "Zoom avant",
+    "common.zoomOut": "Zoom arrière",
+    "common.reset": "Réinitialiser",
     "menu.settings": "Paramètres",
     "menu.language": "Langue",
     "menu.upgrade": "Passer à Pro",
     "menu.gift": "Offrir AnalyzeAlpha",
     "menu.logout": "Se déconnecter",
     "menu.signedOut": "Non connecté",
+    "tools.watchlist": "Liste de suivi",
+    "tools.alerts": "Alertes",
+    "tools.ticker": "Ticker",
+    "tools.add": "Ajouter",
+    "tools.emptyWatchlist": "Liste de suivi vide",
+    "tools.noAlerts": "Aucune alerte",
+    "tools.above": "Au-dessus",
+    "tools.below": "En dessous",
+    "tools.set": "Définir",
+    "tools.triggered": "DÉCLENCHÉ",
+    "tools.watching": "SURVEILLANCE",
+    "auth.missingConfig": "Configuration Supabase manquante. Ajoutez `VITE_SUPABASE_URL` et la clé publique, puis redémarrez le serveur de dev.",
+    "auth.continueGoogle": "Continuer avec Google",
+    "auth.or": "ou",
+    "auth.firstName": "Prénom",
+    "auth.email": "E-mail",
+    "auth.password": "Mot de passe",
+    "auth.signIn": "Se connecter",
+    "auth.createAccount": "Créer un compte",
+    "auth.checkEmail": "Vérifiez votre e-mail pour confirmer votre compte.",
+    "auth.errFirstName": "Prénom requis.",
+    "auth.errEmailPassword": "E-mail et mot de passe requis.",
+    "time.secondsAgo": "il y a {count}s",
+    "time.minutesAgo": "il y a {count} min",
+    "day.morning": "matin",
+    "day.afternoon": "après-midi",
+    "day.evening": "soir",
+    "day.night": "nuit",
+    "greeting.goodDaypart": "Bon {dayPart}",
+    "greeting.hey": "Salut",
+    "greeting.welcomeBack": "Content de vous revoir",
+    "greeting.niceToSeeYou": "Ravi de vous voir",
+    "greeting.hello": "Bonjour",
+    "greeting.marketBrief": "Brief marché",
+    "greeting.quickPulse": "Pulse rapide",
+    "greeting.snapshot": "Aperçu",
+    "greeting.todaysGlance": "Coup d'œil du jour",
+    "home.updated": "Mis à jour {ago}",
+    "home.marketNews": "Actualités du marché",
+    "home.indexes": "Indices",
+    "home.topGainers": "Principales hausses",
+    "home.topLosers": "Principales baisses",
+    "home.trendingStocks": "Actions tendance",
+    "home.marketBriefSection": "Brief marché",
     "chart.openCharts": "Ouvrir dans Graphiques",
     "help.title": "Mode d'aide",
     "help.body": "Survolez un élément en surbrillance pour voir ce qu'il fait. Cliquez sur Aide à nouveau pour quitter.",
     "help.exit": "Quitter l'aide",
+    "help.search.title": "Recherche",
+    "help.search.body": "Tapez un ticker ou un nom d'entreprise. Appuyez sur Entrée ou cliquez sur Analyser.",
+    "help.analyze.title": "Analyser",
+    "help.analyze.body": "Récupère les données et met à jour la recommandation, les signaux et les graphiques.",
+    "help.tools.title": "Outils",
+    "help.tools.body": "Gérez la liste de suivi et les alertes sans quitter la page.",
+    "help.account.title": "Compte",
+    "help.account.body": "Réglages, langue, upgrades et déconnexion.",
+    "help.priceChart.title": "Graphique des prix",
+    "help.priceChart.body": "Affiche les 60 dernières séances avec indicateurs. Modifiez période et intervalle.",
+    "help.nav.home.title": "Accueil",
+    "help.nav.home.body": "Vue d'ensemble du marché et instantanés en direct.",
+    "help.nav.analysis.title": "Analyse",
+    "help.nav.analysis.body": "Signaux, valorisation et risque.",
+    "help.nav.charts.title": "Graphiques",
+    "help.nav.charts.body": "Graphiques avancés et indicateurs.",
+    "help.nav.heatmap.title": "Carte thermique",
+    "help.nav.heatmap.body": "Carte secteur/marché (Pro).",
+    "help.nav.comparison.title": "Comparaison",
+    "help.nav.comparison.body": "Comparer plusieurs tickers (Pro).",
+    "help.tickerStrip.title": "Bandeau des tickers",
+    "help.tickerStrip.body": "Aperçu défilant des marchés. Cliquez sur un ticker.",
+    "help.region.title": "Régions",
+    "help.region.body": "Changez la région pour mettre à jour les actus et graphiques.",
+    "help.marketNews.title": "Actualités du marché",
+    "help.marketNews.body": "Derniers titres pour la région sélectionnée.",
+    "help.indexes.title": "Indices",
+    "help.indexes.body": "Graphiques intraday des principaux indices.",
+    "help.movers.title": "Mouvements du marché",
+    "help.movers.body": "Meilleures hausses, baisses et tendances.",
+    "help.marketBrief.title": "Brief marché",
+    "help.marketBrief.body": "Résumé cross-asset et signaux de risque.",
+    "help.changelog.title": "Journal des changements",
+    "help.changelog.body": "Nouveautés de la dernière version.",
+    "help.accountSync.title": "Synchronisation",
+    "help.accountSync.body": "Connectez-vous pour synchroniser préférences et listes.",
+    "help.profile.title": "Profil",
+    "help.profile.body": "Mettre à jour le nom et gérer la connexion.",
+    "help.accountWatchlist.title": "Liste de suivi",
+    "help.accountWatchlist.body": "Gérer les tickers sauvegardés.",
+    "help.accountAlerts.title": "Alertes",
+    "help.accountAlerts.body": "Définir des alertes de prix.",
+    "help.accountRecent.title": "Analyses récentes",
+    "help.accountRecent.body": "Accès rapide à vos dernières analyses.",
+    "help.accountPreferences.title": "Préférences",
+    "help.accountPreferences.body": "Période, intervalle et région par défaut.",
+    "help.chartsControls.title": "Contrôles du graphique",
+    "help.chartsControls.body": "Activer les indicateurs et changer le style.",
+    "analysis.stockTab": "Action",
+    "analysis.financialsTab": "Finances",
+    "analysis.enterTicker": "Entrez un ticker pour commencer",
+    "analysis.typeSymbol": "Tapez un symbole ci-dessus et cliquez sur Analyser",
+    "analysis.verdict": "Verdict",
+    "analysis.confidence": "Confiance",
+    "analysis.score": "Score",
+    "analysis.priceTargets": "Objectifs de prix",
+    "analysis.target": "Objectif",
+    "analysis.stopLoss": "Stop loss",
+    "analysis.riskReward": "Risque / Rendement",
+    "analysis.technicalSignals": "Signaux techniques",
+    "analysis.riskProfile": "Profil de risque",
+    "analysis.riskLevel": "Niveau de risque",
+    "analysis.volatility": "Volatilité",
+    "analysis.maxDrawdown": "Perte max",
+    "analysis.sharpe": "Sharpe",
+    "analysis.sortino": "Sortino",
+    "analysis.var95": "VaR 95%",
+    "analysis.statSignals": "Signaux statistiques",
+    "analysis.zscore": "Z-score",
+    "analysis.zscoreDesc": "Écart du prix à la moyenne 20 périodes",
+    "analysis.momentum": "Momentum",
+    "analysis.momentumDesc": "Rendement moyen sur 5, 10, 20, 50 jours",
+    "analysis.volume": "Volume",
+    "analysis.volumeDesc": "Volume actuel vs moyenne 20 périodes",
+    "analysis.composite": "Composite",
+    "analysis.compositeDesc": "Combinaison pondérée de tous les signaux",
+    "analysis.buy": "Acheter",
+    "analysis.sell": "Vendre",
+    "analysis.current": "Actuel",
+    "analysis.avg": "Moy.",
+    "analysis.confidenceLabel": "Confiance",
+    "analysis.direction": "Direction",
+    "analysis.valuationAnchor": "Ancre de valorisation",
+    "analysis.priceChartTitle": "Prix — 60 dernières séances",
+    "analysis.valuationToolkit": "Outils de valorisation",
+    "analysis.valuationDesc": "Estime la valeur intrinsèque via DCF, dividendes et multiples. Ajustez les hypothèses.",
+    "analysis.fcfPerShare": "FCF / Action",
+    "analysis.eps": "BPA",
+    "analysis.dividendPerShare": "Dividende / Action",
+    "analysis.growth5y": "Croissance (5 ans %)",
+    "analysis.discountWacc": "Actualisation / WACC %",
+    "analysis.terminalGrowth": "Croissance terminale %",
+    "analysis.targetPE": "P/E cible",
+    "analysis.projectionYears": "Années de projection",
+    "analysis.dcf": "DCF",
+    "analysis.dividendDiscount": "Actualisation des dividendes",
+    "analysis.multiples": "Multiples",
+    "analysis.anchor": "Ancre",
+    "analysis.upside": "Potentiel",
+    "analysis.usedAsContext": "Utilisé comme contexte long terme avec les signaux techniques.",
+    "analysis.neutral": "NEUTRE",
+    "charts.runAnalysisFirst": "Lancez une analyse d'abord",
+    "charts.movingAvg": "Moyennes mobiles",
+    "charts.bollinger": "Bollinger",
+    "charts.volume": "Volume",
+    "charts.rsi": "RSI",
+    "charts.macd": "MACD",
+    "charts.stochastic": "Stochastique",
+    "charts.chart": "Graphique",
+    "charts.period": "Période",
+    "charts.fullPeriod": "{ticker} — Période complète",
+    "charts.volumeTitle": "Volume",
+    "charts.rsiTitle": "RSI (14)",
+    "charts.macdTitle": "MACD",
+    "charts.stochTitle": "Stochastique",
+    "charts.windowHint": "Défilement horizontal pour déplacer, vertical pour ajuster. Glisser pour déplacer. Fenêtre : {count} / {total}",
+    "account.syncLocal": "Local uniquement",
+    "account.syncing": "Synchronisation…",
+    "account.syncError": "Erreur de sync",
+    "account.synced": "Synchronisé",
+    "account.syncedAgo": "Synchronisé {ago}",
+    "account.syncTitle": "Synchronisation du compte",
+    "account.signedInAs": "Connecté en tant que {email}",
+    "account.user": "utilisateur",
+    "account.signInToSync": "Connectez-vous pour synchroniser vos données.",
+    "account.profile": "Profil",
+    "account.firstName": "Prénom",
+    "account.saved": "Enregistré",
+    "account.enterFirstName": "Entrez un prénom.",
+    "account.signInToSave": "Connectez-vous pour enregistrer.",
+    "account.overview": "Vue d’ensemble",
+    "account.preferences": "Préférences",
+    "account.recentAnalyses": "Analyses récentes",
+    "account.noAnalyses": "Aucune analyse pour l’instant",
+    "account.signal": "Signal",
+    "account.regime": "Régime",
+    "account.risk": "Risque",
+    "account.conf": "Confiance",
+    "account.view": "Voir",
+    "account.defaultPeriod": "Période par défaut",
+    "account.defaultInterval": "Intervalle par défaut",
+    "account.homeRegion": "Région d’accueil",
     "pro.heatmap.title": "La carte thermique est Pro",
     "pro.heatmap.desc": "Déverrouillez la carte thermique du S&P avec Sharpe, volatilité et performance relative en temps réel.",
     "pro.heatmap.f0": "Récupérations de données parallèles",
@@ -110,6 +643,145 @@ const TRANSLATIONS = {
     "pro.comparison.f0": "Scores de signaux côte à côte",
     "pro.comparison.f1": "Classements Sharpe et drawdown",
     "pro.comparison.f2": "Vue tableau prête à l'export",
+    "common.live": "LIVE",
+    "common.price": "Prix",
+    "time.justNow": "à l’instant",
+    "time.hoursAgo": "il y a {count} h",
+    "time.daysAgo": "il y a {count} j",
+    "analysis.valuationAnalysis": "Analyse de valorisation",
+    "analysis.stretchIndex": "Indice d’étirement",
+    "analysis.undervalued": "Sous-évalué",
+    "analysis.overvalued": "Surévalué",
+    "analysis.vsSma200": "vs SMA 200",
+    "analysis.vsSma50": "vs SMA 50",
+    "analysis.bollingerPercentB": "Bollinger %B",
+    "analysis.range52w": "Fourchette 52 sem.",
+    "analysis.fromLow": "au-dessus du plus bas",
+    "analysis.fairValueEst": "Valeur juste est.",
+    "analysis.marketRegime": "Régime de marché",
+    "analysis.strength": "Force",
+    "analysis.hurst": "Hurst",
+    "analysis.avoid": "Éviter",
+    "analysis.analystTargets": "Objectifs des analystes",
+    "analysis.past12Months": "12 derniers mois",
+    "analysis.target12Month": "Objectif à 12 mois",
+    "analysis.companyMetrics": "Indicateurs d’entreprise",
+    "analysis.earningsPerShare": "Bénéfice par action",
+    "analysis.epsUnavailable": "Série BPA indisponible.",
+    "analysis.revenue": "Revenu",
+    "analysis.netProfitMargin": "Marge nette",
+    "analysis.currentRatio": "Ratio courant",
+    "analysis.debtToEquity": "Dette / capitaux propres",
+    "analysis.returnOnEquityTtm": "ROE (TTM)",
+    "analysis.financialsProTitle": "Finances en Pro",
+    "analysis.financialsProDesc": "Débloquez les données financières, l’outillage de valorisation et l’analyse multi‑périodes.",
+    "analysis.financialsProF0": "Compte de résultat · Flux de trésorerie · Bilan",
+    "analysis.financialsProF1": "Modélisation DCF, DDM et multiples",
+    "analysis.financialsProF2": "Tendances historiques des marges et de la croissance",
+    "analysis.fundamentalSnapshot": "Aperçu fondamental",
+    "analysis.marketCap": "Capitalisation",
+    "analysis.netIncome": "Résultat net",
+    "analysis.freeCashFlow": "Flux de trésorerie libre",
+    "analysis.revenueGrowth": "Croissance du chiffre d’affaires",
+    "analysis.grossMargin": "Marge brute",
+    "analysis.operatingMargin": "Marge opérationnelle",
+    "analysis.netMargin": "Marge nette",
+    "analysis.balanceSheet": "Bilan",
+    "analysis.cash": "Trésorerie",
+    "analysis.debt": "Dette",
+    "analysis.perShare": "Par action",
+    "analysis.keyRatios": "Ratios clés",
+    "analysis.roe": "ROE",
+    "analysis.roa": "ROA",
+    "analysis.pe": "P/E",
+    "analysis.pfcf": "P/FCF",
+    "analysis.financialsOverview": "Vue d’ensemble financière",
+    "analysis.revenueFcfMargin": "Revenu + marge FCF",
+    "analysis.fcfMargin": "Marge FCF",
+    "analysis.marginTrends": "Tendances des marges",
+    "analysis.grossMarginShort": "Brute",
+    "analysis.operatingMarginShort": "Opérationnelle",
+    "analysis.netMarginShort": "Nette",
+    "analysis.marginRadar": "Radar des marges",
+    "analysis.cashVsDebt": "Trésorerie vs dette",
+    "analysis.netCash": "Trésorerie nette",
+    "analysis.netIncomeByPeriod": "Résultat net par période",
+    "analysis.fundamentalDataAggregator": "Agrégateur de données fondamentales",
+    "analysis.fundamentalDataDesc": "Agrège revenus, bénéfices, marges, dette et flux de trésorerie par ticker et période fiscale. Conçu pour se brancher sur des API/SEC — données simulées dans cette version.",
+    "analysis.fiscalPeriod": "Période fiscale",
+    "analysis.source": "Source",
+    "analysis.period": "Période",
+    "analysis.fcf": "FCF",
+    "analysis.bbUpper": "BB Supérieur",
+    "analysis.bbLower": "BB Inférieur",
+    "analysis.sma20": "SMA 20",
+    "analysis.sma50": "SMA 50",
+    "analysis.close": "Clôture",
+    "heatmap.marketHeatmaps": "Cartes thermiques",
+    "heatmap.subtitle": "Treemaps par indice, taille par capitalisation, couleur par Sharpe 6 mois. Actions triées par secteur.",
+    "heatmap.panelMeta": "{count} actions · Taille : capitalisation · Couleur : Sharpe (6 mois)",
+    "heatmap.load": "Charger la heatmap",
+    "heatmap.fetches": "Récupère {count} actions depuis Yahoo Finance",
+    "heatmap.fetching": "Récupération de {count} actions…",
+    "heatmap.refresh": "Actualiser",
+    "heatmap.sector": "Secteur",
+    "heatmap.sharpe": "Sharpe",
+    "heatmap.sixMonths": "6 mois",
+    "comparison.placeholder": "AAPL, MSFT, GOOGL...",
+    "comparison.running": "En cours…",
+    "comparison.compare": "Comparer",
+    "comparison.normalizedPerformance": "Performance normalisée (6 mois)",
+    "comparison.ticker": "Ticker",
+    "comparison.price": "Prix",
+    "comparison.signal": "Signal",
+    "comparison.conf": "Conf.",
+    "comparison.sharpe": "Sharpe",
+    "comparison.vol": "Vol.",
+    "comparison.maxDD": "DD max",
+    "comparison.momentum": "Mom.",
+    "comparison.stretch": "Stretch",
+    "comparison.sharpeComparison": "Comparaison Sharpe",
+    "comparison.volatilityComparison": "Comparaison volatilité",
+    "comparison.volatility": "Volatilité",
+    "comparison.failed": "échec",
+    "help.valuationAnalysis.title": "Analyse de valorisation",
+    "help.valuationAnalysis.body": "Mesure l’écart, les SMA et la valeur juste.",
+    "help.marketRegime.title": "Régime de marché",
+    "help.marketRegime.body": "Synthèse tendance, volatilité et posture tactique.",
+    "help.analystTargets.title": "Objectifs des analystes",
+    "help.analystTargets.body": "Consensus et révisions des 12 derniers mois.",
+    "help.companyMetrics.title": "Indicateurs d’entreprise",
+    "help.companyMetrics.body": "Ratios opérationnels et bilanciels dans le temps.",
+    "help.fundamentalSnapshot.title": "Aperçu fondamental",
+    "help.fundamentalSnapshot.body": "Fondamentaux principaux pour la période sélectionnée.",
+    "help.balanceSheet.title": "Bilan",
+    "help.balanceSheet.body": "Liquidité et levier.",
+    "help.perShare.title": "Par action",
+    "help.perShare.body": "BPA, cash-flow et dividendes par action.",
+    "help.keyRatios.title": "Ratios clés",
+    "help.keyRatios.body": "Rentabilité et valorisation.",
+    "help.financialsOverview.title": "Vue d’ensemble financière",
+    "help.financialsOverview.body": "Résumé visuel des marges, trésorerie/dette et bénéfices.",
+    "help.fundamentalData.title": "Données fondamentales",
+    "help.fundamentalData.body": "Fondamentaux modélisés par période fiscale.",
+    "help.comparisonInput.title": "Entrée comparaison",
+    "help.comparisonInput.body": "Entrez des tickers séparés par des virgules.",
+    "help.comparisonPerformance.title": "Surperformance normalisée",
+    "help.comparisonPerformance.body": "Rendements normalisés sur 6 mois.",
+    "help.comparisonTable.title": "Tableau de comparaison",
+    "help.comparisonTable.body": "Tableau triable des signaux, risques et valorisation.",
+    "help.heatmapOverview.title": "Cartes thermiques",
+    "help.heatmapOverview.body": "Treemap par secteur avec couleurs selon Sharpe.",
+    "help.valuationToolkit.title": "Outils de valorisation",
+    "help.valuationToolkit.body": "Ajustez les hypothèses DCF/DDM et comparez les ancres.",
+    "help.priceTargets.title": "Objectifs de prix",
+    "help.priceTargets.body": "Niveaux bull/base/stop et ratio risque/rendement.",
+    "help.technicalSignals.title": "Signaux techniques",
+    "help.technicalSignals.body": "Signaux de momentum, tendance et indicateurs.",
+    "help.riskProfile.title": "Profil de risque",
+    "help.riskProfile.body": "Volatilité, drawdown et métriques de risque.",
+    "help.statSignals.title": "Signaux statistiques",
+    "help.statSignals.body": "Z-score, momentum et stats composites.",
     "footer.disclaimer": "À des fins éducatives uniquement — ceci n'est pas un conseil financier",
   },
   "de-DE": {
@@ -124,16 +796,213 @@ const TRANSLATIONS = {
     "nav.comparison": "Vergleich",
     "nav.account": "Konto",
     "nav.help": "Hilfe",
+    "nav.tools": "Werkzeuge",
+    "common.line": "Linie",
+    "common.candles": "Kerzen",
+    "common.expand": "Erweitern",
+    "common.close": "Schließen",
+    "common.save": "Speichern",
+    "common.signIn": "Anmelden",
+    "common.signOut": "Abmelden",
+    "common.zoomIn": "Hineinzoomen",
+    "common.zoomOut": "Herauszoomen",
+    "common.reset": "Zurücksetzen",
     "menu.settings": "Einstellungen",
     "menu.language": "Sprache",
     "menu.upgrade": "Auf Pro upgraden",
     "menu.gift": "AnalyzeAlpha verschenken",
     "menu.logout": "Abmelden",
     "menu.signedOut": "Nicht angemeldet",
+    "tools.watchlist": "Watchlist",
+    "tools.alerts": "Alarme",
+    "tools.ticker": "Ticker",
+    "tools.add": "Hinzufügen",
+    "tools.emptyWatchlist": "Watchlist leer",
+    "tools.noAlerts": "Keine Alarme",
+    "tools.above": "Oberhalb",
+    "tools.below": "Unterhalb",
+    "tools.set": "Setzen",
+    "tools.triggered": "AUSGELÖST",
+    "tools.watching": "BEOBACHTEN",
+    "auth.missingConfig": "Supabase-Konfiguration fehlt. Fügen Sie `VITE_SUPABASE_URL` und den Publishable Key hinzu und starten Sie den Dev-Server neu.",
+    "auth.continueGoogle": "Mit Google fortfahren",
+    "auth.or": "oder",
+    "auth.firstName": "Vorname",
+    "auth.email": "E-Mail",
+    "auth.password": "Passwort",
+    "auth.signIn": "Anmelden",
+    "auth.createAccount": "Konto erstellen",
+    "auth.checkEmail": "Bitte E-Mail prüfen, um das Konto zu bestätigen.",
+    "auth.errFirstName": "Vorname erforderlich.",
+    "auth.errEmailPassword": "E-Mail und Passwort erforderlich.",
+    "time.secondsAgo": "vor {count}s",
+    "time.minutesAgo": "vor {count} Min.",
+    "day.morning": "Morgen",
+    "day.afternoon": "Nachmittag",
+    "day.evening": "Abend",
+    "day.night": "Nacht",
+    "greeting.goodDaypart": "Guten {dayPart}",
+    "greeting.hey": "Hey",
+    "greeting.welcomeBack": "Willkommen zurück",
+    "greeting.niceToSeeYou": "Schön, dich zu sehen",
+    "greeting.hello": "Hallo",
+    "greeting.marketBrief": "Marktüberblick",
+    "greeting.quickPulse": "Schneller Puls",
+    "greeting.snapshot": "Momentaufnahme",
+    "greeting.todaysGlance": "Heutiger Überblick",
+    "home.updated": "Aktualisiert {ago}",
+    "home.marketNews": "Marktnachrichten",
+    "home.indexes": "Indizes",
+    "home.topGainers": "Top-Gewinner",
+    "home.topLosers": "Top-Verlierer",
+    "home.trendingStocks": "Trendende Aktien",
+    "home.marketBriefSection": "Marktüberblick",
     "chart.openCharts": "In Charts öffnen",
     "help.title": "Hilfemodus",
     "help.body": "Fahre über markierte Elemente, um zu sehen, was sie tun. Klicke erneut auf Hilfe, um zu beenden.",
     "help.exit": "Hilfe beenden",
+    "help.search.title": "Suche",
+    "help.search.body": "Ticker oder Unternehmen eingeben. Enter oder Analysieren klicken.",
+    "help.analyze.title": "Analysieren",
+    "help.analyze.body": "Aktualisiert Empfehlung, Signale und Charts.",
+    "help.tools.title": "Werkzeuge",
+    "help.tools.body": "Watchlist und Alarme verwalten.",
+    "help.account.title": "Konto",
+    "help.account.body": "Einstellungen, Sprache, Upgrade und Abmelden.",
+    "help.priceChart.title": "Preis-Chart",
+    "help.priceChart.body": "Zeigt die letzten 60 Sitzungen mit Indikatoren. Periode/Intervall ändern.",
+    "help.nav.home.title": "Startseite",
+    "help.nav.home.body": "Marktüberblick und Live-Snapshots.",
+    "help.nav.analysis.title": "Analyse",
+    "help.nav.analysis.body": "Signale, Bewertung und Risiko.",
+    "help.nav.charts.title": "Charts",
+    "help.nav.charts.body": "Erweiterte Charts und Indikatoren.",
+    "help.nav.heatmap.title": "Heatmap",
+    "help.nav.heatmap.body": "Sektor- und Marktkarte (Pro).",
+    "help.nav.comparison.title": "Vergleich",
+    "help.nav.comparison.body": "Mehrere Ticker vergleichen (Pro).",
+    "help.tickerStrip.title": "Ticker-Leiste",
+    "help.tickerStrip.body": "Scrollender Marktüberblick. Klicke einen Ticker zum Analysieren.",
+    "help.region.title": "Regionen",
+    "help.region.body": "Region wechseln, um News und Charts zu aktualisieren.",
+    "help.marketNews.title": "Marktnachrichten",
+    "help.marketNews.body": "Aktuelle Schlagzeilen der ausgewählten Region.",
+    "help.indexes.title": "Indizes",
+    "help.indexes.body": "Intraday-Charts der wichtigsten Indizes.",
+    "help.movers.title": "Marktbewegungen",
+    "help.movers.body": "Top-Gewinner, -Verlierer und Trends.",
+    "help.marketBrief.title": "Marktüberblick",
+    "help.marketBrief.body": "Cross-Asset-Zusammenfassung und Risikosignale.",
+    "help.changelog.title": "Änderungsprotokoll",
+    "help.changelog.body": "Neues in der aktuellen Version.",
+    "help.accountSync.title": "Kontosynchronisierung",
+    "help.accountSync.body": "Anmelden, um Einstellungen und Watchlists zu synchronisieren.",
+    "help.profile.title": "Profil",
+    "help.profile.body": "Anzeigenamen aktualisieren und Anmeldung verwalten.",
+    "help.accountWatchlist.title": "Watchlist",
+    "help.accountWatchlist.body": "Gespeicherte Ticker verwalten.",
+    "help.accountAlerts.title": "Alarme",
+    "help.accountAlerts.body": "Preisalarme setzen und überwachen.",
+    "help.accountRecent.title": "Letzte Analysen",
+    "help.accountRecent.body": "Schneller Zugriff auf letzte Analysen.",
+    "help.accountPreferences.title": "Einstellungen",
+    "help.accountPreferences.body": "Standardperiode, Intervall und Region.",
+    "help.chartsControls.title": "Chart-Steuerung",
+    "help.chartsControls.body": "Indikatoren umschalten und Stil wechseln.",
+    "analysis.stockTab": "Aktie",
+    "analysis.financialsTab": "Finanzen",
+    "analysis.enterTicker": "Gib einen Ticker ein, um zu starten",
+    "analysis.typeSymbol": "Symbol oben eingeben und Analysieren klicken",
+    "analysis.verdict": "Urteil",
+    "analysis.confidence": "Konfidenz",
+    "analysis.score": "Score",
+    "analysis.priceTargets": "Preisziele",
+    "analysis.target": "Ziel",
+    "analysis.stopLoss": "Stop-Loss",
+    "analysis.riskReward": "Risiko / Rendite",
+    "analysis.technicalSignals": "Technische Signale",
+    "analysis.riskProfile": "Risikoprofil",
+    "analysis.riskLevel": "Risikostufe",
+    "analysis.volatility": "Volatilität",
+    "analysis.maxDrawdown": "Max. Drawdown",
+    "analysis.sharpe": "Sharpe",
+    "analysis.sortino": "Sortino",
+    "analysis.var95": "VaR 95%",
+    "analysis.statSignals": "Statistische Signale",
+    "analysis.zscore": "Z-Score",
+    "analysis.zscoreDesc": "Preisabweichung vom 20-Perioden-Mittel",
+    "analysis.momentum": "Momentum",
+    "analysis.momentumDesc": "Ø Rendite über 5, 10, 20, 50 Tage",
+    "analysis.volume": "Volumen",
+    "analysis.volumeDesc": "Aktuelles Volumen vs. 20-Perioden-Durchschnitt",
+    "analysis.composite": "Komposit",
+    "analysis.compositeDesc": "Gewichtete Kombination aller Signale",
+    "analysis.buy": "Kaufen",
+    "analysis.sell": "Verkaufen",
+    "analysis.current": "Aktuell",
+    "analysis.avg": "Ø",
+    "analysis.confidenceLabel": "Konfidenz",
+    "analysis.direction": "Richtung",
+    "analysis.valuationAnchor": "Bewertungsanker",
+    "analysis.priceChartTitle": "Preis — letzte 60 Sitzungen",
+    "analysis.valuationToolkit": "Bewertungs-Toolkit",
+    "analysis.valuationDesc": "Schätzt den inneren Wert via DCF, Dividenden-Discount und Multiples. Annahmen anpassen.",
+    "analysis.fcfPerShare": "FCF / Aktie",
+    "analysis.eps": "EPS",
+    "analysis.dividendPerShare": "Dividende / Aktie",
+    "analysis.growth5y": "Wachstum (5J %)",
+    "analysis.discountWacc": "Diskont / WACC %",
+    "analysis.terminalGrowth": "Terminales Wachstum %",
+    "analysis.targetPE": "Ziel-KGV",
+    "analysis.projectionYears": "Prognosejahre",
+    "analysis.dcf": "DCF",
+    "analysis.dividendDiscount": "Dividenden-Discount",
+    "analysis.multiples": "Multiples",
+    "analysis.anchor": "Anker",
+    "analysis.upside": "Potenzial",
+    "analysis.usedAsContext": "Als langfristiger Kontext neben technischen Signalen genutzt.",
+    "analysis.neutral": "NEUTRAL",
+    "charts.runAnalysisFirst": "Zuerst eine Analyse ausführen",
+    "charts.movingAvg": "Gleitende Mittelwerte",
+    "charts.bollinger": "Bollinger",
+    "charts.volume": "Volumen",
+    "charts.rsi": "RSI",
+    "charts.macd": "MACD",
+    "charts.stochastic": "Stochastik",
+    "charts.chart": "Chart",
+    "charts.period": "Periode",
+    "charts.fullPeriod": "{ticker} — Gesamtzeitraum",
+    "charts.volumeTitle": "Volumen",
+    "charts.rsiTitle": "RSI (14)",
+    "charts.macdTitle": "MACD",
+    "charts.stochTitle": "Stochastik",
+    "charts.windowHint": "Horizontal scrollt, vertikal passt das Fenster an. Ziehen zum Verschieben. Fenster: {count} / {total}",
+    "account.syncLocal": "Nur lokal",
+    "account.syncing": "Synchronisiere…",
+    "account.syncError": "Sync-Fehler",
+    "account.synced": "Synchronisiert",
+    "account.syncedAgo": "Synchronisiert {ago}",
+    "account.syncTitle": "Kontosynchronisierung",
+    "account.signedInAs": "Angemeldet als {email}",
+    "account.user": "Benutzer",
+    "account.signInToSync": "Melden Sie sich an, um Daten zu synchronisieren.",
+    "account.profile": "Profil",
+    "account.firstName": "Vorname",
+    "account.saved": "Gespeichert",
+    "account.enterFirstName": "Vorname eingeben.",
+    "account.signInToSave": "Zum Speichern anmelden.",
+    "account.overview": "Übersicht",
+    "account.preferences": "Einstellungen",
+    "account.recentAnalyses": "Letzte Analysen",
+    "account.noAnalyses": "Noch keine Analysen",
+    "account.signal": "Signal",
+    "account.regime": "Regime",
+    "account.risk": "Risiko",
+    "account.conf": "Konf.",
+    "account.view": "Ansehen",
+    "account.defaultPeriod": "Standardzeitraum",
+    "account.defaultInterval": "Standardintervall",
+    "account.homeRegion": "Startregion",
     "pro.heatmap.title": "Heatmap ist Pro",
     "pro.heatmap.desc": "Schalte die S&P-Heatmap mit live Sharpe, Volatilität und relativer Performance frei.",
     "pro.heatmap.f0": "Parallele Datenabrufe",
@@ -144,6 +1013,145 @@ const TRANSLATIONS = {
     "pro.comparison.f0": "Signal-Scores nebeneinander",
     "pro.comparison.f1": "Sharpe- und Drawdown-Rankings",
     "pro.comparison.f2": "Exportfertige Tabellenansicht",
+    "common.live": "LIVE",
+    "common.price": "Preis",
+    "time.justNow": "gerade eben",
+    "time.hoursAgo": "vor {count} Std.",
+    "time.daysAgo": "vor {count} Tagen",
+    "analysis.valuationAnalysis": "Bewertungsanalyse",
+    "analysis.stretchIndex": "Stretch-Index",
+    "analysis.undervalued": "Unterbewertet",
+    "analysis.overvalued": "Überbewertet",
+    "analysis.vsSma200": "vs SMA 200",
+    "analysis.vsSma50": "vs SMA 50",
+    "analysis.bollingerPercentB": "Bollinger %B",
+    "analysis.range52w": "52W-Spanne",
+    "analysis.fromLow": "über dem Tief",
+    "analysis.fairValueEst": "Fair-Value-Schätzung",
+    "analysis.marketRegime": "Marktregime",
+    "analysis.strength": "Stärke",
+    "analysis.hurst": "Hurst",
+    "analysis.avoid": "Meiden",
+    "analysis.analystTargets": "Analystenziele",
+    "analysis.past12Months": "Letzte 12 Monate",
+    "analysis.target12Month": "12‑Monats‑Kursziel",
+    "analysis.companyMetrics": "Unternehmenskennzahlen",
+    "analysis.earningsPerShare": "Gewinn je Aktie",
+    "analysis.epsUnavailable": "EPS-Serie nicht verfügbar.",
+    "analysis.revenue": "Umsatz",
+    "analysis.netProfitMargin": "Nettomarge",
+    "analysis.currentRatio": "Liquiditätsgrad",
+    "analysis.debtToEquity": "Verschuldung / Eigenkapital",
+    "analysis.returnOnEquityTtm": "Eigenkapitalrendite (TTM)",
+    "analysis.financialsProTitle": "Finanzen sind Pro",
+    "analysis.financialsProDesc": "Schalte Unternehmensfinanzen, Bewertungs-Tools und Mehrperioden-Analysen frei.",
+    "analysis.financialsProF0": "GuV · Cashflow · Bilanz",
+    "analysis.financialsProF1": "DCF-, DDM- und Multiples-Modelle",
+    "analysis.financialsProF2": "Historische Margen- und Wachstumstrends",
+    "analysis.fundamentalSnapshot": "Fundamentaler Überblick",
+    "analysis.marketCap": "Marktkapitalisierung",
+    "analysis.netIncome": "Nettogewinn",
+    "analysis.freeCashFlow": "Free Cash Flow",
+    "analysis.revenueGrowth": "Umsatzwachstum",
+    "analysis.grossMargin": "Bruttomarge",
+    "analysis.operatingMargin": "Operative Marge",
+    "analysis.netMargin": "Nettomarge",
+    "analysis.balanceSheet": "Bilanz",
+    "analysis.cash": "Cash",
+    "analysis.debt": "Schulden",
+    "analysis.perShare": "Pro Aktie",
+    "analysis.keyRatios": "Kennzahlen",
+    "analysis.roe": "ROE",
+    "analysis.roa": "ROA",
+    "analysis.pe": "KGV",
+    "analysis.pfcf": "P/FCF",
+    "analysis.financialsOverview": "Finanzübersicht",
+    "analysis.revenueFcfMargin": "Umsatz + FCF-Marge",
+    "analysis.fcfMargin": "FCF-Marge",
+    "analysis.marginTrends": "Margentrends",
+    "analysis.grossMarginShort": "Brutto",
+    "analysis.operatingMarginShort": "Operativ",
+    "analysis.netMarginShort": "Netto",
+    "analysis.marginRadar": "Margen-Radar",
+    "analysis.cashVsDebt": "Cash vs Schulden",
+    "analysis.netCash": "Netto-Cash",
+    "analysis.netIncomeByPeriod": "Nettogewinn je Periode",
+    "analysis.fundamentalDataAggregator": "Fundamentaldaten-Aggregator",
+    "analysis.fundamentalDataDesc": "Sammelt Umsatz, Gewinne, Margen, Schulden und Cashflow nach Ticker und Fiskalperiode. Für APIs/SEC gedacht — hier modellierte Daten.",
+    "analysis.fiscalPeriod": "Fiskalperiode",
+    "analysis.source": "Quelle",
+    "analysis.period": "Periode",
+    "analysis.fcf": "FCF",
+    "analysis.bbUpper": "BB Ober",
+    "analysis.bbLower": "BB Unter",
+    "analysis.sma20": "SMA 20",
+    "analysis.sma50": "SMA 50",
+    "analysis.close": "Schluss",
+    "heatmap.marketHeatmaps": "Markt-Heatmaps",
+    "heatmap.subtitle": "Treemap je Index, Größe nach Marktkapitalisierung, Farbe nach 6‑Monats‑Sharpe. Aktien nach Sektor sortiert.",
+    "heatmap.panelMeta": "{count} Aktien · Größe: Marktkapitalisierung · Farbe: Sharpe (6 Monate)",
+    "heatmap.load": "Heatmap laden",
+    "heatmap.fetches": "Lädt {count} Aktien von Yahoo Finance",
+    "heatmap.fetching": "Lade {count} Aktien…",
+    "heatmap.refresh": "Aktualisieren",
+    "heatmap.sector": "Sektor",
+    "heatmap.sharpe": "Sharpe",
+    "heatmap.sixMonths": "6 Monate",
+    "comparison.placeholder": "AAPL, MSFT, GOOGL...",
+    "comparison.running": "Läuft…",
+    "comparison.compare": "Vergleichen",
+    "comparison.normalizedPerformance": "Normalisierte Performance (6 Monate)",
+    "comparison.ticker": "Ticker",
+    "comparison.price": "Preis",
+    "comparison.signal": "Signal",
+    "comparison.conf": "Konf.",
+    "comparison.sharpe": "Sharpe",
+    "comparison.vol": "Vol.",
+    "comparison.maxDD": "Max DD",
+    "comparison.momentum": "Mom.",
+    "comparison.stretch": "Stretch",
+    "comparison.sharpeComparison": "Sharpe-Vergleich",
+    "comparison.volatilityComparison": "Volatilitätsvergleich",
+    "comparison.volatility": "Volatilität",
+    "comparison.failed": "fehlgeschlagen",
+    "help.valuationAnalysis.title": "Bewertungsanalyse",
+    "help.valuationAnalysis.body": "Misst Stretch, SMA-Abweichungen und Fair-Value-Signale.",
+    "help.marketRegime.title": "Marktregime",
+    "help.marketRegime.body": "Zusammenfassung von Trend, Volatilität und Taktik.",
+    "help.analystTargets.title": "Analystenziele",
+    "help.analystTargets.body": "Konsensziele und Änderungen der letzten 12 Monate.",
+    "help.companyMetrics.title": "Unternehmenskennzahlen",
+    "help.companyMetrics.body": "Wichtige operative und Bilanzkennzahlen im Zeitverlauf.",
+    "help.fundamentalSnapshot.title": "Fundamentaler Überblick",
+    "help.fundamentalSnapshot.body": "Top-Line-Fundamentaldaten für die gewählte Periode.",
+    "help.balanceSheet.title": "Bilanz",
+    "help.balanceSheet.body": "Liquidität und Verschuldung.",
+    "help.perShare.title": "Pro Aktie",
+    "help.perShare.body": "EPS, Cashflow und Dividenden je Aktie.",
+    "help.keyRatios.title": "Kennzahlen",
+    "help.keyRatios.body": "Profitabilität und Bewertung.",
+    "help.financialsOverview.title": "Finanzübersicht",
+    "help.financialsOverview.body": "Visuelle Übersicht zu Margen, Cash vs Schulden und Gewinnen.",
+    "help.fundamentalData.title": "Fundamentaldaten",
+    "help.fundamentalData.body": "Modellierte Fundamentaldaten nach Fiskalperiode.",
+    "help.comparisonInput.title": "Vergleichseingabe",
+    "help.comparisonInput.body": "Tickers durch Kommas getrennt eingeben.",
+    "help.comparisonPerformance.title": "Performance-Overlay",
+    "help.comparisonPerformance.body": "Normalisierte Renditen über 6 Monate.",
+    "help.comparisonTable.title": "Vergleichstabelle",
+    "help.comparisonTable.body": "Sortierbare Tabelle mit Signalen, Risiko und Bewertung.",
+    "help.heatmapOverview.title": "Markt-Heatmaps",
+    "help.heatmapOverview.body": "Treemap nach Sektor, Farbe nach Sharpe.",
+    "help.valuationToolkit.title": "Bewertungs-Toolkit",
+    "help.valuationToolkit.body": "DCF/DDM-Annahmen anpassen und Anker vergleichen.",
+    "help.priceTargets.title": "Kursziele",
+    "help.priceTargets.body": "Bull/Base/Stop-Level und Risiko/Rendite.",
+    "help.technicalSignals.title": "Technische Signale",
+    "help.technicalSignals.body": "Momentum-, Trend- und indikatorbasierte Signale.",
+    "help.riskProfile.title": "Risikoprofil",
+    "help.riskProfile.body": "Volatilität, Drawdown und Risikokennzahlen.",
+    "help.statSignals.title": "Statistische Signale",
+    "help.statSignals.body": "Z-Score, Momentum und Kombi-Statistiken.",
     "footer.disclaimer": "Nur zu Bildungszwecken — keine Finanzberatung",
   },
   "hi-IN": {
@@ -158,16 +1166,213 @@ const TRANSLATIONS = {
     "nav.comparison": "तुलना",
     "nav.account": "अकाउंट",
     "nav.help": "सहायता",
+    "nav.tools": "टूल्स",
+    "common.line": "लाइन",
+    "common.candles": "कैंडल्स",
+    "common.expand": "विस्तार",
+    "common.close": "बंद करें",
+    "common.save": "सेव करें",
+    "common.signIn": "साइन इन",
+    "common.signOut": "साइन आउट",
+    "common.zoomIn": "ज़ूम इन",
+    "common.zoomOut": "ज़ूम आउट",
+    "common.reset": "रीसेट",
     "menu.settings": "सेटिंग्स",
     "menu.language": "भाषा",
     "menu.upgrade": "प्रो में अपग्रेड करें",
     "menu.gift": "AnalyzeAlpha उपहार दें",
     "menu.logout": "लॉग आउट",
     "menu.signedOut": "साइन इन नहीं है",
+    "tools.watchlist": "वॉचलिस्ट",
+    "tools.alerts": "अलर्ट्स",
+    "tools.ticker": "टिकर",
+    "tools.add": "जोड़ें",
+    "tools.emptyWatchlist": "वॉचलिस्ट खाली है",
+    "tools.noAlerts": "कोई अलर्ट नहीं",
+    "tools.above": "ऊपर",
+    "tools.below": "नीचे",
+    "tools.set": "सेट",
+    "tools.triggered": "ट्रिगर",
+    "tools.watching": "नज़र में",
+    "auth.missingConfig": "Supabase कॉन्फ़िग गायब है। `VITE_SUPABASE_URL` और पब्लिशेबल की जोड़ें, फिर dev सर्वर रीस्टार्ट करें।",
+    "auth.continueGoogle": "Google के साथ जारी रखें",
+    "auth.or": "या",
+    "auth.firstName": "पहला नाम",
+    "auth.email": "ईमेल",
+    "auth.password": "पासवर्ड",
+    "auth.signIn": "साइन इन",
+    "auth.createAccount": "खाता बनाएँ",
+    "auth.checkEmail": "खाता पुष्टि के लिए अपना ईमेल देखें।",
+    "auth.errFirstName": "पहला नाम आवश्यक है।",
+    "auth.errEmailPassword": "ईमेल और पासवर्ड आवश्यक हैं।",
+    "time.secondsAgo": "{count} सेकंड पहले",
+    "time.minutesAgo": "{count} मिनट पहले",
+    "day.morning": "सुबह",
+    "day.afternoon": "दोपहर",
+    "day.evening": "शाम",
+    "day.night": "रात",
+    "greeting.goodDaypart": "शुभ {dayPart}",
+    "greeting.hey": "हाय",
+    "greeting.welcomeBack": "वापसी पर स्वागत है",
+    "greeting.niceToSeeYou": "आपसे मिलकर अच्छा लगा",
+    "greeting.hello": "नमस्ते",
+    "greeting.marketBrief": "मार्केट ब्रीफ़",
+    "greeting.quickPulse": "तेज़ पल्स",
+    "greeting.snapshot": "स्नैपशॉट",
+    "greeting.todaysGlance": "आज का नज़र",
+    "home.updated": "{ago} अपडेट",
+    "home.marketNews": "मार्केट न्यूज़",
+    "home.indexes": "इंडेक्स",
+    "home.topGainers": "टॉप गेनर्स",
+    "home.topLosers": "टॉप लूज़र्स",
+    "home.trendingStocks": "ट्रेंडिंग स्टॉक्स",
+    "home.marketBriefSection": "मार्केट ब्रीफ़",
     "chart.openCharts": "चार्ट्स में खोलें",
     "help.title": "सहायता मोड",
     "help.body": "हाइलाइट किए गए तत्वों पर होवर करें ताकि उनका मतलब समझें। बाहर निकलने के लिए सहायता पर फिर क्लिक करें।",
     "help.exit": "सहायता बंद करें",
+    "help.search.title": "सर्च",
+    "help.search.body": "टिकर या कंपनी नाम लिखें। Enter दबाएँ या Analyze पर क्लिक करें।",
+    "help.analyze.title": "विश्लेषण",
+    "help.analyze.body": "डेटा अपडेट करके सिग्नल और चार्ट रीफ्रेश करता है।",
+    "help.tools.title": "टूल्स",
+    "help.tools.body": "वॉचलिस्ट और अलर्ट्स मैनेज करें।",
+    "help.account.title": "अकाउंट",
+    "help.account.body": "सेटिंग्स, भाषा, अपग्रेड और लॉग आउट।",
+    "help.priceChart.title": "प्राइस चार्ट",
+    "help.priceChart.body": "पिछले 60 सेशन और इंडिकेटर्स दिखाता है। पीरियड/इंटरवल बदलें।",
+    "help.nav.home.title": "होम",
+    "help.nav.home.body": "मार्केट ओवरव्यू और लाइव स्नैपशॉट।",
+    "help.nav.analysis.title": "विश्लेषण",
+    "help.nav.analysis.body": "सिग्नल, वैल्यूएशन और रिस्क।",
+    "help.nav.charts.title": "चार्ट",
+    "help.nav.charts.body": "एडवांस्ड चार्ट और इंडिकेटर्स।",
+    "help.nav.heatmap.title": "हीटमैप",
+    "help.nav.heatmap.body": "सेक्टर/मार्केट मैप (Pro)।",
+    "help.nav.comparison.title": "तुलना",
+    "help.nav.comparison.body": "कई टिकर्स की तुलना (Pro)।",
+    "help.tickerStrip.title": "लाइव टिकर स्ट्रिप",
+    "help.tickerStrip.body": "मार्केट का स्क्रॉलिंग स्नैपशॉट। टिकर पर क्लिक करें।",
+    "help.region.title": "रीजन फ़िल्टर",
+    "help.region.body": "रीजन बदलकर न्यूज़ और चार्ट अपडेट करें।",
+    "help.marketNews.title": "मार्केट न्यूज़",
+    "help.marketNews.body": "चुने हुए रीजन की ताज़ा हेडलाइन्स।",
+    "help.indexes.title": "इंडेक्स",
+    "help.indexes.body": "मुख्य इंडेक्स के इंट्राडे चार्ट।",
+    "help.movers.title": "मार्केट मूवर्स",
+    "help.movers.body": "टॉप गेनर्स, लूज़र्स और ट्रेंडिंग।",
+    "help.marketBrief.title": "मार्केट ब्रीफ़",
+    "help.marketBrief.body": "क्रॉस-एसेट सारांश और रिस्क सिग्नल्स।",
+    "help.changelog.title": "चेंजलॉग",
+    "help.changelog.body": "नवीनतम रिलीज़ में क्या नया है।",
+    "help.accountSync.title": "अकाउंट सिंक",
+    "help.accountSync.body": "प्रेफरेंसेज़ और वॉचलिस्ट सिंक करने के लिए साइन इन करें।",
+    "help.profile.title": "प्रोफाइल",
+    "help.profile.body": "नाम अपडेट करें और साइन-इन मैनेज करें।",
+    "help.accountWatchlist.title": "वॉचलिस्ट",
+    "help.accountWatchlist.body": "सेव किए गए टिकर्स मैनेज करें।",
+    "help.accountAlerts.title": "अलर्ट्स",
+    "help.accountAlerts.body": "प्राइस अलर्ट सेट करें और मॉनिटर करें।",
+    "help.accountRecent.title": "हाल की विश्लेषण",
+    "help.accountRecent.body": "हाल के रन तक जल्दी पहुँच।",
+    "help.accountPreferences.title": "प्रेफरेंसेज़",
+    "help.accountPreferences.body": "डिफ़ॉल्ट पीरियड, इंटरवल और रीजन।",
+    "help.chartsControls.title": "चार्ट कंट्रोल",
+    "help.chartsControls.body": "इंडिकेटर्स टॉगल करें और स्टाइल बदलें।",
+    "analysis.stockTab": "स्टॉक",
+    "analysis.financialsTab": "फाइनेंशियल्स",
+    "analysis.enterTicker": "शुरू करने के लिए टिकर दर्ज करें",
+    "analysis.typeSymbol": "ऊपर प्रतीक लिखें और विश्लेषण करें",
+    "analysis.verdict": "निर्णय",
+    "analysis.confidence": "विश्वास",
+    "analysis.score": "स्कोर",
+    "analysis.priceTargets": "प्राइस टार्गेट्स",
+    "analysis.target": "टार्गेट",
+    "analysis.stopLoss": "स्टॉप लॉस",
+    "analysis.riskReward": "रिस्क / रिवॉर्ड",
+    "analysis.technicalSignals": "टेक्निकल सिग्नल्स",
+    "analysis.riskProfile": "रिस्क प्रोफाइल",
+    "analysis.riskLevel": "रिस्क लेवल",
+    "analysis.volatility": "वोलैटिलिटी",
+    "analysis.maxDrawdown": "मैक्स ड्रॉडाउन",
+    "analysis.sharpe": "शार्प",
+    "analysis.sortino": "सॉर्टिनो",
+    "analysis.var95": "VaR 95%",
+    "analysis.statSignals": "स्टैटिस्टिकल सिग्नल्स",
+    "analysis.zscore": "Z-स्कोर",
+    "analysis.zscoreDesc": "20-पीरियड औसत से कीमत का विचलन",
+    "analysis.momentum": "मोमेंटम",
+    "analysis.momentumDesc": "5, 10, 20, 50 दिन औसत रिटर्न",
+    "analysis.volume": "वॉल्यूम",
+    "analysis.volumeDesc": "वर्तमान वॉल्यूम बनाम 20-पीरियड औसत",
+    "analysis.composite": "कम्पोज़िट",
+    "analysis.compositeDesc": "सभी सिग्नल्स का भारित संयोजन",
+    "analysis.buy": "खरीदें",
+    "analysis.sell": "बेचें",
+    "analysis.current": "वर्तमान",
+    "analysis.avg": "औसत",
+    "analysis.confidenceLabel": "विश्वास",
+    "analysis.direction": "दिशा",
+    "analysis.valuationAnchor": "वैल्यूएशन एंकर",
+    "analysis.priceChartTitle": "प्राइस — पिछले 60 सेशन",
+    "analysis.valuationToolkit": "वैल्यूएशन टूलकिट",
+    "analysis.valuationDesc": "DCF, डिविडेंड डिस्काउंट और मल्टिपल्स से आंतरिक मूल्य का अनुमान।",
+    "analysis.fcfPerShare": "FCF / शेयर",
+    "analysis.eps": "EPS",
+    "analysis.dividendPerShare": "डिविडेंड / शेयर",
+    "analysis.growth5y": "ग्रोथ (5y %)",
+    "analysis.discountWacc": "डिस्काउंट / WACC %",
+    "analysis.terminalGrowth": "टर्मिनल ग्रोथ %",
+    "analysis.targetPE": "टार्गेट P/E",
+    "analysis.projectionYears": "प्रोजेक्शन वर्षों",
+    "analysis.dcf": "DCF",
+    "analysis.dividendDiscount": "डिविडेंड डिस्काउंट",
+    "analysis.multiples": "मल्टिपल्स",
+    "analysis.anchor": "एंकर",
+    "analysis.upside": "अपसाइड",
+    "analysis.usedAsContext": "टेक्निकल सिग्नल्स के साथ लंबे समय का संदर्भ।",
+    "analysis.neutral": "न्यूट्रल",
+    "charts.runAnalysisFirst": "पहले एक विश्लेषण चलाएँ",
+    "charts.movingAvg": "मूविंग एवरेज",
+    "charts.bollinger": "बोलिंजर",
+    "charts.volume": "वॉल्यूम",
+    "charts.rsi": "RSI",
+    "charts.macd": "MACD",
+    "charts.stochastic": "स्टोचैस्टिक",
+    "charts.chart": "चार्ट",
+    "charts.period": "पीरियड",
+    "charts.fullPeriod": "{ticker} — फुल पीरियड",
+    "charts.volumeTitle": "वॉल्यूम",
+    "charts.rsiTitle": "RSI (14)",
+    "charts.macdTitle": "MACD",
+    "charts.stochTitle": "स्टोचैस्टिक",
+    "charts.windowHint": "हॉरिज़ॉन्टल स्क्रॉल से पैन, वर्टिकल से विंडो बदलें। खींचकर मूव करें। विंडो: {count} / {total}",
+    "account.syncLocal": "सिर्फ लोकल",
+    "account.syncing": "सिंक हो रहा है…",
+    "account.syncError": "सिंक त्रुटि",
+    "account.synced": "सिंक्ड",
+    "account.syncedAgo": "{ago} सिंक्ड",
+    "account.syncTitle": "अकाउंट सिंक",
+    "account.signedInAs": "{email} के रूप में साइन इन",
+    "account.user": "यूज़र",
+    "account.signInToSync": "डिवाइसों में सिंक के लिए साइन इन करें।",
+    "account.profile": "प्रोफाइल",
+    "account.firstName": "पहला नाम",
+    "account.saved": "सेव हो गया",
+    "account.enterFirstName": "पहला नाम दर्ज करें।",
+    "account.signInToSave": "सेव करने के लिए साइन इन करें।",
+    "account.overview": "ओवरव्यू",
+    "account.preferences": "प्रेफरेंसेज़",
+    "account.recentAnalyses": "हाल की विश्लेषण",
+    "account.noAnalyses": "कोई विश्लेषण नहीं",
+    "account.signal": "सिग्नल",
+    "account.regime": "रेजिम",
+    "account.risk": "रिस्क",
+    "account.conf": "कॉन्फ",
+    "account.view": "देखें",
+    "account.defaultPeriod": "डिफ़ॉल्ट पीरियड",
+    "account.defaultInterval": "डिफ़ॉल्ट इंटरवल",
+    "account.homeRegion": "होम रीजन",
     "pro.heatmap.title": "हीटमैप प्रो है",
     "pro.heatmap.desc": "लाइव शार्प, वोलैटिलिटी और रिलेटिव परफॉर्मेंस के साथ S&P हीटमैप अनलॉक करें।",
     "pro.heatmap.f0": "समानांतर डेटा फेच",
@@ -178,6 +1383,145 @@ const TRANSLATIONS = {
     "pro.comparison.f0": "साइड-बाय-साइड सिग्नल स्कोर",
     "pro.comparison.f1": "शार्प और ड्रॉडाउन रैंकिंग",
     "pro.comparison.f2": "एक्सपोर्ट-रेडी टेबल व्यू",
+    "common.live": "लाइव",
+    "common.price": "कीमत",
+    "time.justNow": "अभी",
+    "time.hoursAgo": "{count} घंटे पहले",
+    "time.daysAgo": "{count} दिन पहले",
+    "analysis.valuationAnalysis": "वैल्यूएशन विश्लेषण",
+    "analysis.stretchIndex": "स्ट्रेच इंडेक्स",
+    "analysis.undervalued": "अंडरवैल्यूड",
+    "analysis.overvalued": "ओवरवैल्यूड",
+    "analysis.vsSma200": "SMA 200 के मुकाबले",
+    "analysis.vsSma50": "SMA 50 के मुकाबले",
+    "analysis.bollingerPercentB": "बोलिंजर %B",
+    "analysis.range52w": "52-सप्ताह रेंज",
+    "analysis.fromLow": "निचले स्तर से",
+    "analysis.fairValueEst": "फेयर वैल्यू अनुमान",
+    "analysis.marketRegime": "मार्केट रेजीम",
+    "analysis.strength": "ताकत",
+    "analysis.hurst": "हर्स्ट",
+    "analysis.avoid": "बचें",
+    "analysis.analystTargets": "विश्लेषक लक्ष्य",
+    "analysis.past12Months": "पिछले 12 महीने",
+    "analysis.target12Month": "12-महीने का लक्ष्य",
+    "analysis.companyMetrics": "कंपनी मीट्रिक्स",
+    "analysis.earningsPerShare": "प्रति शेयर आय",
+    "analysis.epsUnavailable": "EPS श्रृंखला उपलब्ध नहीं.",
+    "analysis.revenue": "राजस्व",
+    "analysis.netProfitMargin": "शुद्ध लाभ मार्जिन",
+    "analysis.currentRatio": "करंट रेशियो",
+    "analysis.debtToEquity": "डेट/इक्विटी",
+    "analysis.returnOnEquityTtm": "इक्विटी रिटर्न (TTM)",
+    "analysis.financialsProTitle": "फाइनेंशियल्स Pro हैं",
+    "analysis.financialsProDesc": "कंपनी वित्तीय डेटा, वैल्यूएशन टूल और मल्टी-पीरियड विश्लेषण अनलॉक करें।",
+    "analysis.financialsProF0": "आय विवरण · कैश फ्लो · बैलेंस शीट",
+    "analysis.financialsProF1": "DCF, DDM और मल्टिपल मॉडलिंग",
+    "analysis.financialsProF2": "ऐतिहासिक मार्जिन और ग्रोथ ट्रेंड",
+    "analysis.fundamentalSnapshot": "फंडामेंटल स्नैपशॉट",
+    "analysis.marketCap": "मार्केट कैप",
+    "analysis.netIncome": "शुद्ध आय",
+    "analysis.freeCashFlow": "फ्री कैश फ्लो",
+    "analysis.revenueGrowth": "राजस्व वृद्धि",
+    "analysis.grossMargin": "ग्रॉस मार्जिन",
+    "analysis.operatingMargin": "ऑपरेटिंग मार्जिन",
+    "analysis.netMargin": "नेट मार्जिन",
+    "analysis.balanceSheet": "बैलेंस शीट",
+    "analysis.cash": "कैश",
+    "analysis.debt": "कर्ज",
+    "analysis.perShare": "प्रति शेयर",
+    "analysis.keyRatios": "मुख्य अनुपात",
+    "analysis.roe": "ROE",
+    "analysis.roa": "ROA",
+    "analysis.pe": "P/E",
+    "analysis.pfcf": "P/FCF",
+    "analysis.financialsOverview": "वित्तीय अवलोकन",
+    "analysis.revenueFcfMargin": "राजस्व + FCF मार्जिन",
+    "analysis.fcfMargin": "FCF मार्जिन",
+    "analysis.marginTrends": "मार्जिन ट्रेंड",
+    "analysis.grossMarginShort": "ग्रॉस",
+    "analysis.operatingMarginShort": "ऑपरेटिंग",
+    "analysis.netMarginShort": "नेट",
+    "analysis.marginRadar": "मार्जिन रडार",
+    "analysis.cashVsDebt": "कैश बनाम कर्ज",
+    "analysis.netCash": "नेट कैश",
+    "analysis.netIncomeByPeriod": "अवधि अनुसार शुद्ध आय",
+    "analysis.fundamentalDataAggregator": "फंडामेंटल डेटा एग्रीगेटर",
+    "analysis.fundamentalDataDesc": "टिकर और वित्तीय अवधि के अनुसार राजस्व, आय, मार्जिन, कर्ज और कैश फ्लो एकत्र करता है। यह संस्करण डेमो के लिए मॉडल्ड डेटा उपयोग करता है.",
+    "analysis.fiscalPeriod": "वित्तीय अवधि",
+    "analysis.source": "स्रोत",
+    "analysis.period": "अवधि",
+    "analysis.fcf": "FCF",
+    "analysis.bbUpper": "BB Upper",
+    "analysis.bbLower": "BB Lower",
+    "analysis.sma20": "SMA 20",
+    "analysis.sma50": "SMA 50",
+    "analysis.close": "क्लोज़",
+    "heatmap.marketHeatmaps": "मार्केट हीटमैप्स",
+    "heatmap.subtitle": "इंडेक्स के अनुसार ट्रीमैप, आकार मार्केट कैप से, रंग 6-महीने के Sharpe से। सेक्टर अनुसार क्रमबद्ध।",
+    "heatmap.panelMeta": "{count} स्टॉक्स · आकार: मार्केट कैप · रंग: Sharpe (6mo)",
+    "heatmap.load": "हीटमैप लोड करें",
+    "heatmap.fetches": "Yahoo Finance से {count} स्टॉक्स लाता है",
+    "heatmap.fetching": "{count} स्टॉक्स लोड हो रहे हैं…",
+    "heatmap.refresh": "रीफ्रेश",
+    "heatmap.sector": "सेक्टर",
+    "heatmap.sharpe": "Sharpe",
+    "heatmap.sixMonths": "6 माह",
+    "comparison.placeholder": "AAPL, MSFT, GOOGL...",
+    "comparison.running": "चल रहा है…",
+    "comparison.compare": "तुलना करें",
+    "comparison.normalizedPerformance": "नॉर्मलाइज़्ड परफॉर्मेंस (6 माह)",
+    "comparison.ticker": "टिकर",
+    "comparison.price": "कीमत",
+    "comparison.signal": "सिग्नल",
+    "comparison.conf": "कॉन्फ़.",
+    "comparison.sharpe": "Sharpe",
+    "comparison.vol": "वोल.",
+    "comparison.maxDD": "Max DD",
+    "comparison.momentum": "मोम.",
+    "comparison.stretch": "स्ट्रेच",
+    "comparison.sharpeComparison": "Sharpe तुलना",
+    "comparison.volatilityComparison": "वोलैटिलिटी तुलना",
+    "comparison.volatility": "वोलैटिलिटी",
+    "comparison.failed": "विफल",
+    "help.valuationAnalysis.title": "वैल्यूएशन विश्लेषण",
+    "help.valuationAnalysis.body": "स्ट्रेच, SMA विचलन और फेयर वैल्यू संकेत दिखाता है।",
+    "help.marketRegime.title": "मार्केट रेजीम",
+    "help.marketRegime.body": "ट्रेंड, वोलैटिलिटी और रणनीति का सार।",
+    "help.analystTargets.title": "विश्लेषक लक्ष्य",
+    "help.analystTargets.body": "कंसेंसस लक्ष्य और पिछले 12 महीनों के बदलाव।",
+    "help.companyMetrics.title": "कंपनी मीट्रिक्स",
+    "help.companyMetrics.body": "समय के साथ प्रमुख ऑपरेटिंग/बैलेंस शीट अनुपात।",
+    "help.fundamentalSnapshot.title": "फंडामेंटल स्नैपशॉट",
+    "help.fundamentalSnapshot.body": "चुनी गई अवधि के प्रमुख फंडामेंटल।",
+    "help.balanceSheet.title": "बैलेंस शीट",
+    "help.balanceSheet.body": "लिक्विडिटी और लेवरेज स्थिति।",
+    "help.perShare.title": "प्रति शेयर",
+    "help.perShare.body": "प्रति शेयर आय, कैश फ्लो और डिविडेंड।",
+    "help.keyRatios.title": "मुख्य अनुपात",
+    "help.keyRatios.body": "लाभप्रदता और वैल्यूएशन अनुपात।",
+    "help.financialsOverview.title": "वित्तीय अवलोकन",
+    "help.financialsOverview.body": "मार्जिन, कैश बनाम कर्ज और आय का सार।",
+    "help.fundamentalData.title": "फंडामेंटल डेटा",
+    "help.fundamentalData.body": "वित्तीय अवधि अनुसार मॉडल्ड फंडामेंटल।",
+    "help.comparisonInput.title": "तुलना इनपुट",
+    "help.comparisonInput.body": "कॉमा से अलग किए हुए टिकर दर्ज करें।",
+    "help.comparisonPerformance.title": "परफॉर्मेंस ओवरले",
+    "help.comparisonPerformance.body": "6 महीनों के नॉर्मलाइज़्ड रिटर्न।",
+    "help.comparisonTable.title": "तुलना तालिका",
+    "help.comparisonTable.body": "सिग्नल, जोखिम और वैल्यूएशन की sortable तालिका।",
+    "help.heatmapOverview.title": "मार्केट हीटमैप्स",
+    "help.heatmapOverview.body": "सेक्टर ट्रीमैप, Sharpe रंग के साथ।",
+    "help.valuationToolkit.title": "वैल्यूएशन टूलकिट",
+    "help.valuationToolkit.body": "DCF/DDM मान्यताएँ समायोजित करें और एंकर तुलना करें।",
+    "help.priceTargets.title": "प्राइस टार्गेट्स",
+    "help.priceTargets.body": "बुल/बेस/स्टॉप स्तर और रिस्क/रिवॉर्ड.",
+    "help.technicalSignals.title": "टेक्निकल सिग्नल्स",
+    "help.technicalSignals.body": "मोमेंटम, ट्रेंड और इंडिकेटर आधारित सिग्नल्स.",
+    "help.riskProfile.title": "रिस्क प्रोफाइल",
+    "help.riskProfile.body": "वोलैटिलिटी, ड्रॉडाउन और रिस्क मेट्रिक्स.",
+    "help.statSignals.title": "स्टैटिस्टिकल सिग्नल्स",
+    "help.statSignals.body": "Z-स्कोर, मोमेंटम और कम्पोज़िट आँकड़े.",
     "footer.disclaimer": "केवल शैक्षिक उद्देश्यों के लिए — यह वित्तीय सलाह नहीं है",
   },
   "id-ID": {
@@ -192,16 +1536,213 @@ const TRANSLATIONS = {
     "nav.comparison": "Perbandingan",
     "nav.account": "Akun",
     "nav.help": "Bantuan",
+    "nav.tools": "Alat",
+    "common.line": "Garis",
+    "common.candles": "Candlestick",
+    "common.expand": "Perbesar",
+    "common.close": "Tutup",
+    "common.save": "Simpan",
+    "common.signIn": "Masuk",
+    "common.signOut": "Keluar",
+    "common.zoomIn": "Zoom In",
+    "common.zoomOut": "Zoom Out",
+    "common.reset": "Setel Ulang",
     "menu.settings": "Pengaturan",
     "menu.language": "Bahasa",
     "menu.upgrade": "Upgrade ke Pro",
     "menu.gift": "Hadiahkan AnalyzeAlpha",
     "menu.logout": "Keluar",
     "menu.signedOut": "Belum masuk",
+    "tools.watchlist": "Daftar pantau",
+    "tools.alerts": "Peringatan",
+    "tools.ticker": "Ticker",
+    "tools.add": "Tambah",
+    "tools.emptyWatchlist": "Daftar pantau kosong",
+    "tools.noAlerts": "Tidak ada peringatan",
+    "tools.above": "Di atas",
+    "tools.below": "Di bawah",
+    "tools.set": "Setel",
+    "tools.triggered": "TERPICU",
+    "tools.watching": "MEMANTAU",
+    "auth.missingConfig": "Konfigurasi Supabase tidak ada. Tambahkan `VITE_SUPABASE_URL` dan publishable key, lalu restart server dev.",
+    "auth.continueGoogle": "Lanjutkan dengan Google",
+    "auth.or": "atau",
+    "auth.firstName": "Nama depan",
+    "auth.email": "Email",
+    "auth.password": "Kata sandi",
+    "auth.signIn": "Masuk",
+    "auth.createAccount": "Buat akun",
+    "auth.checkEmail": "Periksa email Anda untuk mengonfirmasi akun.",
+    "auth.errFirstName": "Nama depan wajib diisi.",
+    "auth.errEmailPassword": "Email dan kata sandi wajib diisi.",
+    "time.secondsAgo": "{count} dtk lalu",
+    "time.minutesAgo": "{count} mnt lalu",
+    "day.morning": "pagi",
+    "day.afternoon": "siang",
+    "day.evening": "sore",
+    "day.night": "malam",
+    "greeting.goodDaypart": "Selamat {dayPart}",
+    "greeting.hey": "Hai",
+    "greeting.welcomeBack": "Selamat datang kembali",
+    "greeting.niceToSeeYou": "Senang bertemu Anda",
+    "greeting.hello": "Halo",
+    "greeting.marketBrief": "Ringkasan pasar",
+    "greeting.quickPulse": "Pulsa cepat",
+    "greeting.snapshot": "Cuplikan",
+    "greeting.todaysGlance": "Sekilas hari ini",
+    "home.updated": "Diperbarui {ago}",
+    "home.marketNews": "Berita pasar",
+    "home.indexes": "Indeks",
+    "home.topGainers": "Top gainers",
+    "home.topLosers": "Top losers",
+    "home.trendingStocks": "Saham trending",
+    "home.marketBriefSection": "Ringkasan pasar",
     "chart.openCharts": "Buka di Grafik",
     "help.title": "Mode Bantuan",
     "help.body": "Arahkan kursor ke elemen yang disorot untuk melihat fungsinya. Klik Bantuan lagi untuk keluar.",
     "help.exit": "Keluar Bantuan",
+    "help.search.title": "Pencarian",
+    "help.search.body": "Ketik ticker atau nama perusahaan. Tekan Enter atau klik Analisis.",
+    "help.analyze.title": "Analisis",
+    "help.analyze.body": "Memperbarui rekomendasi, sinyal, dan grafik.",
+    "help.tools.title": "Alat",
+    "help.tools.body": "Kelola daftar pantau dan peringatan.",
+    "help.account.title": "Akun",
+    "help.account.body": "Pengaturan, bahasa, upgrade, dan keluar.",
+    "help.priceChart.title": "Grafik harga",
+    "help.priceChart.body": "Menampilkan 60 sesi terakhir dengan indikator.",
+    "help.nav.home.title": "Beranda",
+    "help.nav.home.body": "Ringkasan pasar dan snapshot langsung.",
+    "help.nav.analysis.title": "Analisis",
+    "help.nav.analysis.body": "Sinyal, valuasi, dan risiko.",
+    "help.nav.charts.title": "Grafik",
+    "help.nav.charts.body": "Grafik lanjutan dan indikator.",
+    "help.nav.heatmap.title": "Peta panas",
+    "help.nav.heatmap.body": "Peta sektor/pasar (Pro).",
+    "help.nav.comparison.title": "Perbandingan",
+    "help.nav.comparison.body": "Bandingkan beberapa ticker (Pro).",
+    "help.tickerStrip.title": "Ticker berjalan",
+    "help.tickerStrip.body": "Snapshot pasar yang bergulir. Klik untuk analisis.",
+    "help.region.title": "Filter region",
+    "help.region.body": "Ganti region untuk memperbarui berita dan grafik.",
+    "help.marketNews.title": "Berita pasar",
+    "help.marketNews.body": "Headline terbaru untuk region terpilih.",
+    "help.indexes.title": "Indeks",
+    "help.indexes.body": "Grafik intraday indeks utama.",
+    "help.movers.title": "Pergerakan pasar",
+    "help.movers.body": "Top gainers, losers, dan trending.",
+    "help.marketBrief.title": "Ringkasan pasar",
+    "help.marketBrief.body": "Ringkasan lintas aset dan sinyal risiko.",
+    "help.changelog.title": "Changelog",
+    "help.changelog.body": "Apa yang baru di rilis terbaru.",
+    "help.accountSync.title": "Sinkronisasi akun",
+    "help.accountSync.body": "Masuk untuk menyinkronkan preferensi dan daftar pantau.",
+    "help.profile.title": "Profil",
+    "help.profile.body": "Perbarui nama tampilan dan kelola masuk.",
+    "help.accountWatchlist.title": "Daftar pantau",
+    "help.accountWatchlist.body": "Kelola ticker yang disimpan.",
+    "help.accountAlerts.title": "Peringatan",
+    "help.accountAlerts.body": "Atur peringatan harga dan pantau.",
+    "help.accountRecent.title": "Analisis terbaru",
+    "help.accountRecent.body": "Akses cepat ke analisis terakhir.",
+    "help.accountPreferences.title": "Preferensi",
+    "help.accountPreferences.body": "Periode, interval, dan region default.",
+    "help.chartsControls.title": "Kontrol grafik",
+    "help.chartsControls.body": "Toggle indikator dan ganti gaya.",
+    "analysis.stockTab": "Saham",
+    "analysis.financialsTab": "Keuangan",
+    "analysis.enterTicker": "Masukkan ticker untuk memulai",
+    "analysis.typeSymbol": "Ketik simbol di atas dan klik Analisis",
+    "analysis.verdict": "Verdict",
+    "analysis.confidence": "Kepercayaan",
+    "analysis.score": "Skor",
+    "analysis.priceTargets": "Target harga",
+    "analysis.target": "Target",
+    "analysis.stopLoss": "Stop loss",
+    "analysis.riskReward": "Risiko / Imbal hasil",
+    "analysis.technicalSignals": "Sinyal teknikal",
+    "analysis.riskProfile": "Profil risiko",
+    "analysis.riskLevel": "Tingkat risiko",
+    "analysis.volatility": "Volatilitas",
+    "analysis.maxDrawdown": "Drawdown maks",
+    "analysis.sharpe": "Sharpe",
+    "analysis.sortino": "Sortino",
+    "analysis.var95": "VaR 95%",
+    "analysis.statSignals": "Sinyal statistik",
+    "analysis.zscore": "Z-Score",
+    "analysis.zscoreDesc": "Deviasi harga dari rata-rata 20 periode",
+    "analysis.momentum": "Momentum",
+    "analysis.momentumDesc": "Rata-rata return 5, 10, 20, 50 hari",
+    "analysis.volume": "Volume",
+    "analysis.volumeDesc": "Volume saat ini vs rata-rata 20 periode",
+    "analysis.composite": "Komposit",
+    "analysis.compositeDesc": "Kombinasi berbobot semua sinyal",
+    "analysis.buy": "Beli",
+    "analysis.sell": "Jual",
+    "analysis.current": "Saat ini",
+    "analysis.avg": "Rata-rata",
+    "analysis.confidenceLabel": "Kepercayaan",
+    "analysis.direction": "Arah",
+    "analysis.valuationAnchor": "Anchor valuasi",
+    "analysis.priceChartTitle": "Harga — 60 sesi terakhir",
+    "analysis.valuationToolkit": "Toolkit valuasi",
+    "analysis.valuationDesc": "Estimasi nilai intrinsik via DCF, diskon dividen, dan multiple.",
+    "analysis.fcfPerShare": "FCF / Saham",
+    "analysis.eps": "EPS",
+    "analysis.dividendPerShare": "Dividen / Saham",
+    "analysis.growth5y": "Pertumbuhan (5 thn %)",
+    "analysis.discountWacc": "Diskonto / WACC %",
+    "analysis.terminalGrowth": "Pertumbuhan terminal %",
+    "analysis.targetPE": "Target P/E",
+    "analysis.projectionYears": "Tahun proyeksi",
+    "analysis.dcf": "DCF",
+    "analysis.dividendDiscount": "Diskon dividen",
+    "analysis.multiples": "Multipel",
+    "analysis.anchor": "Anchor",
+    "analysis.upside": "Potensi naik",
+    "analysis.usedAsContext": "Sebagai konteks jangka panjang bersama sinyal teknikal.",
+    "analysis.neutral": "NETRAL",
+    "charts.runAnalysisFirst": "Jalankan analisis terlebih dahulu",
+    "charts.movingAvg": "Moving Avg",
+    "charts.bollinger": "Bollinger",
+    "charts.volume": "Volume",
+    "charts.rsi": "RSI",
+    "charts.macd": "MACD",
+    "charts.stochastic": "Stochastic",
+    "charts.chart": "Grafik",
+    "charts.period": "Periode",
+    "charts.fullPeriod": "{ticker} — Periode penuh",
+    "charts.volumeTitle": "Volume",
+    "charts.rsiTitle": "RSI (14)",
+    "charts.macdTitle": "MACD",
+    "charts.stochTitle": "Stochastic",
+    "charts.windowHint": "Scroll horizontal untuk geser, vertikal untuk ubah jendela. Seret untuk pindah. Jendela: {count} / {total}",
+    "account.syncLocal": "Lokal saja",
+    "account.syncing": "Menyinkronkan…",
+    "account.syncError": "Kesalahan sync",
+    "account.synced": "Tersinkron",
+    "account.syncedAgo": "Tersinkron {ago}",
+    "account.syncTitle": "Sinkronisasi akun",
+    "account.signedInAs": "Masuk sebagai {email}",
+    "account.user": "pengguna",
+    "account.signInToSync": "Masuk untuk menyinkronkan data akun.",
+    "account.profile": "Profil",
+    "account.firstName": "Nama depan",
+    "account.saved": "Tersimpan",
+    "account.enterFirstName": "Masukkan nama depan.",
+    "account.signInToSave": "Masuk untuk menyimpan.",
+    "account.overview": "Ringkasan",
+    "account.preferences": "Preferensi",
+    "account.recentAnalyses": "Analisis terbaru",
+    "account.noAnalyses": "Belum ada analisis",
+    "account.signal": "Sinyal",
+    "account.regime": "Rezim",
+    "account.risk": "Risiko",
+    "account.conf": "Konf",
+    "account.view": "Lihat",
+    "account.defaultPeriod": "Periode default",
+    "account.defaultInterval": "Interval default",
+    "account.homeRegion": "Region utama",
     "pro.heatmap.title": "Peta panas adalah Pro",
     "pro.heatmap.desc": "Buka peta panas S&P dengan Sharpe, volatilitas, dan kinerja relatif secara langsung.",
     "pro.heatmap.f0": "Pengambilan data paralel",
@@ -212,6 +1753,145 @@ const TRANSLATIONS = {
     "pro.comparison.f0": "Skor sinyal berdampingan",
     "pro.comparison.f1": "Peringkat Sharpe dan drawdown",
     "pro.comparison.f2": "Tampilan tabel siap ekspor",
+    "common.live": "LIVE",
+    "common.price": "Harga",
+    "time.justNow": "baru saja",
+    "time.hoursAgo": "{count} jam lalu",
+    "time.daysAgo": "{count} hari lalu",
+    "analysis.valuationAnalysis": "Analisis Valuasi",
+    "analysis.stretchIndex": "Indeks Stretch",
+    "analysis.undervalued": "Undervalued",
+    "analysis.overvalued": "Overvalued",
+    "analysis.vsSma200": "vs SMA 200",
+    "analysis.vsSma50": "vs SMA 50",
+    "analysis.bollingerPercentB": "Bollinger %B",
+    "analysis.range52w": "Rentang 52M",
+    "analysis.fromLow": "dari low",
+    "analysis.fairValueEst": "Estimasi Nilai Wajar",
+    "analysis.marketRegime": "Regime Pasar",
+    "analysis.strength": "Kekuatan",
+    "analysis.hurst": "Hurst",
+    "analysis.avoid": "Hindari",
+    "analysis.analystTargets": "Target Analis",
+    "analysis.past12Months": "12 bulan terakhir",
+    "analysis.target12Month": "Target 12 bulan",
+    "analysis.companyMetrics": "Metrik Perusahaan",
+    "analysis.earningsPerShare": "Laba per Saham",
+    "analysis.epsUnavailable": "Seri EPS tidak tersedia.",
+    "analysis.revenue": "Pendapatan",
+    "analysis.netProfitMargin": "Margin Laba Bersih",
+    "analysis.currentRatio": "Rasio Lancar",
+    "analysis.debtToEquity": "Utang / Ekuitas",
+    "analysis.returnOnEquityTtm": "ROE (TTM)",
+    "analysis.financialsProTitle": "Financials adalah Pro",
+    "analysis.financialsProDesc": "Buka finansial perusahaan, alat valuasi, dan analisis multi‑periode.",
+    "analysis.financialsProF0": "Laporan laba rugi · Arus kas · Neraca",
+    "analysis.financialsProF1": "Model DCF, DDM, dan multiple",
+    "analysis.financialsProF2": "Tren margin dan pertumbuhan historis",
+    "analysis.fundamentalSnapshot": "Snapshot Fundamental",
+    "analysis.marketCap": "Kapitalisasi Pasar",
+    "analysis.netIncome": "Laba Bersih",
+    "analysis.freeCashFlow": "Arus Kas Bebas",
+    "analysis.revenueGrowth": "Pertumbuhan Pendapatan",
+    "analysis.grossMargin": "Margin Kotor",
+    "analysis.operatingMargin": "Margin Operasional",
+    "analysis.netMargin": "Margin Bersih",
+    "analysis.balanceSheet": "Neraca",
+    "analysis.cash": "Kas",
+    "analysis.debt": "Utang",
+    "analysis.perShare": "Per Saham",
+    "analysis.keyRatios": "Rasio Kunci",
+    "analysis.roe": "ROE",
+    "analysis.roa": "ROA",
+    "analysis.pe": "P/E",
+    "analysis.pfcf": "P/FCF",
+    "analysis.financialsOverview": "Ringkasan Finansial",
+    "analysis.revenueFcfMargin": "Pendapatan + Margin FCF",
+    "analysis.fcfMargin": "Margin FCF",
+    "analysis.marginTrends": "Tren Margin",
+    "analysis.grossMarginShort": "Kotor",
+    "analysis.operatingMarginShort": "Operasional",
+    "analysis.netMarginShort": "Bersih",
+    "analysis.marginRadar": "Radar Margin",
+    "analysis.cashVsDebt": "Kas vs Utang",
+    "analysis.netCash": "Kas Bersih",
+    "analysis.netIncomeByPeriod": "Laba Bersih per Periode",
+    "analysis.fundamentalDataAggregator": "Aggregator Data Fundamental",
+    "analysis.fundamentalDataDesc": "Mengumpulkan pendapatan, laba, margin, utang, dan arus kas per ticker dan periode fiskal. Dirancang untuk API/SEC — versi ini memakai data model.",
+    "analysis.fiscalPeriod": "Periode Fiskal",
+    "analysis.source": "Sumber",
+    "analysis.period": "Periode",
+    "analysis.fcf": "FCF",
+    "analysis.bbUpper": "BB Upper",
+    "analysis.bbLower": "BB Lower",
+    "analysis.sma20": "SMA 20",
+    "analysis.sma50": "SMA 50",
+    "analysis.close": "Penutupan",
+    "heatmap.marketHeatmaps": "Heatmap Pasar",
+    "heatmap.subtitle": "Treemap per indeks, ukuran berdasarkan market cap, warna berdasarkan Sharpe 6 bulan. Saham diurut per sektor.",
+    "heatmap.panelMeta": "{count} saham · Ukuran: market cap · Warna: Sharpe (6mo)",
+    "heatmap.load": "Muat Heatmap",
+    "heatmap.fetches": "Mengambil {count} saham dari Yahoo Finance",
+    "heatmap.fetching": "Mengambil {count} saham…",
+    "heatmap.refresh": "Segarkan",
+    "heatmap.sector": "Sektor",
+    "heatmap.sharpe": "Sharpe",
+    "heatmap.sixMonths": "6 bln",
+    "comparison.placeholder": "AAPL, MSFT, GOOGL...",
+    "comparison.running": "Memproses…",
+    "comparison.compare": "Bandingkan",
+    "comparison.normalizedPerformance": "Performa Ternormalisasi (6 bulan)",
+    "comparison.ticker": "Ticker",
+    "comparison.price": "Harga",
+    "comparison.signal": "Sinyal",
+    "comparison.conf": "Konf.",
+    "comparison.sharpe": "Sharpe",
+    "comparison.vol": "Vol.",
+    "comparison.maxDD": "Max DD",
+    "comparison.momentum": "Mom.",
+    "comparison.stretch": "Stretch",
+    "comparison.sharpeComparison": "Perbandingan Sharpe",
+    "comparison.volatilityComparison": "Perbandingan Volatilitas",
+    "comparison.volatility": "Volatilitas",
+    "comparison.failed": "gagal",
+    "help.valuationAnalysis.title": "Analisis Valuasi",
+    "help.valuationAnalysis.body": "Mengukur stretch, deviasi SMA, dan sinyal nilai wajar.",
+    "help.marketRegime.title": "Regime Pasar",
+    "help.marketRegime.body": "Ringkasan tren, volatilitas, dan posisi taktis.",
+    "help.analystTargets.title": "Target Analis",
+    "help.analystTargets.body": "Konsensus target dan revisi 12 bulan terakhir.",
+    "help.companyMetrics.title": "Metrik Perusahaan",
+    "help.companyMetrics.body": "Rasio operasi dan neraca utama dari waktu ke waktu.",
+    "help.fundamentalSnapshot.title": "Snapshot Fundamental",
+    "help.fundamentalSnapshot.body": "Fundamental utama untuk periode terpilih.",
+    "help.balanceSheet.title": "Neraca",
+    "help.balanceSheet.body": "Likuiditas dan leverage.",
+    "help.perShare.title": "Per Saham",
+    "help.perShare.body": "EPS, arus kas, dan dividen per saham.",
+    "help.keyRatios.title": "Rasio Kunci",
+    "help.keyRatios.body": "Rasio profitabilitas dan valuasi.",
+    "help.financialsOverview.title": "Ringkasan Finansial",
+    "help.financialsOverview.body": "Ringkasan visual margin, kas vs utang, dan laba.",
+    "help.fundamentalData.title": "Data Fundamental",
+    "help.fundamentalData.body": "Fundamental model per periode fiskal.",
+    "help.comparisonInput.title": "Input Perbandingan",
+    "help.comparisonInput.body": "Masukkan ticker dipisahkan koma.",
+    "help.comparisonPerformance.title": "Overlay Performa",
+    "help.comparisonPerformance.body": "Imbal hasil ternormalisasi 6 bulan.",
+    "help.comparisonTable.title": "Tabel Perbandingan",
+    "help.comparisonTable.body": "Tabel sortir untuk sinyal, risiko, dan valuasi.",
+    "help.heatmapOverview.title": "Heatmap Pasar",
+    "help.heatmapOverview.body": "Treemap per sektor dengan warna Sharpe.",
+    "help.valuationToolkit.title": "Toolkit Valuasi",
+    "help.valuationToolkit.body": "Atur asumsi DCF/DDM dan bandingkan anchor.",
+    "help.priceTargets.title": "Target Harga",
+    "help.priceTargets.body": "Level bull/base/stop serta risiko/imbal hasil.",
+    "help.technicalSignals.title": "Sinyal Teknis",
+    "help.technicalSignals.body": "Sinyal berbasis momentum, tren, dan indikator.",
+    "help.riskProfile.title": "Profil Risiko",
+    "help.riskProfile.body": "Volatilitas, drawdown, dan metrik risiko.",
+    "help.statSignals.title": "Sinyal Statistik",
+    "help.statSignals.body": "Z-score, momentum, dan statistik komposit.",
     "footer.disclaimer": "Hanya untuk tujuan edukasi — bukan nasihat keuangan",
   },
   "it-IT": {
@@ -226,16 +1906,213 @@ const TRANSLATIONS = {
     "nav.comparison": "Confronto",
     "nav.account": "Account",
     "nav.help": "Aiuto",
+    "nav.tools": "Strumenti",
+    "common.line": "Linea",
+    "common.candles": "Candele",
+    "common.expand": "Espandi",
+    "common.close": "Chiudi",
+    "common.save": "Salva",
+    "common.signIn": "Accedi",
+    "common.signOut": "Esci",
+    "common.zoomIn": "Zoom avanti",
+    "common.zoomOut": "Zoom indietro",
+    "common.reset": "Reimposta",
     "menu.settings": "Impostazioni",
     "menu.language": "Lingua",
     "menu.upgrade": "Passa a Pro",
     "menu.gift": "Regala AnalyzeAlpha",
     "menu.logout": "Esci",
     "menu.signedOut": "Non connesso",
+    "tools.watchlist": "Watchlist",
+    "tools.alerts": "Avvisi",
+    "tools.ticker": "Ticker",
+    "tools.add": "Aggiungi",
+    "tools.emptyWatchlist": "Watchlist vuota",
+    "tools.noAlerts": "Nessun avviso",
+    "tools.above": "Sopra",
+    "tools.below": "Sotto",
+    "tools.set": "Imposta",
+    "tools.triggered": "ATTIVATO",
+    "tools.watching": "IN OSSERVAZIONE",
+    "auth.missingConfig": "Configurazione Supabase mancante. Aggiungi `VITE_SUPABASE_URL` e la chiave pubblicabile, poi riavvia il server dev.",
+    "auth.continueGoogle": "Continua con Google",
+    "auth.or": "oppure",
+    "auth.firstName": "Nome",
+    "auth.email": "Email",
+    "auth.password": "Password",
+    "auth.signIn": "Accedi",
+    "auth.createAccount": "Crea account",
+    "auth.checkEmail": "Controlla la tua email per confermare l'account.",
+    "auth.errFirstName": "Nome richiesto.",
+    "auth.errEmailPassword": "Email e password richieste.",
+    "time.secondsAgo": "{count}s fa",
+    "time.minutesAgo": "{count} min fa",
+    "day.morning": "mattina",
+    "day.afternoon": "pomeriggio",
+    "day.evening": "sera",
+    "day.night": "notte",
+    "greeting.goodDaypart": "Buon {dayPart}",
+    "greeting.hey": "Ciao",
+    "greeting.welcomeBack": "Bentornato",
+    "greeting.niceToSeeYou": "Piacere di vederti",
+    "greeting.hello": "Salve",
+    "greeting.marketBrief": "Brief di mercato",
+    "greeting.quickPulse": "Pulse rapido",
+    "greeting.snapshot": "Istantanea",
+    "greeting.todaysGlance": "Sguardo di oggi",
+    "home.updated": "Aggiornato {ago}",
+    "home.marketNews": "Notizie di mercato",
+    "home.indexes": "Indici",
+    "home.topGainers": "Top rialzi",
+    "home.topLosers": "Top ribassi",
+    "home.trendingStocks": "Titoli di tendenza",
+    "home.marketBriefSection": "Brief di mercato",
     "chart.openCharts": "Apri in Grafici",
     "help.title": "Modalità Aiuto",
     "help.body": "Passa il mouse sugli elementi evidenziati per vedere cosa fanno. Fai clic su Aiuto di nuovo per uscire.",
     "help.exit": "Esci da Aiuto",
+    "help.search.title": "Ricerca",
+    "help.search.body": "Digita un ticker o un'azienda. Premi Invio o clicca Analizza.",
+    "help.analyze.title": "Analizza",
+    "help.analyze.body": "Aggiorna raccomandazioni, segnali e grafici.",
+    "help.tools.title": "Strumenti",
+    "help.tools.body": "Gestisci watchlist e avvisi senza lasciare la pagina.",
+    "help.account.title": "Account",
+    "help.account.body": "Impostazioni, lingua, upgrade e uscita.",
+    "help.priceChart.title": "Grafico prezzi",
+    "help.priceChart.body": "Mostra le ultime 60 sessioni con indicatori.",
+    "help.nav.home.title": "Home",
+    "help.nav.home.body": "Panoramica mercato e snapshot live.",
+    "help.nav.analysis.title": "Analisi",
+    "help.nav.analysis.body": "Segnali, valutazione e rischio.",
+    "help.nav.charts.title": "Grafici",
+    "help.nav.charts.body": "Grafici avanzati e indicatori.",
+    "help.nav.heatmap.title": "Mappa termica",
+    "help.nav.heatmap.body": "Mappa settore/mercato (Pro).",
+    "help.nav.comparison.title": "Confronto",
+    "help.nav.comparison.body": "Confronta più ticker (Pro).",
+    "help.tickerStrip.title": "Ticker live",
+    "help.tickerStrip.body": "Snapshot scorrevole dei mercati. Clicca un ticker.",
+    "help.region.title": "Regioni",
+    "help.region.body": "Cambia regione per aggiornare news e grafici.",
+    "help.marketNews.title": "Notizie di mercato",
+    "help.marketNews.body": "Titoli recenti per la regione selezionata.",
+    "help.indexes.title": "Indici",
+    "help.indexes.body": "Grafici intraday dei principali indici.",
+    "help.movers.title": "Movimenti di mercato",
+    "help.movers.body": "Top rialzi, ribassi e trend.",
+    "help.marketBrief.title": "Brief di mercato",
+    "help.marketBrief.body": "Sintesi cross-asset e segnali di rischio.",
+    "help.changelog.title": "Changelog",
+    "help.changelog.body": "Novità dell'ultima versione.",
+    "help.accountSync.title": "Sync account",
+    "help.accountSync.body": "Accedi per sincronizzare preferenze e watchlist.",
+    "help.profile.title": "Profilo",
+    "help.profile.body": "Aggiorna il nome e gestisci l'accesso.",
+    "help.accountWatchlist.title": "Watchlist",
+    "help.accountWatchlist.body": "Gestisci i ticker salvati.",
+    "help.accountAlerts.title": "Avvisi",
+    "help.accountAlerts.body": "Imposta avvisi di prezzo e monitora.",
+    "help.accountRecent.title": "Analisi recenti",
+    "help.accountRecent.body": "Accesso rapido alle ultime analisi.",
+    "help.accountPreferences.title": "Preferenze",
+    "help.accountPreferences.body": "Periodo, intervallo e regione predefiniti.",
+    "help.chartsControls.title": "Controlli grafico",
+    "help.chartsControls.body": "Attiva indicatori e cambia stile.",
+    "analysis.stockTab": "Titolo",
+    "analysis.financialsTab": "Finanziari",
+    "analysis.enterTicker": "Inserisci un ticker per iniziare",
+    "analysis.typeSymbol": "Digita un simbolo sopra e premi Analizza",
+    "analysis.verdict": "Verdetto",
+    "analysis.confidence": "Confidenza",
+    "analysis.score": "Punteggio",
+    "analysis.priceTargets": "Obiettivi di prezzo",
+    "analysis.target": "Obiettivo",
+    "analysis.stopLoss": "Stop loss",
+    "analysis.riskReward": "Rischio / Rendimento",
+    "analysis.technicalSignals": "Segnali tecnici",
+    "analysis.riskProfile": "Profilo di rischio",
+    "analysis.riskLevel": "Livello di rischio",
+    "analysis.volatility": "Volatilità",
+    "analysis.maxDrawdown": "Drawdown max",
+    "analysis.sharpe": "Sharpe",
+    "analysis.sortino": "Sortino",
+    "analysis.var95": "VaR 95%",
+    "analysis.statSignals": "Segnali statistici",
+    "analysis.zscore": "Z-score",
+    "analysis.zscoreDesc": "Deviazione dal medio a 20 periodi",
+    "analysis.momentum": "Momentum",
+    "analysis.momentumDesc": "Rendimento medio su 5, 10, 20, 50 giorni",
+    "analysis.volume": "Volume",
+    "analysis.volumeDesc": "Volume attuale vs media 20 periodi",
+    "analysis.composite": "Composito",
+    "analysis.compositeDesc": "Combinazione ponderata di tutti i segnali",
+    "analysis.buy": "Compra",
+    "analysis.sell": "Vendi",
+    "analysis.current": "Attuale",
+    "analysis.avg": "Media",
+    "analysis.confidenceLabel": "Confidenza",
+    "analysis.direction": "Direzione",
+    "analysis.valuationAnchor": "Ancora di valutazione",
+    "analysis.priceChartTitle": "Prezzo — ultime 60 sessioni",
+    "analysis.valuationToolkit": "Toolkit di valutazione",
+    "analysis.valuationDesc": "Stima il valore intrinseco con DCF, dividend discount e multipli.",
+    "analysis.fcfPerShare": "FCF / Azione",
+    "analysis.eps": "EPS",
+    "analysis.dividendPerShare": "Dividendo / Azione",
+    "analysis.growth5y": "Crescita (5 anni %)",
+    "analysis.discountWacc": "Sconto / WACC %",
+    "analysis.terminalGrowth": "Crescita terminale %",
+    "analysis.targetPE": "P/E target",
+    "analysis.projectionYears": "Anni di proiezione",
+    "analysis.dcf": "DCF",
+    "analysis.dividendDiscount": "Dividend Discount",
+    "analysis.multiples": "Multipli",
+    "analysis.anchor": "Ancora",
+    "analysis.upside": "Potenziale",
+    "analysis.usedAsContext": "Usato come contesto di lungo termine con segnali tecnici.",
+    "analysis.neutral": "NEUTRALE",
+    "charts.runAnalysisFirst": "Esegui prima un'analisi",
+    "charts.movingAvg": "Media mobile",
+    "charts.bollinger": "Bollinger",
+    "charts.volume": "Volume",
+    "charts.rsi": "RSI",
+    "charts.macd": "MACD",
+    "charts.stochastic": "Stocastico",
+    "charts.chart": "Grafico",
+    "charts.period": "Periodo",
+    "charts.fullPeriod": "{ticker} — Periodo completo",
+    "charts.volumeTitle": "Volume",
+    "charts.rsiTitle": "RSI (14)",
+    "charts.macdTitle": "MACD",
+    "charts.stochTitle": "Stocastico",
+    "charts.windowHint": "Scroll orizzontale per spostare, verticale per regolare. Trascina per muovere. Finestra: {count} / {total}",
+    "account.syncLocal": "Solo locale",
+    "account.syncing": "Sincronizzazione…",
+    "account.syncError": "Errore sync",
+    "account.synced": "Sincronizzato",
+    "account.syncedAgo": "Sincronizzato {ago}",
+    "account.syncTitle": "Sincronizzazione account",
+    "account.signedInAs": "Accesso come {email}",
+    "account.user": "utente",
+    "account.signInToSync": "Accedi per sincronizzare i dati.",
+    "account.profile": "Profilo",
+    "account.firstName": "Nome",
+    "account.saved": "Salvato",
+    "account.enterFirstName": "Inserisci un nome.",
+    "account.signInToSave": "Accedi per salvare.",
+    "account.overview": "Panoramica",
+    "account.preferences": "Preferenze",
+    "account.recentAnalyses": "Analisi recenti",
+    "account.noAnalyses": "Nessuna analisi",
+    "account.signal": "Segnale",
+    "account.regime": "Regime",
+    "account.risk": "Rischio",
+    "account.conf": "Conf",
+    "account.view": "Vedi",
+    "account.defaultPeriod": "Periodo predefinito",
+    "account.defaultInterval": "Intervallo predefinito",
+    "account.homeRegion": "Regione iniziale",
     "pro.heatmap.title": "La mappa termica è Pro",
     "pro.heatmap.desc": "Sblocca la mappa termica dell'S&P con Sharpe, volatilità e performance relativa in tempo reale.",
     "pro.heatmap.f0": "Recuperi dati paralleli",
@@ -246,6 +2123,145 @@ const TRANSLATIONS = {
     "pro.comparison.f0": "Punteggi dei segnali affiancati",
     "pro.comparison.f1": "Classifiche Sharpe e drawdown",
     "pro.comparison.f2": "Vista tabella pronta per l'esportazione",
+    "common.live": "LIVE",
+    "common.price": "Prezzo",
+    "time.justNow": "proprio ora",
+    "time.hoursAgo": "{count} h fa",
+    "time.daysAgo": "{count} g fa",
+    "analysis.valuationAnalysis": "Analisi di valutazione",
+    "analysis.stretchIndex": "Indice di stretch",
+    "analysis.undervalued": "Sottovalutato",
+    "analysis.overvalued": "Sopravvalutato",
+    "analysis.vsSma200": "vs SMA 200",
+    "analysis.vsSma50": "vs SMA 50",
+    "analysis.bollingerPercentB": "Bollinger %B",
+    "analysis.range52w": "Range 52 settimane",
+    "analysis.fromLow": "dal minimo",
+    "analysis.fairValueEst": "Stima valore equo",
+    "analysis.marketRegime": "Regime di mercato",
+    "analysis.strength": "Forza",
+    "analysis.hurst": "Hurst",
+    "analysis.avoid": "Evitare",
+    "analysis.analystTargets": "Target degli analisti",
+    "analysis.past12Months": "Ultimi 12 mesi",
+    "analysis.target12Month": "Target a 12 mesi",
+    "analysis.companyMetrics": "Metriche aziendali",
+    "analysis.earningsPerShare": "Utile per azione",
+    "analysis.epsUnavailable": "Serie EPS non disponibile.",
+    "analysis.revenue": "Ricavi",
+    "analysis.netProfitMargin": "Margine netto",
+    "analysis.currentRatio": "Current ratio",
+    "analysis.debtToEquity": "Debito / Equity",
+    "analysis.returnOnEquityTtm": "ROE (TTM)",
+    "analysis.financialsProTitle": "Financials sono Pro",
+    "analysis.financialsProDesc": "Sblocca dati finanziari, strumenti di valutazione e analisi multi-periodo.",
+    "analysis.financialsProF0": "Conto economico · Cash flow · Stato patrimoniale",
+    "analysis.financialsProF1": "Modelli DCF, DDM e multipli",
+    "analysis.financialsProF2": "Trend storici di margini e crescita",
+    "analysis.fundamentalSnapshot": "Snapshot fondamentali",
+    "analysis.marketCap": "Capitalizzazione",
+    "analysis.netIncome": "Utile netto",
+    "analysis.freeCashFlow": "Free cash flow",
+    "analysis.revenueGrowth": "Crescita ricavi",
+    "analysis.grossMargin": "Margine lordo",
+    "analysis.operatingMargin": "Margine operativo",
+    "analysis.netMargin": "Margine netto",
+    "analysis.balanceSheet": "Stato patrimoniale",
+    "analysis.cash": "Cassa",
+    "analysis.debt": "Debito",
+    "analysis.perShare": "Per azione",
+    "analysis.keyRatios": "Rapporti chiave",
+    "analysis.roe": "ROE",
+    "analysis.roa": "ROA",
+    "analysis.pe": "P/E",
+    "analysis.pfcf": "P/FCF",
+    "analysis.financialsOverview": "Panoramica finanziaria",
+    "analysis.revenueFcfMargin": "Ricavi + Margine FCF",
+    "analysis.fcfMargin": "Margine FCF",
+    "analysis.marginTrends": "Trend dei margini",
+    "analysis.grossMarginShort": "Lordo",
+    "analysis.operatingMarginShort": "Operativo",
+    "analysis.netMarginShort": "Netto",
+    "analysis.marginRadar": "Radar margini",
+    "analysis.cashVsDebt": "Cassa vs debito",
+    "analysis.netCash": "Cassa netta",
+    "analysis.netIncomeByPeriod": "Utile netto per periodo",
+    "analysis.fundamentalDataAggregator": "Aggregatore dati fondamentali",
+    "analysis.fundamentalDataDesc": "Raccoglie ricavi, utili, margini, debito e cash flow per ticker e periodo fiscale. Progettato per API/SEC — qui dati modellati.",
+    "analysis.fiscalPeriod": "Periodo fiscale",
+    "analysis.source": "Fonte",
+    "analysis.period": "Periodo",
+    "analysis.fcf": "FCF",
+    "analysis.bbUpper": "BB Upper",
+    "analysis.bbLower": "BB Lower",
+    "analysis.sma20": "SMA 20",
+    "analysis.sma50": "SMA 50",
+    "analysis.close": "Chiusura",
+    "heatmap.marketHeatmaps": "Heatmap di mercato",
+    "heatmap.subtitle": "Treemap per indice, dimensione per market cap, colore per Sharpe a 6 mesi. Azioni ordinate per settore.",
+    "heatmap.panelMeta": "{count} azioni · Dimensione: market cap · Colore: Sharpe (6 mesi)",
+    "heatmap.load": "Carica heatmap",
+    "heatmap.fetches": "Recupera {count} azioni da Yahoo Finance",
+    "heatmap.fetching": "Recupero di {count} azioni…",
+    "heatmap.refresh": "Aggiorna",
+    "heatmap.sector": "Settore",
+    "heatmap.sharpe": "Sharpe",
+    "heatmap.sixMonths": "6 mesi",
+    "comparison.placeholder": "AAPL, MSFT, GOOGL...",
+    "comparison.running": "In esecuzione…",
+    "comparison.compare": "Confronta",
+    "comparison.normalizedPerformance": "Performance normalizzata (6 mesi)",
+    "comparison.ticker": "Ticker",
+    "comparison.price": "Prezzo",
+    "comparison.signal": "Segnale",
+    "comparison.conf": "Conf.",
+    "comparison.sharpe": "Sharpe",
+    "comparison.vol": "Vol.",
+    "comparison.maxDD": "Max DD",
+    "comparison.momentum": "Mom.",
+    "comparison.stretch": "Stretch",
+    "comparison.sharpeComparison": "Confronto Sharpe",
+    "comparison.volatilityComparison": "Confronto volatilità",
+    "comparison.volatility": "Volatilità",
+    "comparison.failed": "fallito",
+    "help.valuationAnalysis.title": "Analisi di valutazione",
+    "help.valuationAnalysis.body": "Misura stretch, deviazioni SMA e segnali di fair value.",
+    "help.marketRegime.title": "Regime di mercato",
+    "help.marketRegime.body": "Sintesi di trend, volatilità e postura tattica.",
+    "help.analystTargets.title": "Target degli analisti",
+    "help.analystTargets.body": "Target consenso e revisioni ultimi 12 mesi.",
+    "help.companyMetrics.title": "Metriche aziendali",
+    "help.companyMetrics.body": "Rapporti operativi e di bilancio nel tempo.",
+    "help.fundamentalSnapshot.title": "Snapshot fondamentali",
+    "help.fundamentalSnapshot.body": "Fondamentali principali per il periodo selezionato.",
+    "help.balanceSheet.title": "Stato patrimoniale",
+    "help.balanceSheet.body": "Liquidità e leva.",
+    "help.perShare.title": "Per azione",
+    "help.perShare.body": "EPS, cash flow e dividendi per azione.",
+    "help.keyRatios.title": "Rapporti chiave",
+    "help.keyRatios.body": "Rapporti di redditività e valutazione.",
+    "help.financialsOverview.title": "Panoramica finanziaria",
+    "help.financialsOverview.body": "Riepilogo visivo di margini, cassa vs debito e utili.",
+    "help.fundamentalData.title": "Dati fondamentali",
+    "help.fundamentalData.body": "Fondamentali modellati per periodo fiscale.",
+    "help.comparisonInput.title": "Input confronto",
+    "help.comparisonInput.body": "Inserisci ticker separati da virgole.",
+    "help.comparisonPerformance.title": "Overlay performance",
+    "help.comparisonPerformance.body": "Rendimenti normalizzati su 6 mesi.",
+    "help.comparisonTable.title": "Tabella confronto",
+    "help.comparisonTable.body": "Tabella ordinabile di segnali, rischio e valutazione.",
+    "help.heatmapOverview.title": "Heatmap di mercato",
+    "help.heatmapOverview.body": "Treemap per settore con colori Sharpe.",
+    "help.valuationToolkit.title": "Toolkit di valutazione",
+    "help.valuationToolkit.body": "Regola le assunzioni DCF/DDM e confronta gli anchor.",
+    "help.priceTargets.title": "Obiettivi di prezzo",
+    "help.priceTargets.body": "Livelli bull/base/stop e rischio/rendimento.",
+    "help.technicalSignals.title": "Segnali tecnici",
+    "help.technicalSignals.body": "Segnali di momentum, trend e indicatori.",
+    "help.riskProfile.title": "Profilo di rischio",
+    "help.riskProfile.body": "Volatilità, drawdown e metriche di rischio.",
+    "help.statSignals.title": "Segnali statistici",
+    "help.statSignals.body": "Z-score, momentum e statistiche composite.",
     "footer.disclaimer": "Solo a scopo educativo — non è consulenza finanziaria",
   },
   "ja-JP": {
@@ -260,16 +2276,213 @@ const TRANSLATIONS = {
     "nav.comparison": "比較",
     "nav.account": "アカウント",
     "nav.help": "ヘルプ",
+    "nav.tools": "ツール",
+    "common.line": "ライン",
+    "common.candles": "ローソク足",
+    "common.expand": "拡大",
+    "common.close": "閉じる",
+    "common.save": "保存",
+    "common.signIn": "サインイン",
+    "common.signOut": "サインアウト",
+    "common.zoomIn": "ズームイン",
+    "common.zoomOut": "ズームアウト",
+    "common.reset": "リセット",
     "menu.settings": "設定",
     "menu.language": "言語",
     "menu.upgrade": "Pro にアップグレード",
     "menu.gift": "AnalyzeAlpha を贈る",
     "menu.logout": "ログアウト",
     "menu.signedOut": "サインインしていません",
+    "tools.watchlist": "ウォッチリスト",
+    "tools.alerts": "アラート",
+    "tools.ticker": "ティッカー",
+    "tools.add": "追加",
+    "tools.emptyWatchlist": "ウォッチリストは空です",
+    "tools.noAlerts": "アラートなし",
+    "tools.above": "以上",
+    "tools.below": "以下",
+    "tools.set": "設定",
+    "tools.triggered": "トリガー",
+    "tools.watching": "監視中",
+    "auth.missingConfig": "Supabase 設定がありません。`VITE_SUPABASE_URL` と公開キーを追加して開発サーバーを再起動してください。",
+    "auth.continueGoogle": "Google で続行",
+    "auth.or": "または",
+    "auth.firstName": "名",
+    "auth.email": "メール",
+    "auth.password": "パスワード",
+    "auth.signIn": "サインイン",
+    "auth.createAccount": "アカウント作成",
+    "auth.checkEmail": "確認メールをチェックしてください。",
+    "auth.errFirstName": "名は必須です。",
+    "auth.errEmailPassword": "メールとパスワードが必要です。",
+    "time.secondsAgo": "{count}秒前",
+    "time.minutesAgo": "{count}分前",
+    "day.morning": "朝",
+    "day.afternoon": "午後",
+    "day.evening": "夕方",
+    "day.night": "夜",
+    "greeting.goodDaypart": "良い{dayPart}",
+    "greeting.hey": "やあ",
+    "greeting.welcomeBack": "お帰りなさい",
+    "greeting.niceToSeeYou": "お会いできて嬉しいです",
+    "greeting.hello": "こんにちは",
+    "greeting.marketBrief": "マーケット概要",
+    "greeting.quickPulse": "クイックパルス",
+    "greeting.snapshot": "スナップショット",
+    "greeting.todaysGlance": "今日の概要",
+    "home.updated": "{ago}に更新",
+    "home.marketNews": "マーケットニュース",
+    "home.indexes": "指数",
+    "home.topGainers": "上昇銘柄",
+    "home.topLosers": "下落銘柄",
+    "home.trendingStocks": "注目銘柄",
+    "home.marketBriefSection": "マーケット概要",
     "chart.openCharts": "チャートで開く",
     "help.title": "ヘルプモード",
     "help.body": "ハイライトされた要素にカーソルを合わせると説明が表示されます。終了するにはもう一度ヘルプをクリックします。",
     "help.exit": "ヘルプを終了",
+    "help.search.title": "検索",
+    "help.search.body": "ティッカーや企業名を入力。Enter または分析をクリック。",
+    "help.analyze.title": "分析",
+    "help.analyze.body": "推奨、シグナル、チャートを更新します。",
+    "help.tools.title": "ツール",
+    "help.tools.body": "ウォッチリストとアラートを管理します。",
+    "help.account.title": "アカウント",
+    "help.account.body": "設定、言語、アップグレード、ログアウト。",
+    "help.priceChart.title": "価格チャート",
+    "help.priceChart.body": "直近60セッションと指標を表示。",
+    "help.nav.home.title": "ホーム",
+    "help.nav.home.body": "市場概要とライブスナップショット。",
+    "help.nav.analysis.title": "分析",
+    "help.nav.analysis.body": "シグナル、評価、リスク。",
+    "help.nav.charts.title": "チャート",
+    "help.nav.charts.body": "高度なチャートと指標。",
+    "help.nav.heatmap.title": "ヒートマップ",
+    "help.nav.heatmap.body": "セクター/市場マップ（Pro）。",
+    "help.nav.comparison.title": "比較",
+    "help.nav.comparison.body": "複数ティッカーの比較（Pro）。",
+    "help.tickerStrip.title": "ライブティッカー",
+    "help.tickerStrip.body": "市場のスクロールスナップショット。クリックで分析。",
+    "help.region.title": "地域",
+    "help.region.body": "地域を切り替えてニュースとチャートを更新。",
+    "help.marketNews.title": "マーケットニュース",
+    "help.marketNews.body": "選択地域の最新ヘッドライン。",
+    "help.indexes.title": "指数",
+    "help.indexes.body": "主要指数のイントラデイチャート。",
+    "help.movers.title": "マーケットムーバー",
+    "help.movers.body": "上昇・下落・トレンド銘柄。",
+    "help.marketBrief.title": "マーケット概要",
+    "help.marketBrief.body": "クロスアセットの要約とリスクシグナル。",
+    "help.changelog.title": "更新履歴",
+    "help.changelog.body": "最新リリースの変更点。",
+    "help.accountSync.title": "アカウント同期",
+    "help.accountSync.body": "設定とウォッチリストを同期するためサインイン。",
+    "help.profile.title": "プロフィール",
+    "help.profile.body": "表示名の更新とサインイン管理。",
+    "help.accountWatchlist.title": "ウォッチリスト",
+    "help.accountWatchlist.body": "保存済みティッカーの管理。",
+    "help.accountAlerts.title": "アラート",
+    "help.accountAlerts.body": "価格アラートを設定・監視。",
+    "help.accountRecent.title": "最近の分析",
+    "help.accountRecent.body": "最近の分析へすばやくアクセス。",
+    "help.accountPreferences.title": "設定",
+    "help.accountPreferences.body": "デフォルトの期間・間隔・地域。",
+    "help.chartsControls.title": "チャート操作",
+    "help.chartsControls.body": "指標の切替とスタイル変更。",
+    "analysis.stockTab": "株",
+    "analysis.financialsTab": "財務",
+    "analysis.enterTicker": "開始するにはティッカーを入力",
+    "analysis.typeSymbol": "上の欄にシンボルを入力して分析",
+    "analysis.verdict": "判定",
+    "analysis.confidence": "信頼度",
+    "analysis.score": "スコア",
+    "analysis.priceTargets": "目標価格",
+    "analysis.target": "目標",
+    "analysis.stopLoss": "ストップロス",
+    "analysis.riskReward": "リスク/リワード",
+    "analysis.technicalSignals": "テクニカルシグナル",
+    "analysis.riskProfile": "リスクプロファイル",
+    "analysis.riskLevel": "リスクレベル",
+    "analysis.volatility": "ボラティリティ",
+    "analysis.maxDrawdown": "最大ドローダウン",
+    "analysis.sharpe": "シャープ",
+    "analysis.sortino": "ソルティノ",
+    "analysis.var95": "VaR 95%",
+    "analysis.statSignals": "統計シグナル",
+    "analysis.zscore": "Zスコア",
+    "analysis.zscoreDesc": "20期間平均からの乖離",
+    "analysis.momentum": "モメンタム",
+    "analysis.momentumDesc": "5/10/20/50日平均リターン",
+    "analysis.volume": "出来高",
+    "analysis.volumeDesc": "現在の出来高 vs 20期間平均",
+    "analysis.composite": "コンポジット",
+    "analysis.compositeDesc": "全シグナルの加重合成",
+    "analysis.buy": "買い",
+    "analysis.sell": "売り",
+    "analysis.current": "現在",
+    "analysis.avg": "平均",
+    "analysis.confidenceLabel": "信頼度",
+    "analysis.direction": "方向",
+    "analysis.valuationAnchor": "評価アンカー",
+    "analysis.priceChartTitle": "価格 — 直近60セッション",
+    "analysis.valuationToolkit": "バリュエーションツール",
+    "analysis.valuationDesc": "DCF・配当割引・マルチプルで内在価値を推定。",
+    "analysis.fcfPerShare": "FCF / 株",
+    "analysis.eps": "EPS",
+    "analysis.dividendPerShare": "配当 / 株",
+    "analysis.growth5y": "成長率 (5年%)",
+    "analysis.discountWacc": "割引率 / WACC %",
+    "analysis.terminalGrowth": "ターミナル成長率 %",
+    "analysis.targetPE": "目標PER",
+    "analysis.projectionYears": "予測年数",
+    "analysis.dcf": "DCF",
+    "analysis.dividendDiscount": "配当割引",
+    "analysis.multiples": "マルチプル",
+    "analysis.anchor": "アンカー",
+    "analysis.upside": "上昇余地",
+    "analysis.usedAsContext": "テクニカルシグナルと併せた長期文脈に使用。",
+    "analysis.neutral": "中立",
+    "charts.runAnalysisFirst": "先に分析を実行してください",
+    "charts.movingAvg": "移動平均",
+    "charts.bollinger": "ボリンジャー",
+    "charts.volume": "出来高",
+    "charts.rsi": "RSI",
+    "charts.macd": "MACD",
+    "charts.stochastic": "ストキャスティクス",
+    "charts.chart": "チャート",
+    "charts.period": "期間",
+    "charts.fullPeriod": "{ticker} — 全期間",
+    "charts.volumeTitle": "出来高",
+    "charts.rsiTitle": "RSI (14)",
+    "charts.macdTitle": "MACD",
+    "charts.stochTitle": "ストキャスティクス",
+    "charts.windowHint": "横スクロールで移動、縦で範囲調整。ドラッグで移動。範囲: {count} / {total}",
+    "account.syncLocal": "ローカルのみ",
+    "account.syncing": "同期中…",
+    "account.syncError": "同期エラー",
+    "account.synced": "同期済み",
+    "account.syncedAgo": "{ago}に同期",
+    "account.syncTitle": "アカウント同期",
+    "account.signedInAs": "{email} でサインイン",
+    "account.user": "ユーザー",
+    "account.signInToSync": "デバイス間同期のためサインインしてください。",
+    "account.profile": "プロフィール",
+    "account.firstName": "名",
+    "account.saved": "保存済み",
+    "account.enterFirstName": "名を入力してください。",
+    "account.signInToSave": "保存するにはサインイン。",
+    "account.overview": "概要",
+    "account.preferences": "設定",
+    "account.recentAnalyses": "最近の分析",
+    "account.noAnalyses": "分析はまだありません",
+    "account.signal": "シグナル",
+    "account.regime": "レジーム",
+    "account.risk": "リスク",
+    "account.conf": "信頼度",
+    "account.view": "表示",
+    "account.defaultPeriod": "既定の期間",
+    "account.defaultInterval": "既定の間隔",
+    "account.homeRegion": "ホーム地域",
     "pro.heatmap.title": "ヒートマップは Pro です",
     "pro.heatmap.desc": "ライブのシャープ、ボラティリティ、相対パフォーマンスで S&P ヒートマップを解放。",
     "pro.heatmap.f0": "並列データ取得",
@@ -280,6 +2493,145 @@ const TRANSLATIONS = {
     "pro.comparison.f0": "シグナルスコアの並列表示",
     "pro.comparison.f1": "シャープとドローダウンのランキング",
     "pro.comparison.f2": "エクスポート可能な表表示",
+    "common.live": "ライブ",
+    "common.price": "価格",
+    "time.justNow": "たった今",
+    "time.hoursAgo": "{count}時間前",
+    "time.daysAgo": "{count}日前",
+    "analysis.valuationAnalysis": "バリュエーション分析",
+    "analysis.stretchIndex": "ストレッチ指数",
+    "analysis.undervalued": "割安",
+    "analysis.overvalued": "割高",
+    "analysis.vsSma200": "SMA 200比",
+    "analysis.vsSma50": "SMA 50比",
+    "analysis.bollingerPercentB": "ボリンジャー %B",
+    "analysis.range52w": "52週レンジ",
+    "analysis.fromLow": "安値から",
+    "analysis.fairValueEst": "適正価値推定",
+    "analysis.marketRegime": "市場レジーム",
+    "analysis.strength": "強さ",
+    "analysis.hurst": "ハースト",
+    "analysis.avoid": "避ける",
+    "analysis.analystTargets": "アナリスト目標",
+    "analysis.past12Months": "過去12か月",
+    "analysis.target12Month": "12か月目標",
+    "analysis.companyMetrics": "企業指標",
+    "analysis.earningsPerShare": "1株利益",
+    "analysis.epsUnavailable": "EPS系列は利用できません。",
+    "analysis.revenue": "売上",
+    "analysis.netProfitMargin": "純利益率",
+    "analysis.currentRatio": "流動比率",
+    "analysis.debtToEquity": "負債 / 資本",
+    "analysis.returnOnEquityTtm": "ROE (TTM)",
+    "analysis.financialsProTitle": "財務はPro",
+    "analysis.financialsProDesc": "企業財務、バリュエーションツール、複数期間分析を解放。",
+    "analysis.financialsProF0": "損益計算書 · キャッシュフロー · 貸借対照表",
+    "analysis.financialsProF1": "DCF・DDM・マルチプルモデル",
+    "analysis.financialsProF2": "過去のマージンと成長トレンド",
+    "analysis.fundamentalSnapshot": "ファンダメンタル概要",
+    "analysis.marketCap": "時価総額",
+    "analysis.netIncome": "純利益",
+    "analysis.freeCashFlow": "フリーキャッシュフロー",
+    "analysis.revenueGrowth": "売上成長率",
+    "analysis.grossMargin": "粗利益率",
+    "analysis.operatingMargin": "営業利益率",
+    "analysis.netMargin": "純利益率",
+    "analysis.balanceSheet": "バランスシート",
+    "analysis.cash": "現金",
+    "analysis.debt": "負債",
+    "analysis.perShare": "1株あたり",
+    "analysis.keyRatios": "主要比率",
+    "analysis.roe": "ROE",
+    "analysis.roa": "ROA",
+    "analysis.pe": "P/E",
+    "analysis.pfcf": "P/FCF",
+    "analysis.financialsOverview": "財務概要",
+    "analysis.revenueFcfMargin": "売上 + FCFマージン",
+    "analysis.fcfMargin": "FCFマージン",
+    "analysis.marginTrends": "マージントレンド",
+    "analysis.grossMarginShort": "粗",
+    "analysis.operatingMarginShort": "営業",
+    "analysis.netMarginShort": "純",
+    "analysis.marginRadar": "マージンレーダー",
+    "analysis.cashVsDebt": "現金 vs 負債",
+    "analysis.netCash": "ネットキャッシュ",
+    "analysis.netIncomeByPeriod": "期間別純利益",
+    "analysis.fundamentalDataAggregator": "ファンダメンタル集計",
+    "analysis.fundamentalDataDesc": "ティッカーと会計期間ごとに売上・利益・マージン・負債・キャッシュフローを集計。API/SEC向け想定 — ここではモデルデータ。",
+    "analysis.fiscalPeriod": "会計期間",
+    "analysis.source": "ソース",
+    "analysis.period": "期間",
+    "analysis.fcf": "FCF",
+    "analysis.bbUpper": "BB 上限",
+    "analysis.bbLower": "BB 下限",
+    "analysis.sma20": "SMA 20",
+    "analysis.sma50": "SMA 50",
+    "analysis.close": "終値",
+    "heatmap.marketHeatmaps": "市場ヒートマップ",
+    "heatmap.subtitle": "指数別トレマップ。サイズは時価総額、色は6か月Sharpe。セクター順に並べ替え。",
+    "heatmap.panelMeta": "{count}銘柄 · サイズ: 時価総額 · 色: Sharpe (6か月)",
+    "heatmap.load": "ヒートマップを読み込む",
+    "heatmap.fetches": "Yahoo Financeから{count}銘柄を取得",
+    "heatmap.fetching": "{count}銘柄を取得中…",
+    "heatmap.refresh": "更新",
+    "heatmap.sector": "セクター",
+    "heatmap.sharpe": "Sharpe",
+    "heatmap.sixMonths": "6か月",
+    "comparison.placeholder": "AAPL, MSFT, GOOGL...",
+    "comparison.running": "実行中…",
+    "comparison.compare": "比較",
+    "comparison.normalizedPerformance": "正規化パフォーマンス (6か月)",
+    "comparison.ticker": "ティッカー",
+    "comparison.price": "価格",
+    "comparison.signal": "シグナル",
+    "comparison.conf": "確度",
+    "comparison.sharpe": "Sharpe",
+    "comparison.vol": "ボラ",
+    "comparison.maxDD": "最大DD",
+    "comparison.momentum": "モメ",
+    "comparison.stretch": "ストレッチ",
+    "comparison.sharpeComparison": "Sharpe比較",
+    "comparison.volatilityComparison": "ボラティリティ比較",
+    "comparison.volatility": "ボラティリティ",
+    "comparison.failed": "失敗",
+    "help.valuationAnalysis.title": "バリュエーション分析",
+    "help.valuationAnalysis.body": "ストレッチ、SMA乖離、適正価値シグナルを表示。",
+    "help.marketRegime.title": "市場レジーム",
+    "help.marketRegime.body": "トレンド、ボラ、戦術姿勢の概要。",
+    "help.analystTargets.title": "アナリスト目標",
+    "help.analystTargets.body": "コンセンサス目標と過去12か月の変更。",
+    "help.companyMetrics.title": "企業指標",
+    "help.companyMetrics.body": "主要オペレーション/バランス指標の推移。",
+    "help.fundamentalSnapshot.title": "ファンダメンタル概要",
+    "help.fundamentalSnapshot.body": "選択期間の主要ファンダメンタル。",
+    "help.balanceSheet.title": "バランスシート",
+    "help.balanceSheet.body": "流動性とレバレッジ。",
+    "help.perShare.title": "1株あたり",
+    "help.perShare.body": "EPS、キャッシュフロー、配当の1株あたり。",
+    "help.keyRatios.title": "主要比率",
+    "help.keyRatios.body": "収益性とバリュエーション比率。",
+    "help.financialsOverview.title": "財務概要",
+    "help.financialsOverview.body": "マージン、現金 vs 負債、利益の視覚要約。",
+    "help.fundamentalData.title": "ファンダメンタルデータ",
+    "help.fundamentalData.body": "会計期間別のモデルファンダメンタル。",
+    "help.comparisonInput.title": "比較入力",
+    "help.comparisonInput.body": "カンマ区切りでティッカーを入力。",
+    "help.comparisonPerformance.title": "パフォーマンスオーバーレイ",
+    "help.comparisonPerformance.body": "6か月の正規化リターン。",
+    "help.comparisonTable.title": "比較テーブル",
+    "help.comparisonTable.body": "シグナル・リスク・バリュエーションのソート可能表。",
+    "help.heatmapOverview.title": "市場ヒートマップ",
+    "help.heatmapOverview.body": "セクター別トレマップをSharpe色で表示。",
+    "help.valuationToolkit.title": "バリュエーションツール",
+    "help.valuationToolkit.body": "DCF/DDM前提を調整し、アンカーを比較。",
+    "help.priceTargets.title": "価格目標",
+    "help.priceTargets.body": "ブル/ベース/ストップ水準とリスク/リワード。",
+    "help.technicalSignals.title": "テクニカルシグナル",
+    "help.technicalSignals.body": "モメンタム、トレンド、指標ベースのシグナル。",
+    "help.riskProfile.title": "リスクプロファイル",
+    "help.riskProfile.body": "ボラティリティ、ドローダウン、リスク指標。",
+    "help.statSignals.title": "統計シグナル",
+    "help.statSignals.body": "Zスコア、モメンタム、複合統計。",
     "footer.disclaimer": "教育目的のみ — 金融助言ではありません",
   },
   "ko-KR": {
@@ -294,16 +2646,213 @@ const TRANSLATIONS = {
     "nav.comparison": "비교",
     "nav.account": "계정",
     "nav.help": "도움말",
+    "nav.tools": "도구",
+    "common.line": "라인",
+    "common.candles": "캔들",
+    "common.expand": "확장",
+    "common.close": "닫기",
+    "common.save": "저장",
+    "common.signIn": "로그인",
+    "common.signOut": "로그아웃",
+    "common.zoomIn": "확대",
+    "common.zoomOut": "축소",
+    "common.reset": "재설정",
     "menu.settings": "설정",
     "menu.language": "언어",
     "menu.upgrade": "Pro로 업그레이드",
     "menu.gift": "AnalyzeAlpha 선물하기",
     "menu.logout": "로그아웃",
     "menu.signedOut": "로그인되지 않음",
+    "tools.watchlist": "관심목록",
+    "tools.alerts": "알림",
+    "tools.ticker": "티커",
+    "tools.add": "추가",
+    "tools.emptyWatchlist": "관심목록이 비었습니다",
+    "tools.noAlerts": "알림 없음",
+    "tools.above": "이상",
+    "tools.below": "이하",
+    "tools.set": "설정",
+    "tools.triggered": "트리거",
+    "tools.watching": "모니터링",
+    "auth.missingConfig": "Supabase 설정이 없습니다. `VITE_SUPABASE_URL`과 공개 키를 추가한 후 dev 서버를 재시작하세요.",
+    "auth.continueGoogle": "Google로 계속",
+    "auth.or": "또는",
+    "auth.firstName": "이름",
+    "auth.email": "이메일",
+    "auth.password": "비밀번호",
+    "auth.signIn": "로그인",
+    "auth.createAccount": "계정 만들기",
+    "auth.checkEmail": "계정 확인을 위해 이메일을 확인하세요.",
+    "auth.errFirstName": "이름이 필요합니다.",
+    "auth.errEmailPassword": "이메일과 비밀번호가 필요합니다.",
+    "time.secondsAgo": "{count}초 전",
+    "time.minutesAgo": "{count}분 전",
+    "day.morning": "아침",
+    "day.afternoon": "오후",
+    "day.evening": "저녁",
+    "day.night": "밤",
+    "greeting.goodDaypart": "좋은 {dayPart}",
+    "greeting.hey": "안녕",
+    "greeting.welcomeBack": "다시 오신 것을 환영합니다",
+    "greeting.niceToSeeYou": "반가워요",
+    "greeting.hello": "안녕하세요",
+    "greeting.marketBrief": "마켓 브리프",
+    "greeting.quickPulse": "빠른 요약",
+    "greeting.snapshot": "스냅샷",
+    "greeting.todaysGlance": "오늘의 한눈",
+    "home.updated": "{ago} 업데이트",
+    "home.marketNews": "시장 뉴스",
+    "home.indexes": "지수",
+    "home.topGainers": "상승 상위",
+    "home.topLosers": "하락 상위",
+    "home.trendingStocks": "트렌딩 종목",
+    "home.marketBriefSection": "마켓 브리프",
     "chart.openCharts": "차트에서 열기",
     "help.title": "도움말 모드",
     "help.body": "강조 표시된 요소에 마우스를 올리면 설명이 표시됩니다. 종료하려면 도움말을 다시 클릭하세요.",
     "help.exit": "도움말 종료",
+    "help.search.title": "검색",
+    "help.search.body": "티커나 기업명을 입력하고 Enter 또는 분석을 클릭하세요.",
+    "help.analyze.title": "분석",
+    "help.analyze.body": "추천, 신호, 차트를 업데이트합니다.",
+    "help.tools.title": "도구",
+    "help.tools.body": "관심목록과 알림을 관리합니다.",
+    "help.account.title": "계정",
+    "help.account.body": "설정, 언어, 업그레이드, 로그아웃.",
+    "help.priceChart.title": "가격 차트",
+    "help.priceChart.body": "최근 60 세션과 지표를 표시합니다.",
+    "help.nav.home.title": "홈",
+    "help.nav.home.body": "시장 개요와 라이브 스냅샷.",
+    "help.nav.analysis.title": "분석",
+    "help.nav.analysis.body": "신호, 밸류에이션, 리스크.",
+    "help.nav.charts.title": "차트",
+    "help.nav.charts.body": "고급 차트와 지표.",
+    "help.nav.heatmap.title": "히트맵",
+    "help.nav.heatmap.body": "섹터/시장 맵 (Pro).",
+    "help.nav.comparison.title": "비교",
+    "help.nav.comparison.body": "여러 티커 비교 (Pro).",
+    "help.tickerStrip.title": "라이브 티커 스트립",
+    "help.tickerStrip.body": "스크롤링 시장 스냅샷. 티커 클릭.",
+    "help.region.title": "지역",
+    "help.region.body": "지역을 바꿔 뉴스와 차트를 업데이트합니다.",
+    "help.marketNews.title": "시장 뉴스",
+    "help.marketNews.body": "선택한 지역의 최신 헤드라인.",
+    "help.indexes.title": "지수",
+    "help.indexes.body": "주요 지수의 인트라데이 차트.",
+    "help.movers.title": "시장 움직임",
+    "help.movers.body": "상승/하락 및 트렌딩 종목.",
+    "help.marketBrief.title": "마켓 브리프",
+    "help.marketBrief.body": "크로스자산 요약과 리스크 신호.",
+    "help.changelog.title": "변경 기록",
+    "help.changelog.body": "최신 버전의 변경 사항.",
+    "help.accountSync.title": "계정 동기화",
+    "help.accountSync.body": "설정과 관심목록 동기화를 위해 로그인하세요.",
+    "help.profile.title": "프로필",
+    "help.profile.body": "표시 이름 업데이트 및 로그인 관리.",
+    "help.accountWatchlist.title": "관심목록",
+    "help.accountWatchlist.body": "저장된 티커 관리.",
+    "help.accountAlerts.title": "알림",
+    "help.accountAlerts.body": "가격 알림 설정 및 모니터링.",
+    "help.accountRecent.title": "최근 분석",
+    "help.accountRecent.body": "최근 분석에 빠르게 접근.",
+    "help.accountPreferences.title": "환경설정",
+    "help.accountPreferences.body": "기본 기간, 간격, 지역.",
+    "help.chartsControls.title": "차트 컨트롤",
+    "help.chartsControls.body": "지표 토글 및 스타일 변경.",
+    "analysis.stockTab": "종목",
+    "analysis.financialsTab": "재무",
+    "analysis.enterTicker": "시작하려면 티커를 입력하세요",
+    "analysis.typeSymbol": "위에 심볼을 입력하고 분석을 누르세요",
+    "analysis.verdict": "판정",
+    "analysis.confidence": "신뢰도",
+    "analysis.score": "점수",
+    "analysis.priceTargets": "목표가",
+    "analysis.target": "목표",
+    "analysis.stopLoss": "손절가",
+    "analysis.riskReward": "위험/보상",
+    "analysis.technicalSignals": "기술적 신호",
+    "analysis.riskProfile": "리스크 프로필",
+    "analysis.riskLevel": "리스크 수준",
+    "analysis.volatility": "변동성",
+    "analysis.maxDrawdown": "최대 낙폭",
+    "analysis.sharpe": "샤프",
+    "analysis.sortino": "소르티노",
+    "analysis.var95": "VaR 95%",
+    "analysis.statSignals": "통계적 신호",
+    "analysis.zscore": "Z-점수",
+    "analysis.zscoreDesc": "20기간 평균 대비 가격 편차",
+    "analysis.momentum": "모멘텀",
+    "analysis.momentumDesc": "5, 10, 20, 50일 평균 수익",
+    "analysis.volume": "거래량",
+    "analysis.volumeDesc": "현재 거래량 vs 20기간 평균",
+    "analysis.composite": "종합",
+    "analysis.compositeDesc": "모든 신호의 가중 결합",
+    "analysis.buy": "매수",
+    "analysis.sell": "매도",
+    "analysis.current": "현재",
+    "analysis.avg": "평균",
+    "analysis.confidenceLabel": "신뢰도",
+    "analysis.direction": "방향",
+    "analysis.valuationAnchor": "밸류에이션 앵커",
+    "analysis.priceChartTitle": "가격 — 최근 60 세션",
+    "analysis.valuationToolkit": "밸류에이션 툴킷",
+    "analysis.valuationDesc": "DCF, 배당 할인, 멀티플로 내재가치를 추정합니다.",
+    "analysis.fcfPerShare": "FCF / 주",
+    "analysis.eps": "EPS",
+    "analysis.dividendPerShare": "배당 / 주",
+    "analysis.growth5y": "성장 (5년 %)",
+    "analysis.discountWacc": "할인 / WACC %",
+    "analysis.terminalGrowth": "터미널 성장 %",
+    "analysis.targetPE": "목표 P/E",
+    "analysis.projectionYears": "예측 연수",
+    "analysis.dcf": "DCF",
+    "analysis.dividendDiscount": "배당 할인",
+    "analysis.multiples": "멀티플",
+    "analysis.anchor": "앵커",
+    "analysis.upside": "상승여력",
+    "analysis.usedAsContext": "기술적 신호와 함께 장기적 컨텍스트로 사용됩니다.",
+    "analysis.neutral": "중립",
+    "charts.runAnalysisFirst": "먼저 분석을 실행하세요",
+    "charts.movingAvg": "이동평균",
+    "charts.bollinger": "볼린저",
+    "charts.volume": "거래량",
+    "charts.rsi": "RSI",
+    "charts.macd": "MACD",
+    "charts.stochastic": "스토캐스틱",
+    "charts.chart": "차트",
+    "charts.period": "기간",
+    "charts.fullPeriod": "{ticker} — 전체 기간",
+    "charts.volumeTitle": "거래량",
+    "charts.rsiTitle": "RSI (14)",
+    "charts.macdTitle": "MACD",
+    "charts.stochTitle": "스토캐스틱",
+    "charts.windowHint": "가로 스크롤로 이동, 세로로 범위 조절. 드래그로 이동. 창: {count} / {total}",
+    "account.syncLocal": "로컬만",
+    "account.syncing": "동기화 중…",
+    "account.syncError": "동기화 오류",
+    "account.synced": "동기화됨",
+    "account.syncedAgo": "{ago} 동기화",
+    "account.syncTitle": "계정 동기화",
+    "account.signedInAs": "{email}로 로그인",
+    "account.user": "사용자",
+    "account.signInToSync": "기기 간 동기화를 위해 로그인하세요.",
+    "account.profile": "프로필",
+    "account.firstName": "이름",
+    "account.saved": "저장됨",
+    "account.enterFirstName": "이름을 입력하세요.",
+    "account.signInToSave": "저장하려면 로그인하세요.",
+    "account.overview": "개요",
+    "account.preferences": "환경설정",
+    "account.recentAnalyses": "최근 분석",
+    "account.noAnalyses": "아직 분석 없음",
+    "account.signal": "신호",
+    "account.regime": "레짐",
+    "account.risk": "리스크",
+    "account.conf": "신뢰",
+    "account.view": "보기",
+    "account.defaultPeriod": "기본 기간",
+    "account.defaultInterval": "기본 간격",
+    "account.homeRegion": "홈 지역",
     "pro.heatmap.title": "히트맵은 Pro입니다",
     "pro.heatmap.desc": "실시간 샤프, 변동성, 상대 성과로 S&P 히트맵을 잠금 해제합니다.",
     "pro.heatmap.f0": "병렬 데이터 가져오기",
@@ -314,6 +2863,145 @@ const TRANSLATIONS = {
     "pro.comparison.f0": "나란한 신호 점수",
     "pro.comparison.f1": "샤프 및 드로다운 순위",
     "pro.comparison.f2": "내보내기용 테이블 보기",
+    "common.live": "라이브",
+    "common.price": "가격",
+    "time.justNow": "방금",
+    "time.hoursAgo": "{count}시간 전",
+    "time.daysAgo": "{count}일 전",
+    "analysis.valuationAnalysis": "밸류에이션 분석",
+    "analysis.stretchIndex": "스트레치 지수",
+    "analysis.undervalued": "저평가",
+    "analysis.overvalued": "고평가",
+    "analysis.vsSma200": "SMA 200 대비",
+    "analysis.vsSma50": "SMA 50 대비",
+    "analysis.bollingerPercentB": "볼린저 %B",
+    "analysis.range52w": "52주 범위",
+    "analysis.fromLow": "저점 대비",
+    "analysis.fairValueEst": "적정가 추정",
+    "analysis.marketRegime": "시장 레짐",
+    "analysis.strength": "강도",
+    "analysis.hurst": "허스트",
+    "analysis.avoid": "피하기",
+    "analysis.analystTargets": "애널리스트 목표",
+    "analysis.past12Months": "지난 12개월",
+    "analysis.target12Month": "12개월 목표",
+    "analysis.companyMetrics": "기업 지표",
+    "analysis.earningsPerShare": "주당순이익",
+    "analysis.epsUnavailable": "EPS 시리즈 없음.",
+    "analysis.revenue": "매출",
+    "analysis.netProfitMargin": "순이익률",
+    "analysis.currentRatio": "유동비율",
+    "analysis.debtToEquity": "부채/자본",
+    "analysis.returnOnEquityTtm": "자기자본이익률 (TTM)",
+    "analysis.financialsProTitle": "재무는 Pro",
+    "analysis.financialsProDesc": "기업 재무, 밸류에이션 도구, 다기간 분석을 잠금 해제합니다.",
+    "analysis.financialsProF0": "손익계산서 · 현금흐름 · 대차대조표",
+    "analysis.financialsProF1": "DCF, DDM, 멀티플 모델",
+    "analysis.financialsProF2": "과거 마진 및 성장 추세",
+    "analysis.fundamentalSnapshot": "펀더멘털 스냅샷",
+    "analysis.marketCap": "시가총액",
+    "analysis.netIncome": "순이익",
+    "analysis.freeCashFlow": "잉여현금흐름",
+    "analysis.revenueGrowth": "매출 성장",
+    "analysis.grossMargin": "매출총이익률",
+    "analysis.operatingMargin": "영업이익률",
+    "analysis.netMargin": "순이익률",
+    "analysis.balanceSheet": "대차대조표",
+    "analysis.cash": "현금",
+    "analysis.debt": "부채",
+    "analysis.perShare": "주당",
+    "analysis.keyRatios": "핵심 비율",
+    "analysis.roe": "ROE",
+    "analysis.roa": "ROA",
+    "analysis.pe": "P/E",
+    "analysis.pfcf": "P/FCF",
+    "analysis.financialsOverview": "재무 개요",
+    "analysis.revenueFcfMargin": "매출 + FCF 마진",
+    "analysis.fcfMargin": "FCF 마진",
+    "analysis.marginTrends": "마진 추세",
+    "analysis.grossMarginShort": "총",
+    "analysis.operatingMarginShort": "영업",
+    "analysis.netMarginShort": "순",
+    "analysis.marginRadar": "마진 레이더",
+    "analysis.cashVsDebt": "현금 vs 부채",
+    "analysis.netCash": "순현금",
+    "analysis.netIncomeByPeriod": "기간별 순이익",
+    "analysis.fundamentalDataAggregator": "펀더멘털 데이터 집계",
+    "analysis.fundamentalDataDesc": "티커와 회계기간별 매출, 이익, 마진, 부채, 현금흐름을 수집합니다. API/SEC 연동용 — 여기서는 모델 데이터.",
+    "analysis.fiscalPeriod": "회계기간",
+    "analysis.source": "출처",
+    "analysis.period": "기간",
+    "analysis.fcf": "FCF",
+    "analysis.bbUpper": "BB 상단",
+    "analysis.bbLower": "BB 하단",
+    "analysis.sma20": "SMA 20",
+    "analysis.sma50": "SMA 50",
+    "analysis.close": "종가",
+    "heatmap.marketHeatmaps": "시장 히트맵",
+    "heatmap.subtitle": "지수별 트리맵, 크기는 시가총액, 색은 6개월 Sharpe. 섹터별 정렬.",
+    "heatmap.panelMeta": "{count} 종목 · 크기: 시가총액 · 색: Sharpe (6개월)",
+    "heatmap.load": "히트맵 불러오기",
+    "heatmap.fetches": "Yahoo Finance에서 {count} 종목 가져오기",
+    "heatmap.fetching": "{count} 종목 가져오는 중…",
+    "heatmap.refresh": "새로고침",
+    "heatmap.sector": "섹터",
+    "heatmap.sharpe": "Sharpe",
+    "heatmap.sixMonths": "6개월",
+    "comparison.placeholder": "AAPL, MSFT, GOOGL...",
+    "comparison.running": "실행 중…",
+    "comparison.compare": "비교",
+    "comparison.normalizedPerformance": "정규화 성과 (6개월)",
+    "comparison.ticker": "티커",
+    "comparison.price": "가격",
+    "comparison.signal": "신호",
+    "comparison.conf": "확신",
+    "comparison.sharpe": "Sharpe",
+    "comparison.vol": "변동",
+    "comparison.maxDD": "최대 DD",
+    "comparison.momentum": "모멘텀",
+    "comparison.stretch": "스트레치",
+    "comparison.sharpeComparison": "Sharpe 비교",
+    "comparison.volatilityComparison": "변동성 비교",
+    "comparison.volatility": "변동성",
+    "comparison.failed": "실패",
+    "help.valuationAnalysis.title": "밸류에이션 분석",
+    "help.valuationAnalysis.body": "스트레치, SMA 편차, 적정가 신호를 표시합니다.",
+    "help.marketRegime.title": "시장 레짐",
+    "help.marketRegime.body": "추세, 변동성, 전술 요약.",
+    "help.analystTargets.title": "애널리스트 목표",
+    "help.analystTargets.body": "컨센서스 목표와 최근 12개월 변화.",
+    "help.companyMetrics.title": "기업 지표",
+    "help.companyMetrics.body": "시간에 따른 주요 운영/재무 비율.",
+    "help.fundamentalSnapshot.title": "펀더멘털 스냅샷",
+    "help.fundamentalSnapshot.body": "선택 기간의 핵심 펀더멘털.",
+    "help.balanceSheet.title": "대차대조표",
+    "help.balanceSheet.body": "유동성과 레버리지.",
+    "help.perShare.title": "주당",
+    "help.perShare.body": "주당 EPS, 현금흐름, 배당.",
+    "help.keyRatios.title": "핵심 비율",
+    "help.keyRatios.body": "수익성과 밸류에이션 비율.",
+    "help.financialsOverview.title": "재무 개요",
+    "help.financialsOverview.body": "마진, 현금 vs 부채, 이익 요약.",
+    "help.fundamentalData.title": "펀더멘털 데이터",
+    "help.fundamentalData.body": "회계기간별 모델 펀더멘털.",
+    "help.comparisonInput.title": "비교 입력",
+    "help.comparisonInput.body": "콤마로 구분된 티커를 입력하세요.",
+    "help.comparisonPerformance.title": "성과 오버레이",
+    "help.comparisonPerformance.body": "6개월 정규화 수익률.",
+    "help.comparisonTable.title": "비교 표",
+    "help.comparisonTable.body": "신호, 위험, 밸류에이션 정렬 표.",
+    "help.heatmapOverview.title": "시장 히트맵",
+    "help.heatmapOverview.body": "섹터 트리맵을 Sharpe 색으로 표시.",
+    "help.valuationToolkit.title": "밸류에이션 툴킷",
+    "help.valuationToolkit.body": "DCF/DDM 가정을 조정하고 앵커를 비교.",
+    "help.priceTargets.title": "가격 목표",
+    "help.priceTargets.body": "불/베이스/스톱 수준과 리스크/리워드.",
+    "help.technicalSignals.title": "기술 신호",
+    "help.technicalSignals.body": "모멘텀, 추세, 지표 기반 신호.",
+    "help.riskProfile.title": "리스크 프로필",
+    "help.riskProfile.body": "변동성, 드로다운, 리스크 지표.",
+    "help.statSignals.title": "통계 신호",
+    "help.statSignals.body": "Z-스코어, 모멘텀, 복합 통계.",
     "footer.disclaimer": "교육 목적 전용 — 금융 조언이 아닙니다",
   },
   "pt-BR": {
@@ -328,16 +3016,213 @@ const TRANSLATIONS = {
     "nav.comparison": "Comparação",
     "nav.account": "Conta",
     "nav.help": "Ajuda",
+    "nav.tools": "Ferramentas",
+    "common.line": "Linha",
+    "common.candles": "Velas",
+    "common.expand": "Expandir",
+    "common.close": "Fechar",
+    "common.save": "Salvar",
+    "common.signIn": "Entrar",
+    "common.signOut": "Sair",
+    "common.zoomIn": "Zoom in",
+    "common.zoomOut": "Zoom out",
+    "common.reset": "Redefinir",
     "menu.settings": "Configurações",
     "menu.language": "Idioma",
     "menu.upgrade": "Atualizar para Pro",
     "menu.gift": "Presentear AnalyzeAlpha",
     "menu.logout": "Sair",
     "menu.signedOut": "Não conectado",
+    "tools.watchlist": "Watchlist",
+    "tools.alerts": "Alertas",
+    "tools.ticker": "Ticker",
+    "tools.add": "Adicionar",
+    "tools.emptyWatchlist": "Watchlist vazia",
+    "tools.noAlerts": "Sem alertas",
+    "tools.above": "Acima",
+    "tools.below": "Abaixo",
+    "tools.set": "Definir",
+    "tools.triggered": "DISPARADO",
+    "tools.watching": "MONITORANDO",
+    "auth.missingConfig": "Configuração do Supabase ausente. Adicione `VITE_SUPABASE_URL` e a chave publicável e reinicie o servidor dev.",
+    "auth.continueGoogle": "Continuar com Google",
+    "auth.or": "ou",
+    "auth.firstName": "Nome",
+    "auth.email": "Email",
+    "auth.password": "Senha",
+    "auth.signIn": "Entrar",
+    "auth.createAccount": "Criar conta",
+    "auth.checkEmail": "Verifique seu email para confirmar a conta.",
+    "auth.errFirstName": "Nome obrigatório.",
+    "auth.errEmailPassword": "Email e senha obrigatórios.",
+    "time.secondsAgo": "{count}s atrás",
+    "time.minutesAgo": "{count} min atrás",
+    "day.morning": "manhã",
+    "day.afternoon": "tarde",
+    "day.evening": "noite",
+    "day.night": "madrugada",
+    "greeting.goodDaypart": "Bom {dayPart}",
+    "greeting.hey": "Oi",
+    "greeting.welcomeBack": "Bem-vindo de volta",
+    "greeting.niceToSeeYou": "Bom te ver",
+    "greeting.hello": "Olá",
+    "greeting.marketBrief": "Briefing de mercado",
+    "greeting.quickPulse": "Pulso rápido",
+    "greeting.snapshot": "Resumo",
+    "greeting.todaysGlance": "Visão de hoje",
+    "home.updated": "Atualizado {ago}",
+    "home.marketNews": "Notícias do mercado",
+    "home.indexes": "Índices",
+    "home.topGainers": "Maiores altas",
+    "home.topLosers": "Maiores quedas",
+    "home.trendingStocks": "Ações em alta",
+    "home.marketBriefSection": "Briefing de mercado",
     "chart.openCharts": "Abrir em Gráficos",
     "help.title": "Modo de Ajuda",
     "help.body": "Passe o mouse sobre os elementos destacados para ver o que eles fazem. Clique em Ajuda novamente para sair.",
     "help.exit": "Sair da Ajuda",
+    "help.search.title": "Busca",
+    "help.search.body": "Digite um ticker ou empresa. Pressione Enter ou clique em Analisar.",
+    "help.analyze.title": "Analisar",
+    "help.analyze.body": "Atualiza recomendação, sinais e gráficos.",
+    "help.tools.title": "Ferramentas",
+    "help.tools.body": "Gerencie watchlist e alertas.",
+    "help.account.title": "Conta",
+    "help.account.body": "Configurações, idioma, upgrade e sair.",
+    "help.priceChart.title": "Gráfico de preço",
+    "help.priceChart.body": "Mostra as últimas 60 sessões com indicadores.",
+    "help.nav.home.title": "Início",
+    "help.nav.home.body": "Visão geral do mercado e snapshots ao vivo.",
+    "help.nav.analysis.title": "Análise",
+    "help.nav.analysis.body": "Sinais, valuation e risco.",
+    "help.nav.charts.title": "Gráficos",
+    "help.nav.charts.body": "Gráficos avançados e indicadores.",
+    "help.nav.heatmap.title": "Mapa de calor",
+    "help.nav.heatmap.body": "Mapa de setores/mercado (Pro).",
+    "help.nav.comparison.title": "Comparação",
+    "help.nav.comparison.body": "Compare vários tickers (Pro).",
+    "help.tickerStrip.title": "Ticker ao vivo",
+    "help.tickerStrip.body": "Snapshot rolante do mercado. Clique para analisar.",
+    "help.region.title": "Regiões",
+    "help.region.body": "Troque a região para atualizar notícias e gráficos.",
+    "help.marketNews.title": "Notícias do mercado",
+    "help.marketNews.body": "Últimas manchetes da região selecionada.",
+    "help.indexes.title": "Índices",
+    "help.indexes.body": "Gráficos intraday dos principais índices.",
+    "help.movers.title": "Movimentos do mercado",
+    "help.movers.body": "Maiores altas, quedas e tendências.",
+    "help.marketBrief.title": "Briefing de mercado",
+    "help.marketBrief.body": "Resumo cross-asset e sinais de risco.",
+    "help.changelog.title": "Changelog",
+    "help.changelog.body": "Novidades da última versão.",
+    "help.accountSync.title": "Sincronização",
+    "help.accountSync.body": "Entre para sincronizar preferências e watchlists.",
+    "help.profile.title": "Perfil",
+    "help.profile.body": "Atualize o nome e gerencie o login.",
+    "help.accountWatchlist.title": "Watchlist",
+    "help.accountWatchlist.body": "Gerencie tickers salvos.",
+    "help.accountAlerts.title": "Alertas",
+    "help.accountAlerts.body": "Defina alertas de preço e monitore.",
+    "help.accountRecent.title": "Análises recentes",
+    "help.accountRecent.body": "Acesso rápido às análises mais recentes.",
+    "help.accountPreferences.title": "Preferências",
+    "help.accountPreferences.body": "Período, intervalo e região padrão.",
+    "help.chartsControls.title": "Controles do gráfico",
+    "help.chartsControls.body": "Ative indicadores e mude o estilo.",
+    "analysis.stockTab": "Ação",
+    "analysis.financialsTab": "Financeiro",
+    "analysis.enterTicker": "Digite um ticker para começar",
+    "analysis.typeSymbol": "Digite um símbolo acima e clique em Analisar",
+    "analysis.verdict": "Veredito",
+    "analysis.confidence": "Confiança",
+    "analysis.score": "Pontuação",
+    "analysis.priceTargets": "Metas de preço",
+    "analysis.target": "Meta",
+    "analysis.stopLoss": "Stop loss",
+    "analysis.riskReward": "Risco / Retorno",
+    "analysis.technicalSignals": "Sinais técnicos",
+    "analysis.riskProfile": "Perfil de risco",
+    "analysis.riskLevel": "Nível de risco",
+    "analysis.volatility": "Volatilidade",
+    "analysis.maxDrawdown": "Drawdown máximo",
+    "analysis.sharpe": "Sharpe",
+    "analysis.sortino": "Sortino",
+    "analysis.var95": "VaR 95%",
+    "analysis.statSignals": "Sinais estatísticos",
+    "analysis.zscore": "Z-Score",
+    "analysis.zscoreDesc": "Desvio do preço da média de 20 períodos",
+    "analysis.momentum": "Momentum",
+    "analysis.momentumDesc": "Retorno médio em 5, 10, 20, 50 dias",
+    "analysis.volume": "Volume",
+    "analysis.volumeDesc": "Volume atual vs média 20 períodos",
+    "analysis.composite": "Composto",
+    "analysis.compositeDesc": "Combinação ponderada de todos os sinais",
+    "analysis.buy": "Comprar",
+    "analysis.sell": "Vender",
+    "analysis.current": "Atual",
+    "analysis.avg": "Média",
+    "analysis.confidenceLabel": "Confiança",
+    "analysis.direction": "Direção",
+    "analysis.valuationAnchor": "Âncora de valuation",
+    "analysis.priceChartTitle": "Preço — últimas 60 sessões",
+    "analysis.valuationToolkit": "Toolkit de valuation",
+    "analysis.valuationDesc": "Estima valor intrínseco com DCF, desconto de dividendos e múltiplos.",
+    "analysis.fcfPerShare": "FCF / Ação",
+    "analysis.eps": "EPS",
+    "analysis.dividendPerShare": "Dividendo / Ação",
+    "analysis.growth5y": "Crescimento (5 anos %)",
+    "analysis.discountWacc": "Desconto / WACC %",
+    "analysis.terminalGrowth": "Crescimento terminal %",
+    "analysis.targetPE": "P/L alvo",
+    "analysis.projectionYears": "Anos de projeção",
+    "analysis.dcf": "DCF",
+    "analysis.dividendDiscount": "Desconto de dividendos",
+    "analysis.multiples": "Múltiplos",
+    "analysis.anchor": "Âncora",
+    "analysis.upside": "Potencial",
+    "analysis.usedAsContext": "Usado como contexto de longo prazo com sinais técnicos.",
+    "analysis.neutral": "NEUTRO",
+    "charts.runAnalysisFirst": "Faça uma análise primeiro",
+    "charts.movingAvg": "Médias móveis",
+    "charts.bollinger": "Bollinger",
+    "charts.volume": "Volume",
+    "charts.rsi": "RSI",
+    "charts.macd": "MACD",
+    "charts.stochastic": "Estocástico",
+    "charts.chart": "Gráfico",
+    "charts.period": "Período",
+    "charts.fullPeriod": "{ticker} — Período completo",
+    "charts.volumeTitle": "Volume",
+    "charts.rsiTitle": "RSI (14)",
+    "charts.macdTitle": "MACD",
+    "charts.stochTitle": "Estocástico",
+    "charts.windowHint": "Scroll horizontal move, vertical ajusta a janela. Arraste para mover. Janela: {count} / {total}",
+    "account.syncLocal": "Somente local",
+    "account.syncing": "Sincronizando…",
+    "account.syncError": "Erro de sync",
+    "account.synced": "Sincronizado",
+    "account.syncedAgo": "Sincronizado {ago}",
+    "account.syncTitle": "Sincronização da conta",
+    "account.signedInAs": "Conectado como {email}",
+    "account.user": "usuário",
+    "account.signInToSync": "Entre para sincronizar seus dados.",
+    "account.profile": "Perfil",
+    "account.firstName": "Nome",
+    "account.saved": "Salvo",
+    "account.enterFirstName": "Digite um nome.",
+    "account.signInToSave": "Entre para salvar.",
+    "account.overview": "Visão geral",
+    "account.preferences": "Preferências",
+    "account.recentAnalyses": "Análises recentes",
+    "account.noAnalyses": "Nenhuma análise ainda",
+    "account.signal": "Sinal",
+    "account.regime": "Regime",
+    "account.risk": "Risco",
+    "account.conf": "Conf",
+    "account.view": "Ver",
+    "account.defaultPeriod": "Período padrão",
+    "account.defaultInterval": "Intervalo padrão",
+    "account.homeRegion": "Região inicial",
     "pro.heatmap.title": "Mapa de calor é Pro",
     "pro.heatmap.desc": "Desbloqueie o mapa de calor do S&P com Sharpe, volatilidade e desempenho relativo ao vivo.",
     "pro.heatmap.f0": "Coletas de dados paralelas",
@@ -348,6 +3233,145 @@ const TRANSLATIONS = {
     "pro.comparison.f0": "Pontuações de sinais lado a lado",
     "pro.comparison.f1": "Rankings de Sharpe e drawdown",
     "pro.comparison.f2": "Visão de tabela pronta para exportação",
+    "common.live": "AO VIVO",
+    "common.price": "Preço",
+    "time.justNow": "agora mesmo",
+    "time.hoursAgo": "{count}h atrás",
+    "time.daysAgo": "{count}d atrás",
+    "analysis.valuationAnalysis": "Análise de valuation",
+    "analysis.stretchIndex": "Índice de esticamento",
+    "analysis.undervalued": "Subavaliado",
+    "analysis.overvalued": "Sobreavaliado",
+    "analysis.vsSma200": "vs SMA 200",
+    "analysis.vsSma50": "vs SMA 50",
+    "analysis.bollingerPercentB": "Bollinger %B",
+    "analysis.range52w": "Faixa 52 semanas",
+    "analysis.fromLow": "acima do mínimo",
+    "analysis.fairValueEst": "Estimativa de valor justo",
+    "analysis.marketRegime": "Regime de mercado",
+    "analysis.strength": "Força",
+    "analysis.hurst": "Hurst",
+    "analysis.avoid": "Evite",
+    "analysis.analystTargets": "Alvos de analistas",
+    "analysis.past12Months": "Últimos 12 meses",
+    "analysis.target12Month": "Alvo de 12 meses",
+    "analysis.companyMetrics": "Métricas da empresa",
+    "analysis.earningsPerShare": "Lucro por ação",
+    "analysis.epsUnavailable": "Série de EPS indisponível.",
+    "analysis.revenue": "Receita",
+    "analysis.netProfitMargin": "Margem líquida",
+    "analysis.currentRatio": "Índice de liquidez",
+    "analysis.debtToEquity": "Dívida / Patrimônio",
+    "analysis.returnOnEquityTtm": "ROE (TTM)",
+    "analysis.financialsProTitle": "Financeiro é Pro",
+    "analysis.financialsProDesc": "Desbloqueie finanças, ferramentas de valuation e análise multi‑período.",
+    "analysis.financialsProF0": "DRE · Fluxo de caixa · Balanço",
+    "analysis.financialsProF1": "Modelagem DCF, DDM e múltiplos",
+    "analysis.financialsProF2": "Tendências históricas de margem e crescimento",
+    "analysis.fundamentalSnapshot": "Snapshot fundamental",
+    "analysis.marketCap": "Valor de mercado",
+    "analysis.netIncome": "Lucro líquido",
+    "analysis.freeCashFlow": "Fluxo de caixa livre",
+    "analysis.revenueGrowth": "Crescimento da receita",
+    "analysis.grossMargin": "Margem bruta",
+    "analysis.operatingMargin": "Margem operacional",
+    "analysis.netMargin": "Margem líquida",
+    "analysis.balanceSheet": "Balanço patrimonial",
+    "analysis.cash": "Caixa",
+    "analysis.debt": "Dívida",
+    "analysis.perShare": "Por ação",
+    "analysis.keyRatios": "Indicadores-chave",
+    "analysis.roe": "ROE",
+    "analysis.roa": "ROA",
+    "analysis.pe": "P/L",
+    "analysis.pfcf": "P/FCF",
+    "analysis.financialsOverview": "Visão financeira",
+    "analysis.revenueFcfMargin": "Receita + Margem FCF",
+    "analysis.fcfMargin": "Margem FCF",
+    "analysis.marginTrends": "Tendências de margem",
+    "analysis.grossMarginShort": "Bruta",
+    "analysis.operatingMarginShort": "Operacional",
+    "analysis.netMarginShort": "Líquida",
+    "analysis.marginRadar": "Radar de margens",
+    "analysis.cashVsDebt": "Caixa vs Dívida",
+    "analysis.netCash": "Caixa líquido",
+    "analysis.netIncomeByPeriod": "Lucro líquido por período",
+    "analysis.fundamentalDataAggregator": "Agregador de dados fundamentais",
+    "analysis.fundamentalDataDesc": "Coleta receita, lucro, margens, dívida e fluxo de caixa por ticker e período fiscal. Feito para APIs/SEC — aqui usa dados modelados.",
+    "analysis.fiscalPeriod": "Período fiscal",
+    "analysis.source": "Fonte",
+    "analysis.period": "Período",
+    "analysis.fcf": "FCF",
+    "analysis.bbUpper": "BB Superior",
+    "analysis.bbLower": "BB Inferior",
+    "analysis.sma20": "SMA 20",
+    "analysis.sma50": "SMA 50",
+    "analysis.close": "Fechamento",
+    "heatmap.marketHeatmaps": "Heatmaps de mercado",
+    "heatmap.subtitle": "Treemaps por índice, tamanho por valor de mercado, cor pelo Sharpe de 6 meses. Ações por setor.",
+    "heatmap.panelMeta": "{count} ações · Tamanho: valor de mercado · Cor: Sharpe (6 meses)",
+    "heatmap.load": "Carregar heatmap",
+    "heatmap.fetches": "Busca {count} ações no Yahoo Finance",
+    "heatmap.fetching": "Buscando {count} ações…",
+    "heatmap.refresh": "Atualizar",
+    "heatmap.sector": "Setor",
+    "heatmap.sharpe": "Sharpe",
+    "heatmap.sixMonths": "6 meses",
+    "comparison.placeholder": "AAPL, MSFT, GOOGL...",
+    "comparison.running": "Processando…",
+    "comparison.compare": "Comparar",
+    "comparison.normalizedPerformance": "Performance normalizada (6 meses)",
+    "comparison.ticker": "Ticker",
+    "comparison.price": "Preço",
+    "comparison.signal": "Sinal",
+    "comparison.conf": "Conf.",
+    "comparison.sharpe": "Sharpe",
+    "comparison.vol": "Vol.",
+    "comparison.maxDD": "Max DD",
+    "comparison.momentum": "Mom.",
+    "comparison.stretch": "Esticamento",
+    "comparison.sharpeComparison": "Comparação Sharpe",
+    "comparison.volatilityComparison": "Comparação de volatilidade",
+    "comparison.volatility": "Volatilidade",
+    "comparison.failed": "falhou",
+    "help.valuationAnalysis.title": "Análise de valuation",
+    "help.valuationAnalysis.body": "Mede esticamento, desvios de SMA e sinais de valor justo.",
+    "help.marketRegime.title": "Regime de mercado",
+    "help.marketRegime.body": "Resumo de tendência, volatilidade e postura tática.",
+    "help.analystTargets.title": "Alvos de analistas",
+    "help.analystTargets.body": "Alvos de consenso e revisões dos últimos 12 meses.",
+    "help.companyMetrics.title": "Métricas da empresa",
+    "help.companyMetrics.body": "Indicadores operacionais e de balanço ao longo do tempo.",
+    "help.fundamentalSnapshot.title": "Snapshot fundamental",
+    "help.fundamentalSnapshot.body": "Fundamentos principais do período selecionado.",
+    "help.balanceSheet.title": "Balanço patrimonial",
+    "help.balanceSheet.body": "Liquidez e alavancagem.",
+    "help.perShare.title": "Por ação",
+    "help.perShare.body": "EPS, fluxo de caixa e dividendos por ação.",
+    "help.keyRatios.title": "Indicadores-chave",
+    "help.keyRatios.body": "Indicadores de rentabilidade e valuation.",
+    "help.financialsOverview.title": "Visão financeira",
+    "help.financialsOverview.body": "Resumo visual de margens, caixa vs dívida e lucros.",
+    "help.fundamentalData.title": "Dados fundamentais",
+    "help.fundamentalData.body": "Fundamentos modelados por período fiscal.",
+    "help.comparisonInput.title": "Entrada de comparação",
+    "help.comparisonInput.body": "Digite tickers separados por vírgulas.",
+    "help.comparisonPerformance.title": "Overlay de performance",
+    "help.comparisonPerformance.body": "Retornos normalizados de 6 meses.",
+    "help.comparisonTable.title": "Tabela de comparação",
+    "help.comparisonTable.body": "Tabela ordenável de sinais, risco e valuation.",
+    "help.heatmapOverview.title": "Heatmaps de mercado",
+    "help.heatmapOverview.body": "Treemap por setor com cores de Sharpe.",
+    "help.valuationToolkit.title": "Toolkit de valuation",
+    "help.valuationToolkit.body": "Ajuste premissas DCF/DDM e compare âncoras.",
+    "help.priceTargets.title": "Alvos de preço",
+    "help.priceTargets.body": "Níveis bull/base/stop e risco/retorno.",
+    "help.technicalSignals.title": "Sinais técnicos",
+    "help.technicalSignals.body": "Sinais de momentum, tendência e indicadores.",
+    "help.riskProfile.title": "Perfil de risco",
+    "help.riskProfile.body": "Volatilidade, drawdown e métricas de risco.",
+    "help.statSignals.title": "Sinais estatísticos",
+    "help.statSignals.body": "Z-score, momentum e estatísticas compostas.",
     "footer.disclaimer": "Apenas para fins educacionais — não é aconselhamento financeiro",
   },
   "es-419": {
@@ -382,6 +3406,342 @@ const TRANSLATIONS = {
     "pro.comparison.f0": "Puntuaciones de señales lado a lado",
     "pro.comparison.f1": "Clasificaciones de Sharpe y drawdown",
     "pro.comparison.f2": "Vista de tabla lista para exportar",
+    "nav.tools": "Herramientas",
+    "common.line": "Línea",
+    "common.candles": "Velas",
+    "common.expand": "Expandir",
+    "common.close": "Cerrar",
+    "common.save": "Guardar",
+    "common.signIn": "Iniciar sesión",
+    "common.signOut": "Cerrar sesión",
+    "common.zoomIn": "Acercar",
+    "common.zoomOut": "Alejar",
+    "common.reset": "Restablecer",
+    "common.live": "EN VIVO",
+    "common.price": "Precio",
+    "tools.watchlist": "Lista de seguimiento",
+    "tools.alerts": "Alertas",
+    "tools.ticker": "Ticker",
+    "tools.add": "Agregar",
+    "tools.emptyWatchlist": "Lista de seguimiento vacía",
+    "tools.noAlerts": "Sin alertas",
+    "tools.above": "Por encima",
+    "tools.below": "Por debajo",
+    "tools.set": "Establecer",
+    "tools.triggered": "DISPARADO",
+    "tools.watching": "VIGILANDO",
+    "auth.missingConfig": "Falta la configuración de Supabase. Agrega `VITE_SUPABASE_URL` y la clave publicable, luego reinicia el servidor dev.",
+    "auth.continueGoogle": "Continuar con Google",
+    "auth.or": "o",
+    "auth.firstName": "Nombre",
+    "auth.email": "Email",
+    "auth.password": "Contraseña",
+    "auth.signIn": "Iniciar sesión",
+    "auth.createAccount": "Crear cuenta",
+    "auth.checkEmail": "Revisa tu email para confirmar la cuenta.",
+    "auth.errFirstName": "El nombre es obligatorio.",
+    "auth.errEmailPassword": "Email y contraseña obligatorios.",
+    "time.secondsAgo": "hace {count}s",
+    "time.minutesAgo": "hace {count} min",
+    "time.justNow": "justo ahora",
+    "time.hoursAgo": "hace {count} h",
+    "time.daysAgo": "hace {count} d",
+    "day.morning": "mañana",
+    "day.afternoon": "tarde",
+    "day.evening": "noche",
+    "day.night": "madrugada",
+    "greeting.goodDaypart": "Buen {dayPart}",
+    "greeting.hey": "Hola",
+    "greeting.welcomeBack": "Bienvenido de nuevo",
+    "greeting.niceToSeeYou": "Qué gusto verte",
+    "greeting.hello": "Hola",
+    "greeting.marketBrief": "Resumen de mercado",
+    "greeting.quickPulse": "Pulso rápido",
+    "greeting.snapshot": "Resumen",
+    "greeting.todaysGlance": "Vista de hoy",
+    "home.updated": "Actualizado {ago}",
+    "home.marketNews": "Noticias del mercado",
+    "home.indexes": "Índices",
+    "home.topGainers": "Mayores alzas",
+    "home.topLosers": "Mayores bajas",
+    "home.trendingStocks": "Acciones en tendencia",
+    "home.marketBriefSection": "Resumen de mercado",
+    "help.search.title": "Búsqueda",
+    "help.search.body": "Escribe un ticker o nombre de empresa. Presiona Enter o Analizar.",
+    "help.analyze.title": "Analizar",
+    "help.analyze.body": "Actualiza datos, recomendaciones, señales y gráficos.",
+    "help.tools.title": "Herramientas",
+    "help.tools.body": "Gestiona watchlist y alertas.",
+    "help.account.title": "Cuenta",
+    "help.account.body": "Accede a configuración, idioma, upgrades y salir.",
+    "help.priceChart.title": "Gráfico de precio",
+    "help.priceChart.body": "Muestra las últimas 60 sesiones con indicadores.",
+    "help.nav.home.title": "Inicio",
+    "help.nav.home.body": "Resumen del mercado y snapshots en vivo.",
+    "help.nav.analysis.title": "Análisis",
+    "help.nav.analysis.body": "Señales, valoración y riesgo.",
+    "help.nav.charts.title": "Gráficos",
+    "help.nav.charts.body": "Gráficos avanzados e indicadores.",
+    "help.nav.heatmap.title": "Mapa de calor",
+    "help.nav.heatmap.body": "Mapa de sectores/mercado (Pro).",
+    "help.nav.comparison.title": "Comparación",
+    "help.nav.comparison.body": "Compara varios tickers (Pro).",
+    "help.tickerStrip.title": "Cinta de tickers",
+    "help.tickerStrip.body": "Snapshot del mercado en movimiento. Haz clic para analizar.",
+    "help.region.title": "Regiones",
+    "help.region.body": "Cambia la región para actualizar noticias y gráficos.",
+    "help.marketNews.title": "Noticias del mercado",
+    "help.marketNews.body": "Titulares recientes para la región seleccionada.",
+    "help.indexes.title": "Índices",
+    "help.indexes.body": "Gráficos intradía de los índices principales.",
+    "help.movers.title": "Movimientos del mercado",
+    "help.movers.body": "Mayores alzas, bajas y tendencias.",
+    "help.marketBrief.title": "Resumen de mercado",
+    "help.marketBrief.body": "Resumen cross-asset y señales de riesgo.",
+    "help.changelog.title": "Cambios",
+    "help.changelog.body": "Qué hay de nuevo en la última versión.",
+    "help.accountSync.title": "Sincronización",
+    "help.accountSync.body": "Inicia sesión para sincronizar preferencias y watchlists.",
+    "help.profile.title": "Perfil",
+    "help.profile.body": "Actualiza tu nombre y gestiona el acceso.",
+    "help.accountWatchlist.title": "Watchlist",
+    "help.accountWatchlist.body": "Gestiona tickers guardados.",
+    "help.accountAlerts.title": "Alertas",
+    "help.accountAlerts.body": "Configura alertas de precio y monitorea.",
+    "help.accountRecent.title": "Análisis recientes",
+    "help.accountRecent.body": "Acceso rápido a tus últimos análisis.",
+    "help.accountPreferences.title": "Preferencias",
+    "help.accountPreferences.body": "Periodo, intervalo y región predeterminados.",
+    "help.chartsControls.title": "Controles del gráfico",
+    "help.chartsControls.body": "Activa indicadores y cambia el estilo.",
+    "analysis.stockTab": "Acción",
+    "analysis.financialsTab": "Finanzas",
+    "analysis.enterTicker": "Ingresa un ticker para empezar",
+    "analysis.typeSymbol": "Escribe un símbolo y haz clic en Analizar",
+    "analysis.verdict": "Veredicto",
+    "analysis.confidence": "Confianza",
+    "analysis.score": "Puntuación",
+    "analysis.priceTargets": "Objetivos de precio",
+    "analysis.target": "Objetivo",
+    "analysis.stopLoss": "Stop loss",
+    "analysis.riskReward": "Riesgo / Retorno",
+    "analysis.technicalSignals": "Señales técnicas",
+    "analysis.riskProfile": "Perfil de riesgo",
+    "analysis.riskLevel": "Nivel de riesgo",
+    "analysis.volatility": "Volatilidad",
+    "analysis.maxDrawdown": "Máximo drawdown",
+    "analysis.sharpe": "Sharpe",
+    "analysis.sortino": "Sortino",
+    "analysis.var95": "VaR 95%",
+    "analysis.statSignals": "Señales estadísticas",
+    "analysis.zscore": "Z-Score",
+    "analysis.zscoreDesc": "Desviación del precio respecto a la media de 20 periodos",
+    "analysis.momentum": "Momentum",
+    "analysis.momentumDesc": "Rendimiento medio en 5, 10, 20, 50 días",
+    "analysis.volume": "Volumen",
+    "analysis.volumeDesc": "Volumen actual vs media de 20 periodos",
+    "analysis.composite": "Compuesto",
+    "analysis.compositeDesc": "Combinación ponderada de todas las señales",
+    "analysis.buy": "Comprar",
+    "analysis.sell": "Vender",
+    "analysis.current": "Actual",
+    "analysis.avg": "Prom.",
+    "analysis.confidenceLabel": "Confianza",
+    "analysis.direction": "Dirección",
+    "analysis.valuationAnchor": "Ancla de valoración",
+    "analysis.priceChartTitle": "Precio — últimas 60 sesiones",
+    "analysis.valuationToolkit": "Toolkit de valoración",
+    "analysis.valuationDesc": "Estima el valor intrínseco con DCF, descuento de dividendos y múltiplos.",
+    "analysis.fcfPerShare": "FCF / Acción",
+    "analysis.eps": "EPS",
+    "analysis.dividendPerShare": "Dividendo / Acción",
+    "analysis.growth5y": "Crecimiento (5 años %)",
+    "analysis.discountWacc": "Descuento / WACC %",
+    "analysis.terminalGrowth": "Crecimiento terminal %",
+    "analysis.targetPE": "P/E objetivo",
+    "analysis.projectionYears": "Años de proyección",
+    "analysis.dcf": "DCF",
+    "analysis.dividendDiscount": "Descuento de dividendos",
+    "analysis.multiples": "Múltiplos",
+    "analysis.anchor": "Ancla",
+    "analysis.upside": "Potencial",
+    "analysis.usedAsContext": "Usado como contexto a largo plazo con señales técnicas.",
+    "analysis.neutral": "NEUTRO",
+    "charts.runAnalysisFirst": "Primero realiza un análisis",
+    "charts.movingAvg": "Media móvil",
+    "charts.bollinger": "Bollinger",
+    "charts.volume": "Volumen",
+    "charts.rsi": "RSI",
+    "charts.macd": "MACD",
+    "charts.stochastic": "Estocástico",
+    "charts.chart": "Gráfico",
+    "charts.period": "Periodo",
+    "charts.fullPeriod": "{ticker} — Periodo completo",
+    "charts.volumeTitle": "Volumen",
+    "charts.rsiTitle": "RSI (14)",
+    "charts.macdTitle": "MACD",
+    "charts.stochTitle": "Estocástico",
+    "charts.windowHint": "Desplazamiento horizontal mueve, vertical ajusta la ventana. Arrastra para mover. Ventana: {count} / {total}",
+    "account.syncLocal": "Solo local",
+    "account.syncing": "Sincronizando…",
+    "account.syncError": "Error de sync",
+    "account.synced": "Sincronizado",
+    "account.syncedAgo": "Sincronizado {ago}",
+    "account.syncTitle": "Sincronización de cuenta",
+    "account.signedInAs": "Conectado como {email}",
+    "account.user": "usuario",
+    "account.signInToSync": "Inicia sesión para sincronizar datos.",
+    "account.profile": "Perfil",
+    "account.firstName": "Nombre",
+    "account.saved": "Guardado",
+    "account.enterFirstName": "Ingresa un nombre.",
+    "account.signInToSave": "Inicia sesión para guardar.",
+    "account.overview": "Resumen",
+    "account.preferences": "Preferencias",
+    "account.recentAnalyses": "Análisis recientes",
+    "account.noAnalyses": "Aún no hay análisis",
+    "account.signal": "Señal",
+    "account.regime": "Régimen",
+    "account.risk": "Riesgo",
+    "account.conf": "Conf.",
+    "account.view": "Ver",
+    "account.defaultPeriod": "Periodo predeterminado",
+    "account.defaultInterval": "Intervalo predeterminado",
+    "account.homeRegion": "Región inicial",
+    "analysis.valuationAnalysis": "Análisis de valoración",
+    "analysis.stretchIndex": "Índice de stretch",
+    "analysis.undervalued": "Infravalorado",
+    "analysis.overvalued": "Sobrevalorado",
+    "analysis.vsSma200": "vs SMA 200",
+    "analysis.vsSma50": "vs SMA 50",
+    "analysis.bollingerPercentB": "Bollinger %B",
+    "analysis.range52w": "Rango 52 semanas",
+    "analysis.fromLow": "desde el mínimo",
+    "analysis.fairValueEst": "Estimación de valor justo",
+    "analysis.marketRegime": "Régimen de mercado",
+    "analysis.strength": "Fuerza",
+    "analysis.hurst": "Hurst",
+    "analysis.avoid": "Evitar",
+    "analysis.analystTargets": "Objetivos de analistas",
+    "analysis.past12Months": "Últimos 12 meses",
+    "analysis.target12Month": "Objetivo a 12 meses",
+    "analysis.companyMetrics": "Métricas de la empresa",
+    "analysis.earningsPerShare": "Ganancias por acción",
+    "analysis.epsUnavailable": "Serie de EPS no disponible.",
+    "analysis.revenue": "Ingresos",
+    "analysis.netProfitMargin": "Margen de beneficio neto",
+    "analysis.currentRatio": "Ratio corriente",
+    "analysis.debtToEquity": "Deuda / Patrimonio",
+    "analysis.returnOnEquityTtm": "ROE (TTM)",
+    "analysis.financialsProTitle": "Finanzas son Pro",
+    "analysis.financialsProDesc": "Desbloquea financieros, herramientas de valoración y análisis multi‑periodo.",
+    "analysis.financialsProF0": "Estado de resultados · Flujo de caja · Balance",
+    "analysis.financialsProF1": "Modelado DCF, DDM y múltiplos",
+    "analysis.financialsProF2": "Tendencias históricas de márgenes y crecimiento",
+    "analysis.fundamentalSnapshot": "Snapshot fundamental",
+    "analysis.marketCap": "Capitalización de mercado",
+    "analysis.netIncome": "Ingreso neto",
+    "analysis.freeCashFlow": "Flujo de caja libre",
+    "analysis.revenueGrowth": "Crecimiento de ingresos",
+    "analysis.grossMargin": "Margen bruto",
+    "analysis.operatingMargin": "Margen operativo",
+    "analysis.netMargin": "Margen neto",
+    "analysis.balanceSheet": "Balance",
+    "analysis.cash": "Caja",
+    "analysis.debt": "Deuda",
+    "analysis.perShare": "Por acción",
+    "analysis.keyRatios": "Ratios clave",
+    "analysis.roe": "ROE",
+    "analysis.roa": "ROA",
+    "analysis.pe": "P/E",
+    "analysis.pfcf": "P/FCF",
+    "analysis.financialsOverview": "Resumen financiero",
+    "analysis.revenueFcfMargin": "Ingresos + Margen FCF",
+    "analysis.fcfMargin": "Margen FCF",
+    "analysis.marginTrends": "Tendencias de margen",
+    "analysis.grossMarginShort": "Bruto",
+    "analysis.operatingMarginShort": "Operativo",
+    "analysis.netMarginShort": "Neto",
+    "analysis.marginRadar": "Radar de márgenes",
+    "analysis.cashVsDebt": "Caja vs Deuda",
+    "analysis.netCash": "Caja neta",
+    "analysis.netIncomeByPeriod": "Ingreso neto por periodo",
+    "analysis.fundamentalDataAggregator": "Agregador de datos fundamentales",
+    "analysis.fundamentalDataDesc": "Recopila ingresos, ganancias, márgenes, deuda y flujo de caja por ticker y periodo fiscal. Diseñado para APIs/SEC — aquí usa datos modelados.",
+    "analysis.fiscalPeriod": "Periodo fiscal",
+    "analysis.source": "Fuente",
+    "analysis.period": "Periodo",
+    "analysis.fcf": "FCF",
+    "analysis.bbUpper": "BB Superior",
+    "analysis.bbLower": "BB Inferior",
+    "analysis.sma20": "SMA 20",
+    "analysis.sma50": "SMA 50",
+    "analysis.close": "Cierre",
+    "heatmap.marketHeatmaps": "Mapa de calor del mercado",
+    "heatmap.subtitle": "Treemap por índice, tamaño por capitalización, color por Sharpe de 6 meses. Acciones ordenadas por sector.",
+    "heatmap.panelMeta": "{count} acciones · Tamaño: capitalización · Color: Sharpe (6 meses)",
+    "heatmap.load": "Cargar mapa de calor",
+    "heatmap.fetches": "Obtiene {count} acciones de Yahoo Finance",
+    "heatmap.fetching": "Obteniendo {count} acciones…",
+    "heatmap.refresh": "Actualizar",
+    "heatmap.sector": "Sector",
+    "heatmap.sharpe": "Sharpe",
+    "heatmap.sixMonths": "6 meses",
+    "comparison.placeholder": "AAPL, MSFT, GOOGL...",
+    "comparison.running": "Ejecutando…",
+    "comparison.compare": "Comparar",
+    "comparison.normalizedPerformance": "Rendimiento normalizado (6 meses)",
+    "comparison.ticker": "Ticker",
+    "comparison.price": "Precio",
+    "comparison.signal": "Señal",
+    "comparison.conf": "Conf.",
+    "comparison.sharpe": "Sharpe",
+    "comparison.vol": "Vol.",
+    "comparison.maxDD": "Max DD",
+    "comparison.momentum": "Mom.",
+    "comparison.stretch": "Stretch",
+    "comparison.sharpeComparison": "Comparación Sharpe",
+    "comparison.volatilityComparison": "Comparación de volatilidad",
+    "comparison.volatility": "Volatilidad",
+    "comparison.failed": "falló",
+    "help.valuationAnalysis.title": "Análisis de valoración",
+    "help.valuationAnalysis.body": "Mide stretch, desviaciones SMA y señales de valor justo.",
+    "help.marketRegime.title": "Régimen de mercado",
+    "help.marketRegime.body": "Resumen de tendencia, volatilidad y postura táctica.",
+    "help.analystTargets.title": "Objetivos de analistas",
+    "help.analystTargets.body": "Objetivos consenso y revisiones de 12 meses.",
+    "help.companyMetrics.title": "Métricas de la empresa",
+    "help.companyMetrics.body": "Ratios operativos y de balance a lo largo del tiempo.",
+    "help.fundamentalSnapshot.title": "Snapshot fundamental",
+    "help.fundamentalSnapshot.body": "Fundamentales principales del periodo seleccionado.",
+    "help.balanceSheet.title": "Balance",
+    "help.balanceSheet.body": "Liquidez y apalancamiento.",
+    "help.perShare.title": "Por acción",
+    "help.perShare.body": "EPS, flujo de caja y dividendos por acción.",
+    "help.keyRatios.title": "Ratios clave",
+    "help.keyRatios.body": "Ratios de rentabilidad y valoración.",
+    "help.financialsOverview.title": "Resumen financiero",
+    "help.financialsOverview.body": "Resumen visual de márgenes, caja vs deuda y ganancias.",
+    "help.fundamentalData.title": "Datos fundamentales",
+    "help.fundamentalData.body": "Fundamentales modelados por periodo fiscal.",
+    "help.comparisonInput.title": "Entrada de comparación",
+    "help.comparisonInput.body": "Ingresa tickers separados por comas.",
+    "help.comparisonPerformance.title": "Overlay de rendimiento",
+    "help.comparisonPerformance.body": "Rendimientos normalizados de 6 meses.",
+    "help.comparisonTable.title": "Tabla de comparación",
+    "help.comparisonTable.body": "Tabla ordenable de señales, riesgo y valoración.",
+    "help.heatmapOverview.title": "Mapa de calor",
+    "help.heatmapOverview.body": "Treemap por sector con colores Sharpe.",
+    "help.valuationToolkit.title": "Toolkit de valoración",
+    "help.valuationToolkit.body": "Ajusta supuestos DCF/DDM y compara anclas.",
+    "help.priceTargets.title": "Objetivos de precio",
+    "help.priceTargets.body": "Niveles bull/base/stop y riesgo/retorno.",
+    "help.technicalSignals.title": "Señales técnicas",
+    "help.technicalSignals.body": "Señales de momentum, tendencia e indicadores.",
+    "help.riskProfile.title": "Perfil de riesgo",
+    "help.riskProfile.body": "Volatilidad, drawdown y métricas de riesgo.",
+    "help.statSignals.title": "Señales estadísticas",
+    "help.statSignals.body": "Z-score, momentum y estadísticas compuestas.",
     "footer.disclaimer": "Solo con fines educativos — no es asesoramiento financiero",
   },
   "es-ES": {
@@ -416,9 +3776,364 @@ const TRANSLATIONS = {
     "pro.comparison.f0": "Puntuaciones de señales en paralelo",
     "pro.comparison.f1": "Clasificaciones de Sharpe y drawdown",
     "pro.comparison.f2": "Vista de tabla lista para exportar",
+    "nav.tools": "Herramientas",
+    "common.line": "Línea",
+    "common.candles": "Velas",
+    "common.expand": "Expandir",
+    "common.close": "Cerrar",
+    "common.save": "Guardar",
+    "common.signIn": "Iniciar sesión",
+    "common.signOut": "Cerrar sesión",
+    "common.zoomIn": "Acercar",
+    "common.zoomOut": "Alejar",
+    "common.reset": "Restablecer",
+    "common.live": "EN VIVO",
+    "common.price": "Precio",
+    "tools.watchlist": "Lista de seguimiento",
+    "tools.alerts": "Alertas",
+    "tools.ticker": "Ticker",
+    "tools.add": "Agregar",
+    "tools.emptyWatchlist": "Lista de seguimiento vacía",
+    "tools.noAlerts": "Sin alertas",
+    "tools.above": "Por encima",
+    "tools.below": "Por debajo",
+    "tools.set": "Establecer",
+    "tools.triggered": "DISPARADO",
+    "tools.watching": "VIGILANDO",
+    "auth.missingConfig": "Falta la configuración de Supabase. Agrega `VITE_SUPABASE_URL` y la clave publicable, luego reinicia el servidor dev.",
+    "auth.continueGoogle": "Continuar con Google",
+    "auth.or": "o",
+    "auth.firstName": "Nombre",
+    "auth.email": "Email",
+    "auth.password": "Contraseña",
+    "auth.signIn": "Iniciar sesión",
+    "auth.createAccount": "Crear cuenta",
+    "auth.checkEmail": "Revisa tu email para confirmar la cuenta.",
+    "auth.errFirstName": "El nombre es obligatorio.",
+    "auth.errEmailPassword": "Email y contraseña obligatorios.",
+    "time.secondsAgo": "hace {count}s",
+    "time.minutesAgo": "hace {count} min",
+    "time.justNow": "justo ahora",
+    "time.hoursAgo": "hace {count} h",
+    "time.daysAgo": "hace {count} d",
+    "day.morning": "mañana",
+    "day.afternoon": "tarde",
+    "day.evening": "noche",
+    "day.night": "madrugada",
+    "greeting.goodDaypart": "Buen {dayPart}",
+    "greeting.hey": "Hola",
+    "greeting.welcomeBack": "Bienvenido de nuevo",
+    "greeting.niceToSeeYou": "Qué gusto verte",
+    "greeting.hello": "Hola",
+    "greeting.marketBrief": "Resumen de mercado",
+    "greeting.quickPulse": "Pulso rápido",
+    "greeting.snapshot": "Resumen",
+    "greeting.todaysGlance": "Vista de hoy",
+    "home.updated": "Actualizado {ago}",
+    "home.marketNews": "Noticias del mercado",
+    "home.indexes": "Índices",
+    "home.topGainers": "Mayores alzas",
+    "home.topLosers": "Mayores bajas",
+    "home.trendingStocks": "Acciones en tendencia",
+    "home.marketBriefSection": "Resumen de mercado",
+    "help.search.title": "Búsqueda",
+    "help.search.body": "Escribe un ticker o nombre de empresa. Presiona Enter o Analizar.",
+    "help.analyze.title": "Analizar",
+    "help.analyze.body": "Actualiza datos, recomendaciones, señales y gráficos.",
+    "help.tools.title": "Herramientas",
+    "help.tools.body": "Gestiona watchlist y alertas.",
+    "help.account.title": "Cuenta",
+    "help.account.body": "Accede a configuración, idioma, upgrades y salir.",
+    "help.priceChart.title": "Gráfico de precio",
+    "help.priceChart.body": "Muestra las últimas 60 sesiones con indicadores.",
+    "help.nav.home.title": "Inicio",
+    "help.nav.home.body": "Resumen del mercado y snapshots en vivo.",
+    "help.nav.analysis.title": "Análisis",
+    "help.nav.analysis.body": "Señales, valoración y riesgo.",
+    "help.nav.charts.title": "Gráficos",
+    "help.nav.charts.body": "Gráficos avanzados e indicadores.",
+    "help.nav.heatmap.title": "Mapa de calor",
+    "help.nav.heatmap.body": "Mapa de sectores/mercado (Pro).",
+    "help.nav.comparison.title": "Comparación",
+    "help.nav.comparison.body": "Compara varios tickers (Pro).",
+    "help.tickerStrip.title": "Cinta de tickers",
+    "help.tickerStrip.body": "Snapshot del mercado en movimiento. Haz clic para analizar.",
+    "help.region.title": "Regiones",
+    "help.region.body": "Cambia la región para actualizar noticias y gráficos.",
+    "help.marketNews.title": "Noticias del mercado",
+    "help.marketNews.body": "Titulares recientes para la región seleccionada.",
+    "help.indexes.title": "Índices",
+    "help.indexes.body": "Gráficos intradía de los índices principales.",
+    "help.movers.title": "Movimientos del mercado",
+    "help.movers.body": "Mayores alzas, bajas y tendencias.",
+    "help.marketBrief.title": "Resumen de mercado",
+    "help.marketBrief.body": "Resumen cross-asset y señales de riesgo.",
+    "help.changelog.title": "Cambios",
+    "help.changelog.body": "Qué hay de nuevo en la última versión.",
+    "help.accountSync.title": "Sincronización",
+    "help.accountSync.body": "Inicia sesión para sincronizar preferencias y watchlists.",
+    "help.profile.title": "Perfil",
+    "help.profile.body": "Actualiza tu nombre y gestiona el acceso.",
+    "help.accountWatchlist.title": "Watchlist",
+    "help.accountWatchlist.body": "Gestiona tickers guardados.",
+    "help.accountAlerts.title": "Alertas",
+    "help.accountAlerts.body": "Configura alertas de precio y monitorea.",
+    "help.accountRecent.title": "Análisis recientes",
+    "help.accountRecent.body": "Acceso rápido a tus últimos análisis.",
+    "help.accountPreferences.title": "Preferencias",
+    "help.accountPreferences.body": "Periodo, intervalo y región predeterminados.",
+    "help.chartsControls.title": "Controles del gráfico",
+    "help.chartsControls.body": "Activa indicadores y cambia el estilo.",
+    "analysis.stockTab": "Acción",
+    "analysis.financialsTab": "Finanzas",
+    "analysis.enterTicker": "Ingresa un ticker para empezar",
+    "analysis.typeSymbol": "Escribe un símbolo y haz clic en Analizar",
+    "analysis.verdict": "Veredicto",
+    "analysis.confidence": "Confianza",
+    "analysis.score": "Puntuación",
+    "analysis.priceTargets": "Objetivos de precio",
+    "analysis.target": "Objetivo",
+    "analysis.stopLoss": "Stop loss",
+    "analysis.riskReward": "Riesgo / Retorno",
+    "analysis.technicalSignals": "Señales técnicas",
+    "analysis.riskProfile": "Perfil de riesgo",
+    "analysis.riskLevel": "Nivel de riesgo",
+    "analysis.volatility": "Volatilidad",
+    "analysis.maxDrawdown": "Máximo drawdown",
+    "analysis.sharpe": "Sharpe",
+    "analysis.sortino": "Sortino",
+    "analysis.var95": "VaR 95%",
+    "analysis.statSignals": "Señales estadísticas",
+    "analysis.zscore": "Z-Score",
+    "analysis.zscoreDesc": "Desviación del precio respecto a la media de 20 periodos",
+    "analysis.momentum": "Momentum",
+    "analysis.momentumDesc": "Rendimiento medio en 5, 10, 20, 50 días",
+    "analysis.volume": "Volumen",
+    "analysis.volumeDesc": "Volumen actual vs media de 20 periodos",
+    "analysis.composite": "Compuesto",
+    "analysis.compositeDesc": "Combinación ponderada de todas las señales",
+    "analysis.buy": "Comprar",
+    "analysis.sell": "Vender",
+    "analysis.current": "Actual",
+    "analysis.avg": "Prom.",
+    "analysis.confidenceLabel": "Confianza",
+    "analysis.direction": "Dirección",
+    "analysis.valuationAnchor": "Ancla de valoración",
+    "analysis.priceChartTitle": "Precio — últimas 60 sesiones",
+    "analysis.valuationToolkit": "Toolkit de valoración",
+    "analysis.valuationDesc": "Estima el valor intrínseco con DCF, descuento de dividendos y múltiplos.",
+    "analysis.fcfPerShare": "FCF / Acción",
+    "analysis.eps": "EPS",
+    "analysis.dividendPerShare": "Dividendo / Acción",
+    "analysis.growth5y": "Crecimiento (5 años %)",
+    "analysis.discountWacc": "Descuento / WACC %",
+    "analysis.terminalGrowth": "Crecimiento terminal %",
+    "analysis.targetPE": "P/E objetivo",
+    "analysis.projectionYears": "Años de proyección",
+    "analysis.dcf": "DCF",
+    "analysis.dividendDiscount": "Descuento de dividendos",
+    "analysis.multiples": "Múltiplos",
+    "analysis.anchor": "Ancla",
+    "analysis.upside": "Potencial",
+    "analysis.usedAsContext": "Usado como contexto a largo plazo con señales técnicas.",
+    "analysis.neutral": "NEUTRO",
+    "charts.runAnalysisFirst": "Primero realiza un análisis",
+    "charts.movingAvg": "Media móvil",
+    "charts.bollinger": "Bollinger",
+    "charts.volume": "Volumen",
+    "charts.rsi": "RSI",
+    "charts.macd": "MACD",
+    "charts.stochastic": "Estocástico",
+    "charts.chart": "Gráfico",
+    "charts.period": "Periodo",
+    "charts.fullPeriod": "{ticker} — Periodo completo",
+    "charts.volumeTitle": "Volumen",
+    "charts.rsiTitle": "RSI (14)",
+    "charts.macdTitle": "MACD",
+    "charts.stochTitle": "Estocástico",
+    "charts.windowHint": "Desplazamiento horizontal mueve, vertical ajusta la ventana. Arrastra para mover. Ventana: {count} / {total}",
+    "account.syncLocal": "Solo local",
+    "account.syncing": "Sincronizando…",
+    "account.syncError": "Error de sync",
+    "account.synced": "Sincronizado",
+    "account.syncedAgo": "Sincronizado {ago}",
+    "account.syncTitle": "Sincronización de cuenta",
+    "account.signedInAs": "Conectado como {email}",
+    "account.user": "usuario",
+    "account.signInToSync": "Inicia sesión para sincronizar datos.",
+    "account.profile": "Perfil",
+    "account.firstName": "Nombre",
+    "account.saved": "Guardado",
+    "account.enterFirstName": "Ingresa un nombre.",
+    "account.signInToSave": "Inicia sesión para guardar.",
+    "account.overview": "Resumen",
+    "account.preferences": "Preferencias",
+    "account.recentAnalyses": "Análisis recientes",
+    "account.noAnalyses": "Aún no hay análisis",
+    "account.signal": "Señal",
+    "account.regime": "Régimen",
+    "account.risk": "Riesgo",
+    "account.conf": "Conf.",
+    "account.view": "Ver",
+    "account.defaultPeriod": "Periodo predeterminado",
+    "account.defaultInterval": "Intervalo predeterminado",
+    "account.homeRegion": "Región inicial",
+    "analysis.valuationAnalysis": "Análisis de valoración",
+    "analysis.stretchIndex": "Índice de stretch",
+    "analysis.undervalued": "Infravalorado",
+    "analysis.overvalued": "Sobrevalorado",
+    "analysis.vsSma200": "vs SMA 200",
+    "analysis.vsSma50": "vs SMA 50",
+    "analysis.bollingerPercentB": "Bollinger %B",
+    "analysis.range52w": "Rango 52 semanas",
+    "analysis.fromLow": "desde el mínimo",
+    "analysis.fairValueEst": "Estimación de valor justo",
+    "analysis.marketRegime": "Régimen de mercado",
+    "analysis.strength": "Fuerza",
+    "analysis.hurst": "Hurst",
+    "analysis.avoid": "Evitar",
+    "analysis.analystTargets": "Objetivos de analistas",
+    "analysis.past12Months": "Últimos 12 meses",
+    "analysis.target12Month": "Objetivo a 12 meses",
+    "analysis.companyMetrics": "Métricas de la empresa",
+    "analysis.earningsPerShare": "Ganancias por acción",
+    "analysis.epsUnavailable": "Serie de EPS no disponible.",
+    "analysis.revenue": "Ingresos",
+    "analysis.netProfitMargin": "Margen de beneficio neto",
+    "analysis.currentRatio": "Ratio corriente",
+    "analysis.debtToEquity": "Deuda / Patrimonio",
+    "analysis.returnOnEquityTtm": "ROE (TTM)",
+    "analysis.financialsProTitle": "Finanzas son Pro",
+    "analysis.financialsProDesc": "Desbloquea financieros, herramientas de valoración y análisis multi‑periodo.",
+    "analysis.financialsProF0": "Estado de resultados · Flujo de caja · Balance",
+    "analysis.financialsProF1": "Modelado DCF, DDM y múltiplos",
+    "analysis.financialsProF2": "Tendencias históricas de márgenes y crecimiento",
+    "analysis.fundamentalSnapshot": "Snapshot fundamental",
+    "analysis.marketCap": "Capitalización de mercado",
+    "analysis.netIncome": "Ingreso neto",
+    "analysis.freeCashFlow": "Flujo de caja libre",
+    "analysis.revenueGrowth": "Crecimiento de ingresos",
+    "analysis.grossMargin": "Margen bruto",
+    "analysis.operatingMargin": "Margen operativo",
+    "analysis.netMargin": "Margen neto",
+    "analysis.balanceSheet": "Balance",
+    "analysis.cash": "Caja",
+    "analysis.debt": "Deuda",
+    "analysis.perShare": "Por acción",
+    "analysis.keyRatios": "Ratios clave",
+    "analysis.roe": "ROE",
+    "analysis.roa": "ROA",
+    "analysis.pe": "P/E",
+    "analysis.pfcf": "P/FCF",
+    "analysis.financialsOverview": "Resumen financiero",
+    "analysis.revenueFcfMargin": "Ingresos + Margen FCF",
+    "analysis.fcfMargin": "Margen FCF",
+    "analysis.marginTrends": "Tendencias de margen",
+    "analysis.grossMarginShort": "Bruto",
+    "analysis.operatingMarginShort": "Operativo",
+    "analysis.netMarginShort": "Neto",
+    "analysis.marginRadar": "Radar de márgenes",
+    "analysis.cashVsDebt": "Caja vs Deuda",
+    "analysis.netCash": "Caja neta",
+    "analysis.netIncomeByPeriod": "Ingreso neto por periodo",
+    "analysis.fundamentalDataAggregator": "Agregador de datos fundamentales",
+    "analysis.fundamentalDataDesc": "Recopila ingresos, ganancias, márgenes, deuda y flujo de caja por ticker y periodo fiscal. Diseñado para APIs/SEC — aquí usa datos modelados.",
+    "analysis.fiscalPeriod": "Periodo fiscal",
+    "analysis.source": "Fuente",
+    "analysis.period": "Periodo",
+    "analysis.fcf": "FCF",
+    "analysis.bbUpper": "BB Superior",
+    "analysis.bbLower": "BB Inferior",
+    "analysis.sma20": "SMA 20",
+    "analysis.sma50": "SMA 50",
+    "analysis.close": "Cierre",
+    "heatmap.marketHeatmaps": "Mapa de calor del mercado",
+    "heatmap.subtitle": "Treemap por índice, tamaño por capitalización, color por Sharpe de 6 meses. Acciones ordenadas por sector.",
+    "heatmap.panelMeta": "{count} acciones · Tamaño: capitalización · Color: Sharpe (6 meses)",
+    "heatmap.load": "Cargar mapa de calor",
+    "heatmap.fetches": "Obtiene {count} acciones de Yahoo Finance",
+    "heatmap.fetching": "Obteniendo {count} acciones…",
+    "heatmap.refresh": "Actualizar",
+    "heatmap.sector": "Sector",
+    "heatmap.sharpe": "Sharpe",
+    "heatmap.sixMonths": "6 meses",
+    "comparison.placeholder": "AAPL, MSFT, GOOGL...",
+    "comparison.running": "Ejecutando…",
+    "comparison.compare": "Comparar",
+    "comparison.normalizedPerformance": "Rendimiento normalizado (6 meses)",
+    "comparison.ticker": "Ticker",
+    "comparison.price": "Precio",
+    "comparison.signal": "Señal",
+    "comparison.conf": "Conf.",
+    "comparison.sharpe": "Sharpe",
+    "comparison.vol": "Vol.",
+    "comparison.maxDD": "Max DD",
+    "comparison.momentum": "Mom.",
+    "comparison.stretch": "Stretch",
+    "comparison.sharpeComparison": "Comparación Sharpe",
+    "comparison.volatilityComparison": "Comparación de volatilidad",
+    "comparison.volatility": "Volatilidad",
+    "comparison.failed": "falló",
+    "help.valuationAnalysis.title": "Análisis de valoración",
+    "help.valuationAnalysis.body": "Mide stretch, desviaciones SMA y señales de valor justo.",
+    "help.marketRegime.title": "Régimen de mercado",
+    "help.marketRegime.body": "Resumen de tendencia, volatilidad y postura táctica.",
+    "help.analystTargets.title": "Objetivos de analistas",
+    "help.analystTargets.body": "Objetivos consenso y revisiones de 12 meses.",
+    "help.companyMetrics.title": "Métricas de la empresa",
+    "help.companyMetrics.body": "Ratios operativos y de balance a lo largo del tiempo.",
+    "help.fundamentalSnapshot.title": "Snapshot fundamental",
+    "help.fundamentalSnapshot.body": "Fundamentales principales del periodo seleccionado.",
+    "help.balanceSheet.title": "Balance",
+    "help.balanceSheet.body": "Liquidez y apalancamiento.",
+    "help.perShare.title": "Por acción",
+    "help.perShare.body": "EPS, flujo de caja y dividendos por acción.",
+    "help.keyRatios.title": "Ratios clave",
+    "help.keyRatios.body": "Ratios de rentabilidad y valoración.",
+    "help.financialsOverview.title": "Resumen financiero",
+    "help.financialsOverview.body": "Resumen visual de márgenes, caja vs deuda y ganancias.",
+    "help.fundamentalData.title": "Datos fundamentales",
+    "help.fundamentalData.body": "Fundamentales modelados por periodo fiscal.",
+    "help.comparisonInput.title": "Entrada de comparación",
+    "help.comparisonInput.body": "Ingresa tickers separados por comas.",
+    "help.comparisonPerformance.title": "Overlay de rendimiento",
+    "help.comparisonPerformance.body": "Rendimientos normalizados de 6 meses.",
+    "help.comparisonTable.title": "Tabla de comparación",
+    "help.comparisonTable.body": "Tabla ordenable de señales, riesgo y valoración.",
+    "help.heatmapOverview.title": "Mapa de calor",
+    "help.heatmapOverview.body": "Treemap por sector con colores Sharpe.",
+    "help.valuationToolkit.title": "Toolkit de valoración",
+    "help.valuationToolkit.body": "Ajusta supuestos DCF/DDM y compara anclas.",
+    "help.priceTargets.title": "Objetivos de precio",
+    "help.priceTargets.body": "Niveles bull/base/stop y riesgo/retorno.",
+    "help.technicalSignals.title": "Señales técnicas",
+    "help.technicalSignals.body": "Señales de momentum, tendencia e indicadores.",
+    "help.riskProfile.title": "Perfil de riesgo",
+    "help.riskProfile.body": "Volatilidad, drawdown y métricas de riesgo.",
+    "help.statSignals.title": "Señales estadísticas",
+    "help.statSignals.body": "Z-score, momentum y estadísticas compuestas.",
     "footer.disclaimer": "Solo con fines educativos — no es asesoramiento financiero",
   },
 };
+
+const I18nContext = React.createContext({
+  t: (key, vars) => {
+    if (typeof key !== "string") return "";
+    if (!vars) return key;
+    return Object.entries(vars).reduce((acc, [k, v]) => acc.replace(new RegExp(`\\{${k}\\}`, "g"), String(v)), key);
+  },
+  locale: "en-US",
+});
+
+const HelpContext = React.createContext({
+  enabled: false,
+  show: null,
+  hide: null,
+});
+
+function useI18n() {
+  return useContext(I18nContext);
+}
 
 function emptyWorkspace() {
   return {
@@ -472,16 +4187,23 @@ function saveLocalWorkspace(data) {
   }
 }
 
-function formatAgo(ts) {
-  if (!ts) return "just now";
+function formatAgo(ts, t) {
+  const fallback = (key, vars, fallbackValue) => {
+    if (typeof t === "function") {
+      const res = t(key, vars);
+      if (res && res !== key) return res;
+    }
+    return fallbackValue;
+  };
+  if (!ts) return fallback("time.justNow", null, "just now");
   const sec = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (sec < 60) return `${sec}s ago`;
+  if (sec < 60) return fallback("time.secondsAgo", { count: sec }, `${sec}s ago`);
   const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
+  if (min < 60) return fallback("time.minutesAgo", { count: min }, `${min}m ago`);
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
+  if (hr < 24) return fallback("time.hoursAgo", { count: hr }, `${hr}h ago`);
   const day = Math.floor(hr / 24);
-  return `${day}d ago`;
+  return fallback("time.daysAgo", { count: day }, `${day}d ago`);
 }
 
 function getFirstNameFromUser(user) {
@@ -1694,11 +5416,15 @@ function Row({ label, value, color, border = true }) {
 }
 
 function HelpWrap({ help, enabled, onShow, onHide, block = false, children }) {
-  if (!help || !enabled) return children;
+  const ctx = useContext(HelpContext);
+  const active = enabled ?? ctx?.enabled;
+  const show = onShow ?? ctx?.show;
+  const hide = onHide ?? ctx?.hide;
+  if (!help || !active) return children;
   return (
     <div
-      onMouseEnter={e => onShow?.(e, help)}
-      onMouseLeave={onHide}
+      onMouseEnter={e => show?.(e, help)}
+      onMouseLeave={hide}
       style={{
         display: block ? "block" : "inline-flex",
         outline: `1px dashed ${C.rule}`,
@@ -1711,9 +5437,9 @@ function HelpWrap({ help, enabled, onShow, onHide, block = false, children }) {
   );
 }
 
-function Section({ title, children, style, actions }) {
+function Section({ title, children, style, actions, help }) {
   const baseStyle = { minWidth: 0, ...style };
-  return (
+  const content = (
     <div style={baseStyle}>
       {title && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "var(--body)", paddingBottom: 8, borderBottom: `2px solid ${C.ink}`, marginBottom: 10 }}>
@@ -1723,6 +5449,12 @@ function Section({ title, children, style, actions }) {
       )}
       {children}
     </div>
+  );
+  if (!help) return content;
+  return (
+    <HelpWrap help={help} block>
+      {content}
+    </HelpWrap>
   );
 }
 
@@ -1907,6 +5639,7 @@ function CandlestickSeries({ data, xAxisMap, yAxisMap }) {
 }
 
 function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, interval, onReanalyze, ticker }) {
+  const { t } = useI18n();
   const [window, setWindow] = useState({ start: 0, end: Math.max(0, (data?.length || 1) - 1) });
   const [chartType, setChartType] = useState(mode === "price" ? "candles" : "line");
   const containerRef = useRef(null);
@@ -2038,8 +5771,8 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {mode === "price" && (
               <>
-                <button onClick={() => setChartType("line")} style={controlBtn(chartType === "line")}>Line</button>
-                <button onClick={() => setChartType("candles")} style={controlBtn(chartType === "candles")}>Candles</button>
+                <button onClick={() => setChartType("line")} style={controlBtn(chartType === "line")}>{t("common.line")}</button>
+                <button onClick={() => setChartType("candles")} style={controlBtn(chartType === "candles")}>{t("common.candles")}</button>
               </>
             )}
             {onReanalyze && ticker && (
@@ -2054,10 +5787,10 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
                 </select>
               </>
             )}
-            <button onClick={() => zoomWindow(0.85)} style={controlBtn(false)}>Zoom In</button>
-            <button onClick={() => zoomWindow(1.15)} style={controlBtn(false)}>Zoom Out</button>
-            <button onClick={() => commitWindow(clampWindow(0, (data?.length || 1) - 1))} style={controlBtn(false)}>Reset</button>
-            <button onClick={onClose} style={controlBtn(false)}>Close</button>
+            <button onClick={() => zoomWindow(0.85)} style={controlBtn(false)}>{t("common.zoomIn")}</button>
+            <button onClick={() => zoomWindow(1.15)} style={controlBtn(false)}>{t("common.zoomOut")}</button>
+            <button onClick={() => commitWindow(clampWindow(0, (data?.length || 1) - 1))} style={controlBtn(false)}>{t("common.reset")}</button>
+            <button onClick={onClose} style={controlBtn(false)}>{t("common.close")}</button>
           </div>
         </div>
         <div style={{ flex: 1, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
@@ -2125,7 +5858,7 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
             </ResponsiveContainer>
           </div>
           <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--mono)" }}>
-            Horizontal scroll pans. Vertical scroll adjusts the selection window. Drag to move. Window: {window.end - window.start + 1} / {data?.length || 0}
+            {t("charts.windowHint", { count: window.end - window.start + 1, total: data?.length || 0 })}
           </div>
           <div style={{ height: 80 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -2205,6 +5938,7 @@ function SkeletonBlock({ width = "100%", height = 16, style }) {
 }
 
 function TickerStrip({ data, loading, onAnalyze }) {
+  const { t } = useI18n();
   const renderItem = (item, idx) => (
     <button
       key={item.symbol + "-" + idx}
@@ -2243,7 +5977,7 @@ function TickerStrip({ data, loading, onAnalyze }) {
       {/* LIVE badge — fixed, does not scroll */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRight: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}>
         <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "livePulse 2s ease-in-out infinite", boxShadow: "0 0 6px rgba(74,222,128,0.4)" }} />
-        <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: "#4ADE80", fontWeight: 700, letterSpacing: "0.08em" }}>LIVE</span>
+        <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: "#4ADE80", fontWeight: 700, letterSpacing: "0.08em" }}>{t("common.live")}</span>
       </div>
       {/* Scrolling content */}
       <div className="ticker-strip-scroll" style={{ flex: 1, overflow: "hidden" }}>
@@ -2268,6 +6002,7 @@ function TickerStrip({ data, loading, onAnalyze }) {
 }
 
 function MiniIntradayChart({ data, label, loading, onAnalyze, ticker, compact = false }) {
+  const { t } = useI18n();
   if (loading || !data) {
     return (
       <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}`, minHeight: 180 }}>
@@ -2333,7 +6068,7 @@ function MiniIntradayChart({ data, label, loading, onAnalyze, ticker, compact = 
           <YAxis domain={["auto", "auto"]} hide />
           <Tooltip
             contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, fontSize: 11, fontFamily: "var(--mono)" }}
-            formatter={(v, name) => name === "price" ? [`$${Number(v).toFixed(2)}`, "Price"] : [null, null]}
+            formatter={(v, name) => name === "price" ? [`$${Number(v).toFixed(2)}`, t("common.price")] : [null, null]}
             labelFormatter={(l) => l}
           />
         </ComposedChart>
@@ -2955,6 +6690,7 @@ function AssetRow({ section, onAnalyze }) {
 // HOME TAB
 // ═══════════════════════════════════════════════════════════
 function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName }) {
+  const { t, locale } = useI18n();
   const [indexPage, setIndexPage] = useState(0);
   const [stripData, setStripData] = useState([]);
   const [stripLoading, setStripLoading] = useState(true);
@@ -2974,7 +6710,10 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
     if (!lastRefresh) return;
     const tick = () => {
       const sec = Math.round((Date.now() - lastRefresh) / 1000);
-      setAgoText(sec < 60 ? `${sec}s ago` : `${Math.floor(sec / 60)}m ago`);
+      setAgoText(sec < 60
+        ? t("time.secondsAgo", { count: sec })
+        : t("time.minutesAgo", { count: Math.floor(sec / 60) })
+      );
     };
     tick();
     const id = setInterval(tick, 1000);
@@ -3124,18 +6863,19 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
     if (h < 22) return "evening";
     return "night";
   })();
+  const dayPartLabel = t(`day.${dayPart}`);
   const greetingPhrases = greetingName ? [
-    `Good ${dayPart}`,
-    "Hey",
-    "Welcome back",
-    "Nice to see you",
-    "Hello",
+    t("greeting.goodDaypart", { dayPart: dayPartLabel }),
+    t("greeting.hey"),
+    t("greeting.welcomeBack"),
+    t("greeting.niceToSeeYou"),
+    t("greeting.hello"),
   ] : [
-    `Good ${dayPart}`,
-    "Market brief",
-    "Quick pulse",
-    "Snapshot",
-    "Today's glance",
+    t("greeting.goodDaypart", { dayPart: dayPartLabel }),
+    t("greeting.marketBrief"),
+    t("greeting.quickPulse"),
+    t("greeting.snapshot"),
+    t("greeting.todaysGlance"),
   ];
   const greetingBase = greetingPhrases[greetingVariantRef.current % greetingPhrases.length];
   const greetingText = greetingName ? `${greetingBase}, ${greetingName}` : greetingBase;
@@ -3143,19 +6883,23 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
   return (
     <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
       {/* Ticker Strip */}
-      <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} />
+      <HelpWrap help={{ title: t("help.tickerStrip.title"), body: t("help.tickerStrip.body") }} block>
+        <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} />
+      </HelpWrap>
 
       {/* Region Selector + Updated timestamp */}
-      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-        {Object.keys(MARKET_REGIONS).map((r) => (
-          <button key={r} onClick={() => handleRegionChange(r)} style={regionTabStyle(r)}>{r}</button>
-        ))}
-        {lastRefresh && (
-          <span style={{ marginLeft: "auto", fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.04em" }}>
-            Updated {agoText}
-          </span>
-        )}
-      </div>
+      <HelpWrap help={{ title: t("help.region.title"), body: t("help.region.body") }} block>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          {Object.keys(MARKET_REGIONS).map((r) => (
+            <button key={r} onClick={() => handleRegionChange(r)} style={regionTabStyle(r)}>{r}</button>
+          ))}
+          {lastRefresh && (
+            <span style={{ marginLeft: "auto", fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.04em" }}>
+              {t("home.updated", { ago: agoText })}
+            </span>
+          )}
+        </div>
+      </HelpWrap>
 
       {/* Greeting */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 2px 12px", marginTop: 6, marginBottom: 6 }}>
@@ -3182,12 +6926,20 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
       {/* Headlines + Indexes */}
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 0.6fr)", gap: 16, alignItems: "start" }}>
         <div style={{ display: "grid", gap: 16, minWidth: 0, overflow: "hidden" }}>
-          <Section title="Market News">
+          <Section
+            title={t("home.marketNews")}
+            help={{ title: t("help.marketNews.title"), body: t("help.marketNews.body") }}
+          >
             <NewsSection news={news} loading={newsLoading} />
           </Section>
           <PortfolioTileCard data={PORTFOLIO_TILE} />
         </div>
-        <Section title="Indexes" actions={indexActions} style={{ minWidth: 0 }}>
+        <Section
+          title={t("home.indexes")}
+          actions={indexActions}
+          style={{ minWidth: 0 }}
+          help={{ title: t("help.indexes.title"), body: t("help.indexes.body") }}
+        >
           <div key={safeIndexPage} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, animation: "fadeIn 0.25s ease" }}>
             {pageCharts.map((c) => {
               const idx = cfg.charts.findIndex(x => x.symbol === c.symbol);
@@ -3209,11 +6961,13 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
 
       {/* Market Movers — 3 columns */}
       <LazySection minHeight={240}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-          <MoverColumn title="Top Gainers" stocks={movers?.gainers} allStocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
-          <MoverColumn title="Top Losers" stocks={movers?.losers} allStocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
-          <MoverColumn title="Trending Stocks" stocks={trending} allStocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
-        </div>
+        <HelpWrap help={{ title: t("help.movers.title"), body: t("help.movers.body") }} block>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+            <MoverColumn title={t("home.topGainers")} stocks={movers?.gainers} allStocks={movers?.gainers} loading={moversLoading} onAnalyze={onAnalyze} />
+            <MoverColumn title={t("home.topLosers")} stocks={movers?.losers} allStocks={movers?.losers} loading={moversLoading} onAnalyze={onAnalyze} />
+            <MoverColumn title={t("home.trendingStocks")} stocks={trending} allStocks={trending} loading={trendingLoading} onAnalyze={onAnalyze} />
+          </div>
+        </HelpWrap>
       </LazySection>
 
       {/* Asset Class Sections */}
@@ -3227,7 +6981,10 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
 
       {/* Market Brief */}
       <LazySection minHeight={220}>
-        <Section title="Market Brief">
+        <Section
+          title={t("home.marketBriefSection")}
+          help={{ title: t("help.marketBrief.title"), body: t("help.marketBrief.body") }}
+        >
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
             <MarketScorecardCard />
             <CrossAssetCard />
@@ -3239,7 +6996,9 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
 
       {/* Changelog Banner */}
       <LazySection minHeight={120}>
-        <ChangelogBanner />
+        <HelpWrap help={{ title: t("help.changelog.title"), body: t("help.changelog.body") }} block>
+          <ChangelogBanner />
+        </HelpWrap>
       </LazySection>
     </div>
   );
@@ -3265,6 +7024,7 @@ function AccountTab({
   onUpdateName,
   onSignOut,
 }) {
+  const { t } = useI18n();
   const [subTab, setSubTab] = useState("overview");
   const [wlInput, setWlInput] = useState("");
   const [alForm, setAlForm] = useState({ ticker: "", type: "above", value: "" });
@@ -3278,14 +7038,14 @@ function AccountTab({
   }, [profileName]);
 
   const syncLabel = !session
-    ? "Local only"
+    ? t("account.syncLocal")
     : syncState?.status === "syncing"
-      ? "Syncing…"
+      ? t("account.syncing")
       : syncState?.status === "error"
-        ? "Sync error"
+        ? t("account.syncError")
         : syncState?.last
-          ? `Synced ${formatAgo(syncState.last)}`
-          : "Synced";
+          ? t("account.syncedAgo", { ago: formatAgo(syncState.last, t) })
+          : t("account.synced");
 
   const addWl = async () => {
     const t = wlInput.trim().toUpperCase();
@@ -3307,60 +7067,64 @@ function AccountTab({
 
   const saveName = async () => {
     const next = nameInput.trim();
-    if (!next) { setNameStatus("Enter a first name."); return; }
-    if (!session) { setNameStatus("Sign in to save."); return; }
+    if (!next) { setNameStatus(t("account.enterFirstName")); return; }
+    if (!session) { setNameStatus(t("account.signInToSave")); return; }
     setProfileBusy(true);
     const res = await onUpdateName?.(next);
     if (res?.error) setNameStatus(res.error);
-    else setNameStatus("Saved");
+    else setNameStatus(t("account.saved"));
     setProfileBusy(false);
   };
 
   return (
     <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
-        <div style={{ border: `1px solid ${C.rule}`, background: C.warmWhite, padding: 16, display: "flex", gap: 16, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--mono)", color: C.inkFaint, marginBottom: 6 }}>Account Sync</div>
-            <div style={{ fontSize: 13, color: C.ink, fontFamily: "var(--body)" }}>
-              {session ? `Signed in as ${session?.user?.email || "user"}` : "Sign in to sync your account data across devices."}
+        <HelpWrap help={{ title: t("help.accountSync.title"), body: t("help.accountSync.body") }} block>
+          <div style={{ border: `1px solid ${C.rule}`, background: C.warmWhite, padding: 16, display: "flex", gap: 16, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--mono)", color: C.inkFaint, marginBottom: 6 }}>{t("account.syncTitle")}</div>
+              <div style={{ fontSize: 13, color: C.ink, fontFamily: "var(--body)" }}>
+                {session ? t("account.signedInAs", { email: session?.user?.email || t("account.user") }) : t("account.signInToSync")}
+              </div>
+              {syncState?.error && <div style={{ fontSize: 11, color: C.down, fontFamily: "var(--body)", marginTop: 4 }}>{syncState.error}</div>}
             </div>
-            {syncState?.error && <div style={{ fontSize: 11, color: C.down, fontFamily: "var(--body)", marginTop: 4 }}>{syncState.error}</div>}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted }}>{syncLabel}</span>
-            {!session && (
-              <button onClick={onOpenAuth} style={{ padding: "8px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                Sign In
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div style={{ border: `1px solid ${C.rule}`, background: C.warmWhite, padding: 16, display: "grid", gap: 10 }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--mono)", color: C.inkFaint }}>Profile</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 38, height: 38, borderRadius: "50%", background: C.ink, color: C.cream, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--mono)", fontWeight: 700 }}>
-              {(profileName || session?.user?.email || "?").slice(0, 1).toUpperCase()}
-            </div>
-            <div style={{ flex: 1, display: "grid", gap: 6 }}>
-              <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="First name"
-                style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "8px 10px", fontSize: 12, fontFamily: "var(--body)", color: C.ink, outline: "none" }}
-                disabled={!session} />
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <button onClick={saveName} disabled={!session || profileBusy} style={{ padding: "6px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: !session || profileBusy ? 0.5 : 1 }}>
-                  Save
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted }}>{syncLabel}</span>
+              {!session && (
+                <button onClick={onOpenAuth} style={{ padding: "8px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  {t("common.signIn")}
                 </button>
-                {session && (
-                  <button onClick={onSignOut} style={{ padding: "6px 12px", background: "transparent", color: C.ink, border: `1px solid ${C.rule}`, fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)" }}>
-                    Sign Out
+              )}
+            </div>
+          </div>
+        </HelpWrap>
+
+        <HelpWrap help={{ title: t("help.profile.title"), body: t("help.profile.body") }} block>
+          <div style={{ border: `1px solid ${C.rule}`, background: C.warmWhite, padding: 16, display: "grid", gap: 10 }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--mono)", color: C.inkFaint }}>{t("account.profile")}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 38, height: 38, borderRadius: "50%", background: C.ink, color: C.cream, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--mono)", fontWeight: 700 }}>
+                {(profileName || session?.user?.email || "?").slice(0, 1).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, display: "grid", gap: 6 }}>
+                <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder={t("account.firstName")}
+                  style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "8px 10px", fontSize: 12, fontFamily: "var(--body)", color: C.ink, outline: "none" }}
+                  disabled={!session} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button onClick={saveName} disabled={!session || profileBusy} style={{ padding: "6px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: !session || profileBusy ? 0.5 : 1 }}>
+                    {t("common.save")}
                   </button>
-                )}
-                {nameStatus && <span style={{ fontSize: 10, color: nameStatus === "Saved" ? C.up : C.inkMuted, fontFamily: "var(--mono)" }}>{nameStatus}</span>}
+                  {session && (
+                    <button onClick={onSignOut} style={{ padding: "6px 12px", background: "transparent", color: C.ink, border: `1px solid ${C.rule}`, fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)" }}>
+                      {t("common.signOut")}
+                    </button>
+                  )}
+                  {nameStatus && <span style={{ fontSize: 10, color: nameStatus === t("account.saved") ? C.up : C.inkMuted, fontFamily: "var(--mono)" }}>{nameStatus}</span>}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </HelpWrap>
       </div>
 
       <div style={{ display: "flex", gap: 12, borderBottom: `1px solid ${C.rule}`, paddingBottom: 8 }}>
@@ -3382,7 +7146,7 @@ function AccountTab({
               paddingBottom: 6,
             }}
           >
-            {t === "overview" ? "Overview" : "Preferences"}
+            {t === "overview" ? t("account.overview") : t("account.preferences")}
           </button>
         ))}
       </div>
@@ -3390,15 +7154,15 @@ function AccountTab({
       {subTab === "overview" ? (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
-            <Section title="Watchlist">
+            <Section title={t("tools.watchlist")} help={{ title: t("help.accountWatchlist.title"), body: t("help.accountWatchlist.body") }}>
               <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                <input value={wlInput} onChange={e => setWlInput(e.target.value)} placeholder="Ticker"
+                <input value={wlInput} onChange={e => setWlInput(e.target.value)} placeholder={t("tools.ticker")}
                   style={{ flex: 1, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", fontSize: 12, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}
                   onKeyDown={e => e.key === "Enter" && addWl()} />
-                <button onClick={addWl} disabled={busy} style={{ padding: "6px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>ADD</button>
+                <button onClick={addWl} disabled={busy} style={{ padding: "6px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>{t("tools.add")}</button>
               </div>
               {watchlist.length === 0 ? (
-                <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>Empty watchlist</div>
+                <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>{t("tools.emptyWatchlist")}</div>
               ) : (
                 watchlist.map(w => (
                   <div key={w.ticker} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
@@ -3416,7 +7180,7 @@ function AccountTab({
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ color: recColor(w.rec), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{w.rec}</span>
-                      <button onClick={() => onAnalyze(w.ticker)} style={{ background: "transparent", border: `1px solid ${C.rule}`, color: C.ink, fontSize: 10, fontFamily: "var(--body)", padding: "4px 8px", cursor: "pointer" }}>Analyze</button>
+                      <button onClick={() => onAnalyze(w.ticker)} style={{ background: "transparent", border: `1px solid ${C.rule}`, color: C.ink, fontSize: 10, fontFamily: "var(--body)", padding: "4px 8px", cursor: "pointer" }}>{t("search.analyze")}</button>
                       <button onClick={() => onRemoveWatchlist?.(w.ticker)} style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
                     </div>
                   </div>
@@ -3424,21 +7188,21 @@ function AccountTab({
               )}
             </Section>
 
-            <Section title="Alerts">
+            <Section title={t("tools.alerts")} help={{ title: t("help.accountAlerts.title"), body: t("help.accountAlerts.body") }}>
               <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
-                <input value={alForm.ticker} onChange={e => setAlForm(p => ({ ...p, ticker: e.target.value }))} placeholder="Ticker"
+                <input value={alForm.ticker} onChange={e => setAlForm(p => ({ ...p, ticker: e.target.value }))} placeholder={t("tools.ticker")}
                   style={{ width: 70, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", fontSize: 11, fontFamily: "var(--mono)", color: C.ink, outline: "none" }} />
                 <select value={alForm.type} onChange={e => setAlForm(p => ({ ...p, type: e.target.value }))}
                   style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 6px", fontSize: 11, fontFamily: "var(--body)", color: C.ink, outline: "none" }}>
-                  <option value="above">Above</option><option value="below">Below</option>
+                  <option value="above">{t("tools.above")}</option><option value="below">{t("tools.below")}</option>
                 </select>
                 <input value={alForm.value} onChange={e => setAlForm(p => ({ ...p, value: e.target.value }))} placeholder="$" type="number"
                   style={{ width: 80, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", fontSize: 11, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}
                   onKeyDown={e => e.key === "Enter" && addAlert()} />
-                <button onClick={addAlert} disabled={busy} style={{ padding: "6px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>SET</button>
+                <button onClick={addAlert} disabled={busy} style={{ padding: "6px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>{t("tools.set")}</button>
               </div>
               {alerts.length === 0 ? (
-                <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>No alerts</div>
+                <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>{t("tools.noAlerts")}</div>
               ) : (
                 alerts.map(a => (
                   <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
@@ -3447,7 +7211,7 @@ function AccountTab({
                       <span style={{ color: C.inkMuted, fontSize: 11, marginLeft: 6 }}>{a.type === "above" ? "≥" : "≤"} ${fmt(a.value)}</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)", color: a.triggered ? C.up : C.hold }}>{a.triggered ? "TRIGGERED" : "WATCHING"}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)", color: a.triggered ? C.up : C.hold }}>{a.triggered ? t("tools.triggered") : t("tools.watching")}</span>
                       <button onClick={() => onRemoveAlert?.(a.id)} style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
                     </div>
                   </div>
@@ -3456,9 +7220,9 @@ function AccountTab({
             </Section>
           </div>
 
-          <Section title="Recent Analyses">
+          <Section title={t("account.recentAnalyses")} help={{ title: t("help.accountRecent.title"), body: t("help.accountRecent.body") }}>
             {recent.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>No analyses yet</div>
+              <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>{t("account.noAnalyses")}</div>
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
                 {recent.map(r => {
@@ -3473,29 +7237,29 @@ function AccountTab({
                       <div style={{ minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
                           <span style={{ fontWeight: 700, fontFamily: "var(--mono)", fontSize: 13 }}>{r.ticker}</span>
-                          <span style={{ color: recColor(r.action), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{r.action || "NEUTRAL"}</span>
+                          <span style={{ color: recColor(r.action), fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)" }}>{r.action || t("analysis.neutral")}</span>
                           <span style={{ color: C.inkFaint, fontSize: 10, fontFamily: "var(--mono)" }}>{r.period || prefs?.period}/{r.interval || prefs?.interval}</span>
                         </div>
                         <div style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)", marginTop: 4 }}>
-                          {r.price != null ? `$${fmt(r.price)}` : "—"} · {formatAgo(r.ts || r.timestamp)}
+                          {r.price != null ? `$${fmt(r.price)}` : "—"} · {formatAgo(r.ts || r.timestamp, t)}
                         </div>
                         <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted }}>
                             <span style={{ width: 6, height: 6, borderRadius: "50%", background: recColor(r.action), display: "inline-block" }} />
-                            Signal {r.action || "NEUTRAL"}
+                            {t("account.signal")} {r.action || t("analysis.neutral")}
                           </span>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted }}>
                             <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, display: "inline-block" }} />
-                            Regime {regimeLabel}
+                            {t("account.regime")} {regimeLabel}
                           </span>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted }}>
                             <span style={{ width: 6, height: 6, borderRadius: "50%", background: riskTone, display: "inline-block" }} />
-                            Risk {r.riskLevel || "—"}
+                            {t("account.risk")} {r.riskLevel || "—"}
                           </span>
                           {r.confidence != null && (
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted }}>
                               <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.inkSoft, display: "inline-block" }} />
-                              Conf {Math.round(r.confidence * 100)}%
+                              {t("account.conf")} {Math.round(r.confidence * 100)}%
                             </span>
                           )}
                         </div>
@@ -3504,7 +7268,7 @@ function AccountTab({
                         {r.spark && r.spark.length > 1 && (
                           <Sparkline data={r.spark} prevClose={r.prevClose} color={recColor(r.action)} width={200} height={64} />
                         )}
-                        <span style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>View →</span>
+                        <span style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>{t("account.view")} →</span>
                       </div>
                     </button>
                   );
@@ -3514,11 +7278,11 @@ function AccountTab({
           </Section>
         </>
       ) : (
-        <Section title="Preferences">
+        <Section title={t("account.preferences")} help={{ title: t("help.accountPreferences.title"), body: t("help.accountPreferences.body") }}>
           <div style={{ display: "grid", gap: 6 }}>
-            <Row label="Default Period" value={prefs?.period || "1y"} />
-            <Row label="Default Interval" value={prefs?.interval || "1d"} />
-            <Row label="Home Region" value={prefs?.region || "Global"} border={false} />
+            <Row label={t("account.defaultPeriod")} value={prefs?.period || "1y"} />
+            <Row label={t("account.defaultInterval")} value={prefs?.interval || "1d"} />
+            <Row label={t("account.homeRegion")} value={prefs?.region || "Global"} border={false} />
           </div>
         </Section>
       )}
@@ -3530,6 +7294,7 @@ function AccountTab({
 // ANALYSIS TAB
 // ═══════════════════════════════════════════════════════════
 function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period, interval, onReanalyze, onOpenCharts, openChartsLabel, helpMode, onShowHelp, onHideHelp }) {
+  const { t } = useI18n();
   const [subTab, setSubTab] = useState("stock");
   const [finPeriod, setFinPeriod] = useState("LTM");
   const [assumptions, setAssumptions] = useState(null);
@@ -3614,8 +7379,8 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 400, gap: 14 }}>
         <BrandMark size={26} muted />
-        <div style={{ fontSize: 26, fontFamily: "var(--display)", color: C.inkSoft, marginTop: 10, fontWeight: 400 }}>Enter a ticker to begin</div>
-        <div style={{ fontSize: 13, color: C.inkMuted, fontFamily: "var(--body)" }}>Type a symbol above and press Analyze</div>
+        <div style={{ fontSize: 26, fontFamily: "var(--display)", color: C.inkSoft, marginTop: 10, fontWeight: 400 }}>{t("analysis.enterTicker")}</div>
+        <div style={{ fontSize: 13, color: C.inkMuted, fontFamily: "var(--body)" }}>{t("analysis.typeSymbol")}</div>
       </div>
     );
   }
@@ -3635,15 +7400,15 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
   });
   const finData = fundamentals?.periods?.find(p => p.label === finPeriod) || fundamentals?.periods?.[0];
   const marginRadar = [
-    { metric: "Gross", value: (finData?.grossMargin || 0) * 100 },
-    { metric: "Operating", value: (finData?.opMargin || 0) * 100 },
-    { metric: "Net", value: (finData?.netMargin || 0) * 100 },
-    { metric: "FCF", value: finData?.revenue ? ((finData.fcf || 0) / finData.revenue) * 100 : 0 },
+    { metric: t("analysis.grossMarginShort"), value: (finData?.grossMargin || 0) * 100 },
+    { metric: t("analysis.operatingMarginShort"), value: (finData?.opMargin || 0) * 100 },
+    { metric: t("analysis.netMarginShort"), value: (finData?.netMargin || 0) * 100 },
+    { metric: t("analysis.fcf"), value: finData?.revenue ? ((finData.fcf || 0) / finData.revenue) * 100 : 0 },
   ];
   const radarMax = Math.max(60, ...marginRadar.map(m => m.value || 0));
   const cashDebt = [
-    { name: "Cash", value: fundamentals?.cash || 0, color: C.up },
-    { name: "Debt", value: fundamentals?.debt || 0, color: C.down },
+    { name: t("analysis.cash"), value: fundamentals?.cash || 0, color: C.up },
+    { name: t("analysis.debt"), value: fundamentals?.debt || 0, color: C.down },
   ];
   const netCash = (fundamentals?.cash || 0) - (fundamentals?.debt || 0);
   const updateAssumption = (key, value) => {
@@ -3695,10 +7460,10 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
   return (
     <div>
       <div style={{ display: "flex", gap: 18, borderBottom: `1px solid ${C.rule}`, paddingBottom: 8, marginBottom: 18 }}>
-        <button onClick={() => setSubTab("stock")} style={subTabStyle("stock")}>Stock</button>
+        <button onClick={() => setSubTab("stock")} style={subTabStyle("stock")}>{t("analysis.stockTab")}</button>
         <button onClick={() => setSubTab("financials")} style={subTabStyle("financials", !isPro)}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            Financials
+            {t("analysis.financialsTab")}
             {!isPro && <ProTag small />}
           </span>
         </button>
@@ -3718,15 +7483,15 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
               </div>
             </div>
             <div style={{ padding: "16px 0", borderTop: `2px solid ${C.ink}`, borderBottom: `1px solid ${C.rule}` }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8, fontFamily: "var(--body)" }}>Verdict</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8, fontFamily: "var(--body)" }}>{t("analysis.verdict")}</div>
               <div style={{ fontSize: 28, fontWeight: 700, color: recColor(rec.action), fontFamily: "var(--display)", lineHeight: 1 }}>{rec.action}</div>
               <div style={{ display: "flex", gap: 16, marginTop: 10, fontSize: 12, fontFamily: "var(--body)" }}>
-                <span style={{ color: C.inkMuted }}>Confidence <strong style={{ color: C.ink }}>{fmtPct(rec.confidence * 100, 0)}</strong></span>
-                <span style={{ color: C.inkMuted }}>Score <strong style={{ color: C.ink }}>{fmt(rec.score)}</strong></span>
+                <span style={{ color: C.inkMuted }}>{t("analysis.confidence")} <strong style={{ color: C.ink }}>{fmtPct(rec.confidence * 100, 0)}</strong></span>
+                <span style={{ color: C.inkMuted }}>{t("analysis.score")} <strong style={{ color: C.ink }}>{fmt(rec.score)}</strong></span>
               </div>
               {liveModels?.anchor && (
                 <div style={{ marginTop: 10, padding: "8px 10px", background: C.paper, borderLeft: `3px solid ${valColor(liveModels.signal)}` }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)" }}>Valuation Anchor</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)" }}>{t("analysis.valuationAnchor")}</div>
                   <div style={{ fontSize: 12, fontFamily: "var(--mono)", color: C.inkSoft, marginTop: 4 }}>
                     {liveModels.signal} · ${fmt(liveModels.anchor)} {liveModels.upside != null && `(${liveModels.upside >= 0 ? "+" : ""}${fmtPct(liveModels.upside * 100, 1)})`}
                   </div>
@@ -3734,34 +7499,34 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
               )}
             </div>
             {target && (
-              <Section title="Price Targets">
-                <Row label="Target" value={`$${fmt(target)}`} color={C.up} />
-                <Row label="Stop Loss" value={`$${fmt(stopLoss)}`} color={C.down} />
-                <Row label="Risk / Reward" value={`${fmt(Math.abs(target - price) / Math.abs(price - (stopLoss || price)))}x`} border={false} />
+              <Section title={t("analysis.priceTargets")} help={{ title: t("help.priceTargets.title"), body: t("help.priceTargets.body") }}>
+                <Row label={t("analysis.target")} value={`$${fmt(target)}`} color={C.up} />
+                <Row label={t("analysis.stopLoss")} value={`$${fmt(stopLoss)}`} color={C.down} />
+                <Row label={t("analysis.riskReward")} value={`${fmt(Math.abs(target - price) / Math.abs(price - (stopLoss || price)))}x`} border={false} />
               </Section>
             )}
-            <Section title="Technical Signals">
+            <Section title={t("analysis.technicalSignals")} help={{ title: t("help.technicalSignals.title"), body: t("help.technicalSignals.body") }}>
               {Object.entries(techSignals).map(([k, v]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
                   <span style={{ color: C.inkMuted, fontSize: 12 }}>{k}</span><Signal value={v} />
                 </div>
               ))}
             </Section>
-            <Section title="Risk Profile">
-              <Row label="Risk Level" value={risk.riskLevel} color={risk.riskLevel === "HIGH" ? C.down : risk.riskLevel === "MEDIUM" ? C.hold : C.up} />
-              <Row label="Volatility" value={fmtPct(risk.volatility)} />
-              <Row label="Max Drawdown" value={fmtPct(risk.maxDrawdown)} color={C.down} />
-              <Row label="Sharpe" value={fmt(risk.sharpe)} color={risk.sharpe > 1 ? C.up : risk.sharpe > 0 ? C.hold : C.down} />
-              <Row label="Sortino" value={fmt(risk.sortino)} />
-              <Row label="VaR 95%" value={fmtPct(risk.var95)} color={C.down} border={false} />
+            <Section title={t("analysis.riskProfile")} help={{ title: t("help.riskProfile.title"), body: t("help.riskProfile.body") }}>
+              <Row label={t("analysis.riskLevel")} value={risk.riskLevel} color={risk.riskLevel === "HIGH" ? C.down : risk.riskLevel === "MEDIUM" ? C.hold : C.up} />
+              <Row label={t("analysis.volatility")} value={fmtPct(risk.volatility)} />
+              <Row label={t("analysis.maxDrawdown")} value={fmtPct(risk.maxDrawdown)} color={C.down} />
+              <Row label={t("analysis.sharpe")} value={fmt(risk.sharpe)} color={risk.sharpe > 1 ? C.up : risk.sharpe > 0 ? C.hold : C.down} />
+              <Row label={t("analysis.sortino")} value={fmt(risk.sortino)} />
+              <Row label={t("analysis.var95")} value={fmtPct(risk.var95)} color={C.down} border={false} />
             </Section>
-            <Section title="Statistical Signals">
+            <Section title={t("analysis.statSignals")} help={{ title: t("help.statSignals.title"), body: t("help.statSignals.body") }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
                 {[
-                  { key: "zscore", label: "Z-Score", desc: "Price deviation from 20-period mean", value: statSignals.zscore.zscore, unit: "σ", range: [-3, 3] },
-                  { key: "momentum", label: "Momentum", desc: "Avg return across 5, 10, 20, 50-day periods", value: statSignals.momentum.avgMomentum, unit: "%", range: [-10, 10] },
-                  { key: "volume", label: "Volume", desc: "Current volume vs 20-period avg", value: statSignals.volume.volumeZscore, unit: "σ", range: [-3, 3] },
-                  { key: "aggregate", label: "Composite", desc: "Weighted combination of all signals", value: statSignals.aggregate.score, unit: "", range: [-2, 2] },
+                  { key: "zscore", label: t("analysis.zscore"), desc: t("analysis.zscoreDesc"), value: statSignals.zscore.zscore, unit: "σ", range: [-3, 3] },
+                  { key: "momentum", label: t("analysis.momentum"), desc: t("analysis.momentumDesc"), value: statSignals.momentum.avgMomentum, unit: "%", range: [-10, 10] },
+                  { key: "volume", label: t("analysis.volume"), desc: t("analysis.volumeDesc"), value: statSignals.volume.volumeZscore, unit: "σ", range: [-3, 3] },
+                  { key: "aggregate", label: t("analysis.composite"), desc: t("analysis.compositeDesc"), value: statSignals.aggregate.score, unit: "", range: [-2, 2] },
                 ].map(({ key, label, desc, value, unit, range }) => {
                   const sig = statSignals[key];
                   const pct = Math.min(100, Math.max(0, ((value - range[0]) / (range[1] - range[0])) * 100));
@@ -3780,9 +7545,9 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                         <div style={{ position: "absolute", left: `calc(${pct}% - 5px)`, top: -1, width: 10, height: 10, borderRadius: "50%", background: gaugeColor, border: `2px solid ${C.cream}`, boxShadow: `0 0 6px ${gaugeColor}44` }} />
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: "var(--mono)" }}>
-                        <span style={{ color: C.up, fontWeight: 600 }}>Buy</span>
+                        <span style={{ color: C.up, fontWeight: 600 }}>{t("analysis.buy")}</span>
                         <span style={{ color: C.inkSoft, fontWeight: 700 }}>{fmt(value, 2)}{unit}</span>
-                        <span style={{ color: C.down, fontWeight: 600 }}>Sell</span>
+                        <span style={{ color: C.down, fontWeight: 600 }}>{t("analysis.sell")}</span>
                       </div>
                       {key === "momentum" && sig.byPeriod && (
                         <div style={{ display: "flex", gap: 8, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}` }}>
@@ -3798,18 +7563,18 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                       )}
                       {key === "volume" && (
                         <div style={{ display: "flex", gap: 12, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}`, fontSize: 10, fontFamily: "var(--mono)" }}>
-                          <div><span style={{ color: C.inkFaint }}>Current </span><span style={{ color: C.ink, fontWeight: 600 }}>{sig.currentVolume ? (sig.currentVolume / 1e6).toFixed(1) + "M" : "—"}</span></div>
-                          <div><span style={{ color: C.inkFaint }}>Avg </span><span style={{ color: C.ink, fontWeight: 600 }}>{sig.avgVolume ? (sig.avgVolume / 1e6).toFixed(1) + "M" : "—"}</span></div>
+                          <div><span style={{ color: C.inkFaint }}>{t("analysis.current")} </span><span style={{ color: C.ink, fontWeight: 600 }}>{sig.currentVolume ? (sig.currentVolume / 1e6).toFixed(1) + "M" : "—"}</span></div>
+                          <div><span style={{ color: C.inkFaint }}>{t("analysis.avg")} </span><span style={{ color: C.ink, fontWeight: 600 }}>{sig.avgVolume ? (sig.avgVolume / 1e6).toFixed(1) + "M" : "—"}</span></div>
                         </div>
                       )}
                       {key === "aggregate" && (
                         <div style={{ display: "flex", gap: 8, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}` }}>
                           <div style={{ flex: 1, textAlign: "center", padding: "4px 0", background: C.paper, fontSize: 9, fontFamily: "var(--body)" }}>
-                            <div style={{ color: C.inkFaint }}>Confidence</div>
+                            <div style={{ color: C.inkFaint }}>{t("analysis.confidenceLabel")}</div>
                             <div style={{ fontWeight: 700, color: C.ink, fontFamily: "var(--mono)", fontSize: 13 }}>{fmtPct(sig.confidence * 100, 0)}</div>
                           </div>
                           <div style={{ flex: 1, textAlign: "center", padding: "4px 0", background: C.paper, fontSize: 9, fontFamily: "var(--body)" }}>
-                            <div style={{ color: C.inkFaint }}>Direction</div>
+                            <div style={{ color: C.inkFaint }}>{t("analysis.direction")}</div>
                             <div style={{ fontWeight: 700, color: gaugeColor, fontFamily: "var(--mono)", fontSize: 11 }}>{sig.signal.replace("STRONG_", "").replace("_", " ")}</div>
                           </div>
                         </div>
@@ -3827,11 +7592,11 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
           onHide={onHideHelp}
           block
           help={{
-            title: "Price Chart",
-            body: "Shows the last 60 sessions with live overlays and indicators. Use the controls to change period or interval.",
+            title: t("help.priceChart.title"),
+            body: t("help.priceChart.body"),
           }}
         >
-          <Section title="Price — Last 60 Sessions" actions={
+          <Section title={t("analysis.priceChartTitle")} actions={
             (onReanalyze || onOpenCharts) && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 {onOpenCharts && (
@@ -3858,8 +7623,8 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
             )
           }>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginBottom: 8 }}>
-            <button onClick={() => setChartType("line")} style={chartToggle(chartType === "line")}>Line</button>
-            <button onClick={() => setChartType("candles")} style={chartToggle(chartType === "candles")}>Candles</button>
+            <button onClick={() => setChartType("line")} style={chartToggle(chartType === "line")}>{t("common.line")}</button>
+            <button onClick={() => setChartType("candles")} style={chartToggle(chartType === "candles")}>{t("common.candles")}</button>
           </div>
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
@@ -3867,24 +7632,27 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
               <XAxis dataKey="n" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} interval={9} />
               <YAxis domain={["auto", "auto"]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={55} />
               <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} />
-              <Line dataKey="bu" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" name="BB Upper" />
-              <Line dataKey="bl" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" name="BB Lower" />
-              <Line dataKey="s20" stroke={C.accent + "AA"} dot={false} strokeWidth={1} name="SMA 20" />
-              <Line dataKey="s50" stroke={C.chart4 + "88"} dot={false} strokeWidth={1} name="SMA 50" />
+              <Line dataKey="bu" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" name={t("analysis.bbUpper")} />
+              <Line dataKey="bl" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" name={t("analysis.bbLower")} />
+              <Line dataKey="s20" stroke={C.accent + "AA"} dot={false} strokeWidth={1} name={t("analysis.sma20")} />
+              <Line dataKey="s50" stroke={C.chart4 + "88"} dot={false} strokeWidth={1} name={t("analysis.sma50")} />
               {chartType === "candles" ? (
                 <Customized component={CandlestickSeries} />
               ) : (
-                <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={2} name="Close" isAnimationActive animationDuration={CHART_ANIM_MS} />
+                <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={2} name={t("analysis.close")} isAnimationActive animationDuration={CHART_ANIM_MS} />
               )}
             </ComposedChart>
           </ResponsiveContainer>
           </Section>
         </HelpWrap>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-              <Section title="Valuation Analysis">
+              <Section
+                title={t("analysis.valuationAnalysis")}
+                help={{ title: t("help.valuationAnalysis.title"), body: t("help.valuationAnalysis.body") }}
+              >
                 <div style={{ fontSize: 16, fontWeight: 700, color: valColor(marketValuation.verdict), fontFamily: "var(--display)", marginBottom: 10, lineHeight: 1.2 }}>{marketValuation.verdict}</div>
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>Stretch Index</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.stretchIndex")}</div>
                   <div style={{ height: 10, background: C.paper, position: "relative", overflow: "hidden", borderRadius: 6 }}>
                     <div style={{ position: "absolute", left: 6, right: 6, top: 4, height: 2, background: `linear-gradient(90deg, ${C.up}, ${C.hold}, ${C.down})` }} />
                     <div style={{
@@ -3899,53 +7667,62 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                     }} />
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2, fontSize: 9, fontFamily: "var(--mono)", color: C.inkFaint }}>
-                    <span>Undervalued</span><span>{fmt(marketValuation.stretch, 0)}/100</span><span>Overvalued</span>
+                    <span>{t("analysis.undervalued")}</span><span>{fmt(marketValuation.stretch, 0)}/100</span><span>{t("analysis.overvalued")}</span>
                   </div>
                 </div>
-                <Row label="vs SMA 200" value={`${marketValuation.devSma200 > 0 ? "+" : ""}${fmtPct(marketValuation.devSma200)}`} color={Math.abs(marketValuation.devSma200) > 15 ? C.down : C.inkSoft} />
-                <Row label="vs SMA 50" value={`${marketValuation.devSma50 > 0 ? "+" : ""}${fmtPct(marketValuation.devSma50)}`} />
-                <Row label="Bollinger %B" value={fmt(marketValuation.pctB, 2)} color={marketValuation.pctB > 0.8 ? C.down : marketValuation.pctB < 0.2 ? C.up : C.hold} />
-                <Row label="52W Range" value={`${fmtPct(marketValuation.range52Pct, 0)} from low`} />
-                <Row label="Fair Value Est." value={`$${fmt(marketValuation.fairValue)}`} color={price > marketValuation.fairValue * 1.1 ? C.down : price < marketValuation.fairValue * 0.9 ? C.up : C.hold} border={false} />
+                <Row label={t("analysis.vsSma200")} value={`${marketValuation.devSma200 > 0 ? "+" : ""}${fmtPct(marketValuation.devSma200)}`} color={Math.abs(marketValuation.devSma200) > 15 ? C.down : C.inkSoft} />
+                <Row label={t("analysis.vsSma50")} value={`${marketValuation.devSma50 > 0 ? "+" : ""}${fmtPct(marketValuation.devSma50)}`} />
+                <Row label={t("analysis.bollingerPercentB")} value={fmt(marketValuation.pctB, 2)} color={marketValuation.pctB > 0.8 ? C.down : marketValuation.pctB < 0.2 ? C.up : C.hold} />
+                <Row label={t("analysis.range52w")} value={`${fmtPct(marketValuation.range52Pct, 0)} ${t("analysis.fromLow")}`} />
+                <Row label={t("analysis.fairValueEst")} value={`$${fmt(marketValuation.fairValue)}`} color={price > marketValuation.fairValue * 1.1 ? C.down : price < marketValuation.fairValue * 0.9 ? C.up : C.hold} border={false} />
               </Section>
-              <Section title="Market Regime">
+              <Section
+                title={t("analysis.marketRegime")}
+                help={{ title: t("help.marketRegime.title"), body: t("help.marketRegime.body") }}
+              >
                 <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, fontFamily: "var(--display)", marginBottom: 12, lineHeight: 1.2 }}>{regime.overall.replace(/_/g, " ")}</div>
-                <Row label="Direction" value={regime.trend.direction} color={regime.trend.direction === "UPTREND" ? C.up : regime.trend.direction === "DOWNTREND" ? C.down : C.hold} />
-                <Row label="Strength" value={`${fmt(regime.trend.strength, 0)} / 100`} />
-                <Row label="Volatility" value={regime.volatility.classification} />
-                <Row label="Hurst" value={fmt(regime.hurst, 3)} color={regime.hurst > 0.5 ? C.up : C.down} />
+                <Row label={t("analysis.direction")} value={regime.trend.direction} color={regime.trend.direction === "UPTREND" ? C.up : regime.trend.direction === "DOWNTREND" ? C.down : C.hold} />
+                <Row label={t("analysis.strength")} value={`${fmt(regime.trend.strength, 0)} / 100`} />
+                <Row label={t("analysis.volatility")} value={regime.volatility.classification} />
+                <Row label={t("analysis.hurst")} value={fmt(regime.hurst, 3)} color={regime.hurst > 0.5 ? C.up : C.down} />
                 <div style={{ marginTop: 12, padding: "10px 12px", background: C.paper, borderLeft: `3px solid ${C.accent}` }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.inkSoft, fontFamily: "var(--body)" }}>{strat.strategy}</div>
                   <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 4, lineHeight: 1.5, fontFamily: "var(--body)" }}>{strat.tactics.join(" · ")}</div>
-                  <div style={{ fontSize: 10, color: C.down, marginTop: 4, fontFamily: "var(--body)" }}>Avoid: {strat.avoid.join(", ")}</div>
+                  <div style={{ fontSize: 10, color: C.down, marginTop: 4, fontFamily: "var(--body)" }}>{t("analysis.avoid")}: {strat.avoid.join(", ")}</div>
                 </div>
               </Section>
             </div>
             <LazySection minHeight={260}>
-              <Section title="Analyst Price Targets">
+              <Section
+                title={t("analysis.analystTargets")}
+                help={{ title: t("help.analystTargets.title"), body: t("help.analystTargets.body") }}
+              >
                 <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
                   <ResponsiveContainer width="100%" height={220}>
                     <ComposedChart data={targetSeries} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                       <XAxis dataKey="i" hide />
                       <YAxis domain={["auto", "auto"]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={55} />
-                      <Line dataKey="past" stroke={C.ink} dot={false} strokeWidth={2} name="Past 12 months" />
-                      <Line dataKey="targetLine" stroke="#3B82F6" dot={false} strokeWidth={2} strokeDasharray="4 4" name="12-month target" />
+                      <Line dataKey="past" stroke={C.ink} dot={false} strokeWidth={2} name={t("analysis.past12Months")} />
+                      <Line dataKey="targetLine" stroke="#3B82F6" dot={false} strokeWidth={2} strokeDasharray="4 4" name={t("analysis.target12Month")} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} />
                     </ComposedChart>
                   </ResponsiveContainer>
                   <div style={{ display: "flex", gap: 14, marginTop: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>
-                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.ink, marginRight: 6 }} />Past 12 months</span>
-                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#3B82F6", marginRight: 6 }} />12-month price target</span>
+                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.ink, marginRight: 6 }} />{t("analysis.past12Months")}</span>
+                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#3B82F6", marginRight: 6 }} />{t("analysis.target12Month")}</span>
                   </div>
                 </div>
               </Section>
             </LazySection>
             <LazySection minHeight={420}>
-              <Section title="Company Metrics">
+              <Section
+                title={t("analysis.companyMetrics")}
+                help={{ title: t("help.companyMetrics.title"), body: t("help.companyMetrics.body") }}
+              >
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
                   <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Earnings Per Share</div>
+                    <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>{t("analysis.earningsPerShare")}</div>
                     {epsSeries.length ? (
                       <ResponsiveContainer width="100%" height={170}>
                         <LineChart data={epsSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
@@ -3953,80 +7730,80 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                           <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
                           <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} />
                           <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
-                            formatter={(v) => [`$${fmt(v, 2)}`, "EPS"]} />
+                            formatter={(v) => [`$${fmt(v, 2)}`, t("analysis.eps")]} />
                           <Line type="monotone" dataKey="eps" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
                         </LineChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>EPS series unavailable.</div>
+                      <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>{t("analysis.epsUnavailable")}</div>
                     )}
                   </div>
 
                 <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Revenue</div>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>{t("analysis.revenue")}</div>
                   <ResponsiveContainer width="100%" height={170}>
                     <LineChart data={finSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                       <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
                       <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${fmt(v, 0)}B`} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
-                        formatter={(v) => [`$${fmt(v, 2)}B`, "Revenue"]} />
+                        formatter={(v) => [`$${fmt(v, 2)}B`, t("analysis.revenue")]} />
                       <Line type="monotone" dataKey="revenue" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
 
                 <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Net Profit Margin</div>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>{t("analysis.netProfitMargin")}</div>
                   <ResponsiveContainer width="100%" height={170}>
                     <LineChart data={finSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                       <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
                       <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={32} tickFormatter={(v) => `${fmt(v, 0)}%`} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
-                        formatter={(v) => [`${fmt(v, 1)}%`, "Net Margin"]} />
+                        formatter={(v) => [`${fmt(v, 1)}%`, t("analysis.netMargin")]} />
                       <Line type="monotone" dataKey="netMargin" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
 
                 <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Current Ratio</div>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>{t("analysis.currentRatio")}</div>
                   <ResponsiveContainer width="100%" height={170}>
                     <LineChart data={ratioSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                       <XAxis dataKey="label" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
                       <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={32} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
-                        formatter={(v) => [`${fmt(v, 2)}`, "Current Ratio"]} />
+                        formatter={(v) => [`${fmt(v, 2)}`, t("analysis.currentRatio")]} />
                       <Line type="monotone" dataKey="currentRatio" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
 
                 <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Debt to Equity</div>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>{t("analysis.debtToEquity")}</div>
                   <ResponsiveContainer width="100%" height={170}>
                     <LineChart data={ratioSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                       <XAxis dataKey="label" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
                       <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={32} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
-                        formatter={(v) => [`${fmt(v, 2)}`, "Debt / Equity"]} />
+                        formatter={(v) => [`${fmt(v, 2)}`, t("analysis.debtToEquity")]} />
                       <Line type="monotone" dataKey="debtToEquity" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
 
                 <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>Return on Equity (TTM)</div>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>{t("analysis.returnOnEquityTtm")}</div>
                   <ResponsiveContainer width="100%" height={170}>
                     <LineChart data={ratioSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                       <XAxis dataKey="label" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
                       <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={32} tickFormatter={(v) => `${fmt(v, 0)}%`} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
-                        formatter={(v) => [`${fmt(v, 2)}%`, "ROE"]} />
+                        formatter={(v) => [`${fmt(v, 2)}%`, t("analysis.roe")]} />
                       <Line type="monotone" dataKey="roe" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -4040,48 +7817,67 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
 
       {subTab === "financials" && !isPro && (
         <ProGate
-          title="Financials Are Pro"
-          description="Unlock company financials, valuation tooling, and multi-period statement analysis."
-          features={["Income statements · Cash flow · Balance sheet", "DCF, DDM, and multiples modeling", "Historical margin and growth trends"]}
+          title={t("analysis.financialsProTitle")}
+          description={t("analysis.financialsProDesc")}
+          features={[
+            t("analysis.financialsProF0"),
+            t("analysis.financialsProF1"),
+            t("analysis.financialsProF2"),
+          ]}
         />
       )}
 
       {subTab === "financials" && isPro && (
         <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 20 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <Section title="Fundamental Snapshot">
-              <Row label="Market Cap" value={fmtMoney(fundamentals?.marketCap)} />
-              <Row label="Revenue" value={fmtMoney(finData?.revenue)} />
-              <Row label="Net Income" value={fmtMoney(finData?.netIncome)} />
-              <Row label="Free Cash Flow" value={fmtMoney(finData?.fcf)} />
-              <Row label="Revenue Growth" value={fmtPct((fundamentals?.revenueGrowth || 0) * 100, 1)} />
-              <Row label="Gross Margin" value={fmtPct((finData?.grossMargin || 0) * 100)} />
-              <Row label="Operating Margin" value={fmtPct((finData?.opMargin || 0) * 100)} />
-              <Row label="Net Margin" value={fmtPct((finData?.netMargin || 0) * 100)} border={false} />
+            <Section
+              title={t("analysis.fundamentalSnapshot")}
+              help={{ title: t("help.fundamentalSnapshot.title"), body: t("help.fundamentalSnapshot.body") }}
+            >
+              <Row label={t("analysis.marketCap")} value={fmtMoney(fundamentals?.marketCap)} />
+              <Row label={t("analysis.revenue")} value={fmtMoney(finData?.revenue)} />
+              <Row label={t("analysis.netIncome")} value={fmtMoney(finData?.netIncome)} />
+              <Row label={t("analysis.freeCashFlow")} value={fmtMoney(finData?.fcf)} />
+              <Row label={t("analysis.revenueGrowth")} value={fmtPct((fundamentals?.revenueGrowth || 0) * 100, 1)} />
+              <Row label={t("analysis.grossMargin")} value={fmtPct((finData?.grossMargin || 0) * 100)} />
+              <Row label={t("analysis.operatingMargin")} value={fmtPct((finData?.opMargin || 0) * 100)} />
+              <Row label={t("analysis.netMargin")} value={fmtPct((finData?.netMargin || 0) * 100)} border={false} />
             </Section>
-            <Section title="Balance Sheet">
-              <Row label="Cash" value={fmtMoney(fundamentals?.cash)} />
-              <Row label="Debt" value={fmtMoney(fundamentals?.debt)} />
-              <Row label="Debt / Equity" value={fmt(fundamentals?.debtToEquity, 2)} />
-              <Row label="Current Ratio" value={fmt(fundamentals?.ratios?.currentRatio, 2)} border={false} />
+            <Section
+              title={t("analysis.balanceSheet")}
+              help={{ title: t("help.balanceSheet.title"), body: t("help.balanceSheet.body") }}
+            >
+              <Row label={t("analysis.cash")} value={fmtMoney(fundamentals?.cash)} />
+              <Row label={t("analysis.debt")} value={fmtMoney(fundamentals?.debt)} />
+              <Row label={t("analysis.debtToEquity")} value={fmt(fundamentals?.debtToEquity, 2)} />
+              <Row label={t("analysis.currentRatio")} value={fmt(fundamentals?.ratios?.currentRatio, 2)} border={false} />
             </Section>
-            <Section title="Per Share">
-              <Row label="EPS" value={`$${fmt(fundamentals?.perShare?.eps, 2)}`} />
-              <Row label="FCF / Share" value={`$${fmt(fundamentals?.perShare?.fcfPerShare, 2)}`} />
-              <Row label="Dividend / Share" value={`$${fmt(fundamentals?.perShare?.dividendPerShare, 2)}`} border={false} />
+            <Section
+              title={t("analysis.perShare")}
+              help={{ title: t("help.perShare.title"), body: t("help.perShare.body") }}
+            >
+              <Row label={t("analysis.eps")} value={`$${fmt(fundamentals?.perShare?.eps, 2)}`} />
+              <Row label={t("analysis.fcfPerShare")} value={`$${fmt(fundamentals?.perShare?.fcfPerShare, 2)}`} />
+              <Row label={t("analysis.dividendPerShare")} value={`$${fmt(fundamentals?.perShare?.dividendPerShare, 2)}`} border={false} />
             </Section>
-            <Section title="Key Ratios">
-              <Row label="ROE" value={fmtPct((fundamentals?.ratios?.roe || 0) * 100, 1)} color={(fundamentals?.ratios?.roe || 0) > 0.15 ? C.up : C.hold} />
-              <Row label="ROA" value={fmtPct((fundamentals?.ratios?.roa || 0) * 100, 1)} />
-              <Row label="P/E" value={fundamentals?.perShare?.eps > 0 ? fmt(price / fundamentals.perShare.eps, 1) : "—"} />
-              <Row label="P/FCF" value={fundamentals?.perShare?.fcfPerShare > 0 ? fmt(price / fundamentals.perShare.fcfPerShare, 1) : "—"} border={false} />
+            <Section
+              title={t("analysis.keyRatios")}
+              help={{ title: t("help.keyRatios.title"), body: t("help.keyRatios.body") }}
+            >
+              <Row label={t("analysis.roe")} value={fmtPct((fundamentals?.ratios?.roe || 0) * 100, 1)} color={(fundamentals?.ratios?.roe || 0) > 0.15 ? C.up : C.hold} />
+              <Row label={t("analysis.roa")} value={fmtPct((fundamentals?.ratios?.roa || 0) * 100, 1)} />
+              <Row label={t("analysis.pe")} value={fundamentals?.perShare?.eps > 0 ? fmt(price / fundamentals.perShare.eps, 1) : "—"} />
+              <Row label={t("analysis.pfcf")} value={fundamentals?.perShare?.fcfPerShare > 0 ? fmt(price / fundamentals.perShare.fcfPerShare, 1) : "—"} border={false} />
             </Section>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <Section title="Financials Overview">
+            <Section
+              title={t("analysis.financialsOverview")}
+              help={{ title: t("help.financialsOverview.title"), body: t("help.financialsOverview.body") }}
+            >
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div style={{ padding: 12, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>Revenue + FCF Margin</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>{t("analysis.revenueFcfMargin")}</div>
                   <ResponsiveContainer width="100%" height={200}>
                     <ComposedChart data={finSeries} margin={{ top: 8, right: 14, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
@@ -4091,15 +7887,15 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                       <YAxis yAxisId="right" orientation="right" domain={[0, 60]} tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={32}
                         tickFormatter={(v) => `${v}%`} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }}
-                        formatter={(v, name) => [name === "FCF Margin" ? `${fmt(v, 1)}%` : `$${fmt(v, 2)}B`, name]} />
-                      <Bar yAxisId="left" dataKey="revenue" name="Revenue" fill={C.inkSoft + "AA"} radius={[2, 2, 0, 0]} />
-                      <Bar yAxisId="left" dataKey="fcf" name="FCF" fill={C.accent + "AA"} radius={[2, 2, 0, 0]} />
-                      <Line yAxisId="right" type="monotone" dataKey="fcfMargin" name="FCF Margin" stroke={C.up} dot={{ fill: C.up, r: 3 }} strokeWidth={2} />
+                        formatter={(v, name) => [name === t("analysis.fcfMargin") ? `${fmt(v, 1)}%` : `$${fmt(v, 2)}B`, name]} />
+                      <Bar yAxisId="left" dataKey="revenue" name={t("analysis.revenue")} fill={C.inkSoft + "AA"} radius={[2, 2, 0, 0]} />
+                      <Bar yAxisId="left" dataKey="fcf" name={t("analysis.fcf")} fill={C.accent + "AA"} radius={[2, 2, 0, 0]} />
+                      <Line yAxisId="right" type="monotone" dataKey="fcfMargin" name={t("analysis.fcfMargin")} stroke={C.up} dot={{ fill: C.up, r: 3 }} strokeWidth={2} />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
                 <div style={{ padding: 12, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>Margin Trends</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>{t("analysis.marginTrends")}</div>
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={finSeries} margin={{ top: 8, right: 14, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
@@ -4107,21 +7903,21 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                       <YAxis tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} tickFormatter={v => `${v}%`} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }}
                         formatter={(v) => [`${fmt(v, 1)}%`]} />
-                      <Line type="monotone" dataKey="grossMargin" name="Gross" stroke={C.up} dot={{ fill: C.up, r: 3 }} strokeWidth={2} />
-                      <Line type="monotone" dataKey="opMargin" name="Operating" stroke={C.accent} dot={{ fill: C.accent, r: 3 }} strokeWidth={2} />
-                      <Line type="monotone" dataKey="netMargin" name="Net" stroke={C.chart4} dot={{ fill: C.chart4, r: 3 }} strokeWidth={2} />
+                      <Line type="monotone" dataKey="grossMargin" name={t("analysis.grossMarginShort")} stroke={C.up} dot={{ fill: C.up, r: 3 }} strokeWidth={2} />
+                      <Line type="monotone" dataKey="opMargin" name={t("analysis.operatingMarginShort")} stroke={C.accent} dot={{ fill: C.accent, r: 3 }} strokeWidth={2} />
+                      <Line type="monotone" dataKey="netMargin" name={t("analysis.netMarginShort")} stroke={C.chart4} dot={{ fill: C.chart4, r: 3 }} strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
                   <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 4, fontSize: 9, fontFamily: "var(--mono)" }}>
-                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 3, background: C.up }} />Gross</span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 3, background: C.accent }} />Operating</span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 3, background: C.chart4 }} />Net</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 3, background: C.up }} />{t("analysis.grossMarginShort")}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 3, background: C.accent }} />{t("analysis.operatingMarginShort")}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 3, background: C.chart4 }} />{t("analysis.netMarginShort")}</span>
                   </div>
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginTop: 12 }}>
                 <div style={{ padding: 12, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>Margin Radar</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>{t("analysis.marginRadar")}</div>
                   <ResponsiveContainer width="100%" height={160}>
                     <RadarChart data={marginRadar}>
                       <PolarGrid stroke={C.ruleFaint} />
@@ -4132,7 +7928,7 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                   </ResponsiveContainer>
                 </div>
                 <div style={{ padding: 12, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>Cash vs Debt</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>{t("analysis.cashVsDebt")}</div>
                   <ResponsiveContainer width="100%" height={130}>
                     <PieChart>
                       <Pie data={cashDebt} dataKey="value" nameKey="name" innerRadius={32} outerRadius={50} paddingAngle={2} stroke="none">
@@ -4145,16 +7941,16 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                     </PieChart>
                   </ResponsiveContainer>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted }}>
-                    <span>Net Cash</span>
+                    <span>{t("analysis.netCash")}</span>
                     <span style={{ color: netCash >= 0 ? C.up : C.down, fontWeight: 700 }}>{fmtMoney(netCash)}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 6, fontSize: 9, fontFamily: "var(--mono)" }}>
-                    <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, background: C.up, borderRadius: 2 }} />Cash {fmtMoney(fundamentals?.cash)}</span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, background: C.down, borderRadius: 2 }} />Debt {fmtMoney(fundamentals?.debt)}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, background: C.up, borderRadius: 2 }} />{t("analysis.cash")} {fmtMoney(fundamentals?.cash)}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, background: C.down, borderRadius: 2 }} />{t("analysis.debt")} {fmtMoney(fundamentals?.debt)}</span>
                   </div>
                 </div>
                 <div style={{ padding: 12, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>Earnings Per Share</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 6, fontFamily: "var(--body)", fontWeight: 600 }}>{t("analysis.earningsPerShare")}</div>
                   <ResponsiveContainer width="100%" height={130}>
                     <BarChart data={finSeries} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
@@ -4162,34 +7958,37 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                       <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={30} tickFormatter={v => `$${v.toFixed(0)}B`} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
                         formatter={(v) => [`$${fmt(v, 2)}B`]} />
-                      <Bar dataKey="netIncome" name="Net Income" fill={C.chart4 + "BB"} radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="netIncome" name={t("analysis.netIncome")} fill={C.chart4 + "BB"} radius={[2, 2, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
-                  <div style={{ textAlign: "center", fontSize: 9, fontFamily: "var(--mono)", color: C.inkFaint, marginTop: 4 }}>Net Income by Period</div>
+                  <div style={{ textAlign: "center", fontSize: 9, fontFamily: "var(--mono)", color: C.inkFaint, marginTop: 4 }}>{t("analysis.netIncomeByPeriod")}</div>
                 </div>
               </div>
             </Section>
-            <Section title="Fundamental Data Aggregator">
+            <Section
+              title={t("analysis.fundamentalDataAggregator")}
+              help={{ title: t("help.fundamentalData.title"), body: t("help.fundamentalData.body") }}
+            >
               <div style={{ fontSize: 11, color: C.inkMuted, lineHeight: 1.5, marginBottom: 10 }}>
-                Collects revenue, earnings, margins, debt, and cash flow by ticker and fiscal period. Designed to plug into APIs or SEC filings — this build uses modeled data for demonstration.
+                {t("analysis.fundamentalDataDesc")}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)" }}>Fiscal Period</span>
+                <span style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)" }}>{t("analysis.fiscalPeriod")}</span>
                 <select value={finPeriod} onChange={e => setFinPeriod(e.target.value)}
                   style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", fontSize: 11, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}>
                   {(fundamentals?.periods || []).map(p => <option key={p.label} value={p.label}>{p.label}</option>)}
                 </select>
-                <span style={{ marginLeft: "auto", fontSize: 9, color: C.inkFaint, fontFamily: "var(--mono)" }}>Source: {fundamentals?.source}</span>
+                <span style={{ marginLeft: "auto", fontSize: 9, color: C.inkFaint, fontFamily: "var(--mono)" }}>{t("analysis.source")}: {fundamentals?.source}</span>
               </div>
               <div style={{ border: `1px solid ${C.rule}`, background: C.warmWhite }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, fontFamily: "var(--mono)" }}>
                   <thead>
                     <tr style={{ textTransform: "uppercase", letterSpacing: "0.08em", color: C.inkMuted }}>
-                      <th style={{ textAlign: "left", padding: "8px 10px", borderBottom: `1px solid ${C.rule}` }}>Period</th>
-                      <th style={{ textAlign: "right", padding: "8px 10px", borderBottom: `1px solid ${C.rule}` }}>Revenue</th>
-                      <th style={{ textAlign: "right", padding: "8px 10px", borderBottom: `1px solid ${C.rule}` }}>Net Income</th>
-                      <th style={{ textAlign: "right", padding: "8px 10px", borderBottom: `1px solid ${C.rule}` }}>FCF</th>
-                      <th style={{ textAlign: "right", padding: "8px 10px", borderBottom: `1px solid ${C.rule}` }}>Net Margin</th>
+                      <th style={{ textAlign: "left", padding: "8px 10px", borderBottom: `1px solid ${C.rule}` }}>{t("analysis.period")}</th>
+                      <th style={{ textAlign: "right", padding: "8px 10px", borderBottom: `1px solid ${C.rule}` }}>{t("analysis.revenue")}</th>
+                      <th style={{ textAlign: "right", padding: "8px 10px", borderBottom: `1px solid ${C.rule}` }}>{t("analysis.netIncome")}</th>
+                      <th style={{ textAlign: "right", padding: "8px 10px", borderBottom: `1px solid ${C.rule}` }}>{t("analysis.fcf")}</th>
+                      <th style={{ textAlign: "right", padding: "8px 10px", borderBottom: `1px solid ${C.rule}` }}>{t("analysis.netMargin")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4207,49 +8006,49 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                 </table>
               </div>
             </Section>
-            <Section title="Valuation Model Toolkit">
+            <Section title={t("analysis.valuationToolkit")} help={{ title: t("help.valuationToolkit.title"), body: t("help.valuationToolkit.body") }}>
               <div style={{ fontSize: 11, color: C.inkMuted, lineHeight: 1.5, marginBottom: 10 }}>
-                Estimates intrinsic value using DCF, dividend discount, and multiples analysis. Use auto-estimates or override assumptions below to run what-if scenarios.
+                {t("analysis.valuationDesc")}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
                 <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>FCF / Share</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.fcfPerShare")}</div>
                   <input type="number" step="0.01" value={inputVal(assumptions?.fcfPerShare)} onChange={e => updateAssumption("fcfPerShare", parseFloat(e.target.value) || 0)} style={inputStyle} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>EPS</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.eps")}</div>
                   <input type="number" step="0.01" value={inputVal(assumptions?.eps)} onChange={e => updateAssumption("eps", parseFloat(e.target.value) || 0)} style={inputStyle} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>Dividend / Share</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.dividendPerShare")}</div>
                   <input type="number" step="0.01" value={inputVal(assumptions?.dividendPerShare)} onChange={e => updateAssumption("dividendPerShare", parseFloat(e.target.value) || 0)} style={inputStyle} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>Growth (5y %)</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.growth5y")}</div>
                   <input type="number" step="0.1" value={inputVal((assumptions?.growthRate || 0) * 100, 1)} onChange={e => updateAssumption("growthRate", (parseFloat(e.target.value) || 0) / 100)} style={inputStyle} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>Discount / WACC %</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.discountWacc")}</div>
                   <input type="number" step="0.1" value={inputVal((assumptions?.discountRate || 0) * 100, 1)} onChange={e => updateAssumption("discountRate", (parseFloat(e.target.value) || 0) / 100)} style={inputStyle} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>Terminal Growth %</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.terminalGrowth")}</div>
                   <input type="number" step="0.1" value={inputVal((assumptions?.terminalGrowth || 0) * 100, 1)} onChange={e => updateAssumption("terminalGrowth", (parseFloat(e.target.value) || 0) / 100)} style={inputStyle} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>Target P/E</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.targetPE")}</div>
                   <input type="number" step="0.1" value={inputVal(assumptions?.targetPE, 1)} onChange={e => updateAssumption("targetPE", parseFloat(e.target.value) || 0)} style={inputStyle} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>Projection Years</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.projectionYears")}</div>
                   <input type="number" step="1" min="3" max="10" value={inputVal(assumptions?.years, 0)} onChange={e => updateAssumption("years", Math.max(1, parseInt(e.target.value || "0", 10)))} style={inputStyle} />
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginTop: 12 }}>
                 {[
-                  ["DCF", liveModels.dcf],
-                  ["Dividend Discount", liveModels.ddm],
-                  ["Multiples", liveModels.multiples],
+                  [t("analysis.dcf"), liveModels.dcf],
+                  [t("analysis.dividendDiscount"), liveModels.ddm],
+                  [t("analysis.multiples"), liveModels.multiples],
                 ].map(([label, value]) => (
                   <div key={label} style={{ padding: "8px 10px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
                     <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{label}</div>
@@ -4258,12 +8057,12 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
                 ))}
               </div>
               <div style={{ marginTop: 12, padding: "10px 12px", background: C.paper, borderLeft: `3px solid ${valColor(liveModels.signal)}` }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)" }}>Valuation Anchor</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)" }}>{t("analysis.valuationAnchor")}</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: valColor(liveModels.signal), fontFamily: "var(--display)", marginTop: 4 }}>{liveModels.signal}</div>
                 <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 4, fontFamily: "var(--mono)" }}>
-                  Anchor {liveModels.anchor ? `$${fmt(liveModels.anchor)}` : "—"} · Upside {liveModels.upside != null ? `${liveModels.upside >= 0 ? "+" : ""}${fmtPct(liveModels.upside * 100, 1)}` : "—"}
+                  {t("analysis.anchor")} {liveModels.anchor ? `$${fmt(liveModels.anchor)}` : "—"} · {t("analysis.upside")} {liveModels.upside != null ? `${liveModels.upside >= 0 ? "+" : ""}${fmtPct(liveModels.upside * 100, 1)}` : "—"}
                 </div>
-                <div style={{ fontSize: 10, color: C.inkFaint, marginTop: 4, fontFamily: "var(--body)" }}>Used as long-term context alongside technical signals.</div>
+                <div style={{ fontSize: 10, color: C.inkFaint, marginTop: 4, fontFamily: "var(--body)" }}>{t("analysis.usedAsContext")}</div>
               </div>
               {liveModels.issues.length > 0 && (
                 <div style={{ marginTop: 10, fontSize: 10, color: C.down, fontFamily: "var(--body)" }}>
@@ -4282,6 +8081,7 @@ function AnalysisTab({ result, livePrice, chartLivePrice, latency, isPro, period
 // CHARTS TAB
 // ═══════════════════════════════════════════════════════════
 function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, intent, onConsumeIntent }) {
+  const { t } = useI18n();
   const [show, setShow] = useState({ sma: true, bb: true, vol: true, rsi: true, macd: false, stoch: false });
   const [chartType, setChartType] = useState("line");
   const [expanded, setExpanded] = useState(null);
@@ -4319,33 +8119,42 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
   }, [intent, result, ticker, onConsumeIntent]);
 
   if (!result) {
-    return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 400, color: C.inkMuted, fontFamily: "var(--display)", fontSize: 24 }}>Run an analysis first</div>;
+    return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 400, color: C.inkMuted, fontFamily: "var(--display)", fontSize: 24 }}>{t("charts.runAnalysisFirst")}</div>;
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: `1px solid ${C.rule}`, paddingBottom: 12, alignItems: "center" }}>
-        {[["sma", "Moving Avg"], ["bb", "Bollinger"], ["vol", "Volume"], ["rsi", "RSI"], ["macd", "MACD"], ["stoch", "Stochastic"]].map(([k, l]) => (
-          <button key={k} onClick={() => toggle(k)} style={btn(show[k])}>{l}</button>
-        ))}
-        <span style={{ marginLeft: 8, fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.1em" }}>Chart</span>
-        <button onClick={() => setChartType("line")} style={btn(chartType === "line")}>Line</button>
-        <button onClick={() => setChartType("candles")} style={btn(chartType === "candles")}>Candles</button>
-        {onReanalyze && (
-          <>
-            <span style={{ marginLeft: 8, fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.1em" }}>Period</span>
-            <select value={period || "1y"} onChange={e => onReanalyze(ticker, e.target.value, interval)}
-              style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
-              {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"],["2y","2Y"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
-            </select>
-            <select value={interval || "1d"} onChange={e => onReanalyze(ticker, period, e.target.value)}
-              style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
-              {(["1d","5d"].includes(period) ? [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["60m","1h"]] : period === "1mo" ? [["15m","15m"],["30m","30m"],["60m","1h"],["1d","1d"]] : [["1d","1d"]]).map(([v,l])=><option key={v} value={v}>{l}</option>)}
-            </select>
-          </>
-        )}
-      </div>
-      <Section title={`${ticker} — Full Period`} actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "price", title: `${ticker} — Full Period` })}>Expand</button>}>
+      <HelpWrap help={{ title: t("help.chartsControls.title"), body: t("help.chartsControls.body") }} block>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: `1px solid ${C.rule}`, paddingBottom: 12, alignItems: "center" }}>
+          {[
+            ["sma", t("charts.movingAvg")],
+            ["bb", t("charts.bollinger")],
+            ["vol", t("charts.volume")],
+            ["rsi", t("charts.rsi")],
+            ["macd", t("charts.macd")],
+            ["stoch", t("charts.stochastic")]
+          ].map(([k, l]) => (
+            <button key={k} onClick={() => toggle(k)} style={btn(show[k])}>{l}</button>
+          ))}
+          <span style={{ marginLeft: 8, fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.1em" }}>{t("charts.chart")}</span>
+          <button onClick={() => setChartType("line")} style={btn(chartType === "line")}>{t("common.line")}</button>
+          <button onClick={() => setChartType("candles")} style={btn(chartType === "candles")}>{t("common.candles")}</button>
+          {onReanalyze && (
+            <>
+              <span style={{ marginLeft: 8, fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.1em" }}>{t("charts.period")}</span>
+              <select value={period || "1y"} onChange={e => onReanalyze(ticker, e.target.value, interval)}
+                style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
+                {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"],["2y","2Y"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+              </select>
+              <select value={interval || "1d"} onChange={e => onReanalyze(ticker, period, e.target.value)}
+                style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
+                {(["1d","5d"].includes(period) ? [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["60m","1h"]] : period === "1mo" ? [["15m","15m"],["30m","30m"],["60m","1h"],["1d","1d"]] : [["1d","1d"]]).map(([v,l])=><option key={v} value={v}>{l}</option>)}
+              </select>
+            </>
+          )}
+        </div>
+      </HelpWrap>
+      <Section title={t("charts.fullPeriod", { ticker })} actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "price", title: t("charts.fullPeriod", { ticker }) })}>{t("common.expand")}</button>}>
         <ResponsiveContainer width="100%" height={h}>
           <ComposedChart data={cd} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
@@ -4361,7 +8170,7 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
       </Section>
       {show.vol && (
         <LazySection minHeight={120}>
-          <Section title="Volume" actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "volume", title: `${ticker} — Volume` })}>Expand</button>}>
+          <Section title={t("charts.volumeTitle")} actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "volume", title: `${ticker} — ${t("charts.volumeTitle")}` })}>{t("common.expand")}</button>}>
             <ResponsiveContainer width="100%" height={80}>
               <BarChart data={cd} margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
                 <XAxis dataKey="n" hide /><YAxis hide />
@@ -4374,7 +8183,7 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
       <LazySection minHeight={180}>
         <div style={{ display: "grid", gridTemplateColumns: [show.rsi, show.macd, show.stoch].filter(Boolean).length > 1 ? "1fr 1fr" : "1fr", gap: 16 }}>
           {show.rsi && (
-            <Section title="RSI (14)" actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "rsi", title: `${ticker} — RSI (14)` })}>Expand</button>}>
+            <Section title={t("charts.rsiTitle")} actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "rsi", title: `${ticker} — ${t("charts.rsiTitle")}` })}>{t("common.expand")}</button>}>
               <ResponsiveContainer width="100%" height={110}>
                 <LineChart data={cd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                   <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
@@ -4387,7 +8196,7 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
             </Section>
           )}
           {show.macd && (
-            <Section title="MACD" actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "macd", title: `${ticker} — MACD` })}>Expand</button>}>
+            <Section title={t("charts.macdTitle")} actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "macd", title: `${ticker} — ${t("charts.macdTitle")}` })}>{t("common.expand")}</button>}>
               <ResponsiveContainer width="100%" height={110}>
                 <ComposedChart data={cd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                   <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
@@ -4401,7 +8210,7 @@ function ChartsTab({ result, chartLivePrice, period, interval, onReanalyze, inte
             </Section>
           )}
           {show.stoch && (
-            <Section title="Stochastic" actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "stoch", title: `${ticker} — Stochastic` })}>Expand</button>}>
+            <Section title={t("charts.stochTitle")} actions={<button style={expandBtn} onClick={() => setExpanded({ mode: "stoch", title: `${ticker} — ${t("charts.stochTitle")}` })}>{t("common.expand")}</button>}>
               <ResponsiveContainer width="100%" height={110}>
                 <LineChart data={cd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                   <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
@@ -4476,6 +8285,7 @@ function sharpeToColor(s) {
 }
 
 function HeatmapPanel({ indexName, universe }) {
+  const { t } = useI18n();
   const [stocks, setStocks] = useState(null);
   const [loading, setLoading] = useState(false);
   const [hover, setHover] = useState(null);
@@ -4545,22 +8355,26 @@ function HeatmapPanel({ indexName, universe }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, fontFamily: "var(--display)", letterSpacing: "-0.01em" }}>{indexName}</div>
-          <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 1 }}>{universe.length} stocks · Size: market cap · Color: Sharpe (6mo)</div>
+          <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 1 }}>
+            {t("heatmap.panelMeta", { count: universe.length })}
+          </div>
         </div>
       </div>
       <div ref={containerRef} style={{ position: "relative", width: "100%", height: 420, background: C.warmWhite, border: `1px solid ${C.rule}` }}>
         {!stocks && !loading && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12 }}>
             <button onClick={load} style={{ padding: "10px 28px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              Load Heatmap
+              {t("heatmap.load")}
             </button>
-            <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>Fetches {universe.length} stocks from Yahoo Finance</span>
+            <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>
+              {t("heatmap.fetches", { count: universe.length })}
+            </span>
           </div>
         )}
         {loading && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 10 }}>
             <BrandMark size={18} muted />
-            <span style={{ fontFamily: "var(--display)", color: C.inkMuted, fontSize: 14 }}>Fetching {universe.length} stocks…</span>
+            <span style={{ fontFamily: "var(--display)", color: C.inkMuted, fontSize: 14 }}>{t("heatmap.fetching", { count: universe.length })}</span>
             <span style={{ fontFamily: "var(--mono)", color: C.inkFaint, fontSize: 11 }}>{progress}</span>
           </div>
         )}
@@ -4575,19 +8389,19 @@ function HeatmapPanel({ indexName, universe }) {
         {hover && (
           <div style={{ position: "absolute", bottom: 8, left: 8, background: C.cream + "F0", border: `1px solid ${C.rule}`, padding: "8px 12px", fontFamily: "var(--mono)", fontSize: 11, lineHeight: 1.6, zIndex: 10, boxShadow: "2px 4px 12px rgba(0,0,0,0.06)" }}>
             <strong>{hover.ticker}</strong> — {hover.name}<br />
-            <span style={{ color: C.inkMuted }}>Sector:</span> {hover.sector} · ${fmt(hover.price)} · Sharpe {fmt(hover.sharpe)} · {fmtPct(hover.ret)} 6mo · {hover.rec}
+            <span style={{ color: C.inkMuted }}>{t("heatmap.sector")}:</span> {hover.sector} · ${fmt(hover.price)} · {t("heatmap.sharpe")} {fmt(hover.sharpe)} · {fmtPct(hover.ret)} {t("heatmap.sixMonths")} · {hover.rec}
           </div>
         )}
         {stocks && (
           <button onClick={load} style={{ position: "absolute", top: 8, right: 8, padding: "4px 12px", background: C.cream + "E0", border: `1px solid ${C.rule}`, fontSize: 9, fontFamily: "var(--mono)", color: C.inkMuted, cursor: "pointer", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            Refresh
+            {t("heatmap.refresh")}
           </button>
         )}
       </div>
       {stocks && (
         <>
           <div style={{ display: "flex", gap: 10, fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontWeight: 600 }}>Sharpe:</span>
+            <span style={{ fontWeight: 600 }}>{t("heatmap.sharpe")}:</span>
             {[[-1, "< -1"], [-0.5, "-0.5"], [0, "0"], [0.5, "0.5"], [1, "1"], [1.5, "> 1.5"]].map(([v, l]) => (
               <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
                 <span style={{ width: 10, height: 10, background: sharpeToColor(v) }} />{l}
@@ -4624,13 +8438,16 @@ function HeatmapPanel({ indexName, universe }) {
 
 function HeatmapTab() {
   const indexNames = Object.keys(HEATMAP_INDEXES);
+  const { t } = useI18n();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "var(--body)", marginBottom: 4 }}>Market Heatmaps</div>
-        <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)" }}>Treemap visualizations by index, sized by market cap, colored by 6-month Sharpe ratio. Stocks sorted by sector.</div>
-      </div>
+      <HelpWrap help={{ title: t("help.heatmapOverview.title"), body: t("help.heatmapOverview.body") }} block>
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "var(--body)", marginBottom: 4 }}>{t("heatmap.marketHeatmaps")}</div>
+          <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)" }}>{t("heatmap.subtitle")}</div>
+        </div>
+      </HelpWrap>
       {indexNames.map(name => (
         <HeatmapPanel key={name} indexName={name} universe={HEATMAP_INDEXES[name]} />
       ))}
@@ -4644,6 +8461,7 @@ function HeatmapTab() {
 const COMP_LINE_COLORS = ["#1A1612", "#8B2500", "#5B4A8A", "#1B6B3A", "#D4A017", "#2E86AB", "#A23B72", "#C73E1D"];
 
 function ComparisonTab() {
+  const { t } = useI18n();
   const [tickers, setTickers] = useState("AAPL, MSFT, GOOGL, AMZN");
   const [results, setResults] = useState(null);
   const [rawData, setRawData] = useState(null);
@@ -4654,20 +8472,20 @@ function ComparisonTab() {
 
   const run = async () => {
     setLoading(true); setError(null);
-    const list = tickers.split(",").map(t => t.trim().toUpperCase()).filter(Boolean);
+    const list = tickers.split(",").map(sym => sym.trim().toUpperCase()).filter(Boolean);
     const dataMap = {};
-    const tasks = list.map(async (t) => {
+    const tasks = list.map(async (symbol) => {
       try {
-        const fd = await fetchStockData(t, "6mo");
+        const fd = await fetchStockData(symbol, "6mo");
         if (fd.data) {
-          const a = runAnalysis(t, fd.data);
-          dataMap[t] = fd.data;
-          return { ticker: t, price: a.currentPrice, rec: a.recommendation.action, conf: a.recommendation.confidence, regime: a.regime.overall, risk: a.risk.riskLevel, sharpe: a.risk.sharpe, vol: a.risk.volatility, maxDD: a.risk.maxDrawdown, mom: a.statSignals.momentum.avgMomentum, stretch: a.valuation.stretch };
+          const a = runAnalysis(symbol, fd.data);
+          dataMap[symbol] = fd.data;
+          return { ticker: symbol, price: a.currentPrice, rec: a.recommendation.action, conf: a.recommendation.confidence, regime: a.regime.overall, risk: a.risk.riskLevel, sharpe: a.risk.sharpe, vol: a.risk.volatility, maxDD: a.risk.maxDrawdown, mom: a.statSignals.momentum.avgMomentum, stretch: a.valuation.stretch };
         }
-        return { ticker: t, price: 0, rec: "N/A", conf: 0, regime: "N/A", risk: "N/A", sharpe: 0, vol: 0, maxDD: 0, mom: 0, stretch: 0 };
+        return { ticker: symbol, price: 0, rec: "N/A", conf: 0, regime: "N/A", risk: "N/A", sharpe: 0, vol: 0, maxDD: 0, mom: 0, stretch: 0 };
       } catch (e) {
-        setError(prev => (prev || "") + `${t}: ${e.message || "failed"}; `);
-        return { ticker: t, price: 0, rec: "N/A", conf: 0, regime: "N/A", risk: "N/A", sharpe: 0, vol: 0, maxDD: 0, mom: 0, stretch: 0 };
+        setError(prev => (prev || "") + `${symbol}: ${e.message || t("comparison.failed")}; `);
+        return { ticker: symbol, price: 0, rec: "N/A", conf: 0, regime: "N/A", risk: "N/A", sharpe: 0, vol: 0, maxDD: 0, mom: 0, stretch: 0 };
       }
     });
     const res = await Promise.all(tasks);
@@ -4685,13 +8503,13 @@ function ComparisonTab() {
     if (!rawData || !results) return null;
     const validTickers = results.filter(r => rawData[r.ticker] && rawData[r.ticker].length > 10).map(r => r.ticker);
     if (validTickers.length < 2) return null;
-    const minLen = Math.min(...validTickers.map(t => rawData[t].length));
+    const minLen = Math.min(...validTickers.map(symbol => rawData[symbol].length));
     const chartPoints = [];
     for (let i = 0; i < minLen; i++) {
       const point = { date: rawData[validTickers[0]][i].date.slice(5) };
-      validTickers.forEach(t => {
-        const base = rawData[t][0].Close;
-        point[t] = base > 0 ? ((rawData[t][i].Close - base) / base) * 100 : 0;
+      validTickers.forEach(symbol => {
+        const base = rawData[symbol][0].Close;
+        point[symbol] = base > 0 ? ((rawData[symbol][i].Close - base) / base) * 100 : 0;
       });
       chartPoints.push(point);
     }
@@ -4709,20 +8527,25 @@ function ComparisonTab() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <input value={tickers} onChange={e => setTickers(e.target.value)} placeholder="AAPL, MSFT, GOOGL..."
-          style={{ flex: 1, background: "transparent", border: `1px solid ${C.rule}`, padding: "8px 12px", color: C.ink, fontSize: 13, fontFamily: "var(--mono)", letterSpacing: "0.06em", outline: "none" }}
-          onKeyDown={e => e.key === "Enter" && run()} />
-        <button onClick={run} disabled={loading}
-          style={{ padding: "8px 24px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
-          {loading ? "Running…" : "Compare"}
-        </button>
-      </div>
+      <HelpWrap help={{ title: t("help.comparisonInput.title"), body: t("help.comparisonInput.body") }} block>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input value={tickers} onChange={e => setTickers(e.target.value)} placeholder={t("comparison.placeholder")}
+            style={{ flex: 1, background: "transparent", border: `1px solid ${C.rule}`, padding: "8px 12px", color: C.ink, fontSize: 13, fontFamily: "var(--mono)", letterSpacing: "0.06em", outline: "none" }}
+            onKeyDown={e => e.key === "Enter" && run()} />
+          <button onClick={run} disabled={loading}
+            style={{ padding: "8px 24px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
+            {loading ? t("comparison.running") : t("comparison.compare")}
+          </button>
+        </div>
+      </HelpWrap>
       {error && <div style={{ padding: "6px 12px", background: C.downBg, color: C.down, fontSize: 11, fontFamily: "var(--mono)" }}>{error}</div>}
       {sorted && (
         <>
           {overlayData && (
-            <Section title="Normalized Performance (6mo)">
+            <Section
+              title={t("comparison.normalizedPerformance")}
+              help={{ title: t("help.comparisonPerformance.title"), body: t("help.comparisonPerformance.body") }}
+            >
               <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
                 {overlayData.tickers.map((t, i) => (
                   <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700 }}>
@@ -4746,59 +8569,61 @@ function ComparisonTab() {
               </ResponsiveContainer>
             </Section>
           )}
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th style={{ ...thStyle(null), textAlign: "left", cursor: "default" }}>Ticker</th>
-                  <th style={thStyle("price")} onClick={() => doSort("price")}>Price{sortCol === "price" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
-                  <th style={thStyle("rec")} onClick={() => doSort("rec")}>Signal{sortCol === "rec" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
-                  <th style={thStyle("conf")} onClick={() => doSort("conf")}>Conf.{sortCol === "conf" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
-                  <th style={thStyle("sharpe")} onClick={() => doSort("sharpe")}>Sharpe{sortCol === "sharpe" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
-                  <th style={thStyle("vol")} onClick={() => doSort("vol")}>Vol.{sortCol === "vol" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
-                  <th style={thStyle("maxDD")} onClick={() => doSort("maxDD")}>Max DD{sortCol === "maxDD" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
-                  <th style={thStyle("mom")} onClick={() => doSort("mom")}>Mom.{sortCol === "mom" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
-                  <th style={thStyle("stretch")} onClick={() => doSort("stretch")}>Stretch{sortCol === "stretch" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((r, i) => (
-                  <tr key={r.ticker} style={{ borderBottom: `1px solid ${C.ruleFaint}`, background: i % 2 ? C.warmWhite + "80" : "transparent" }}>
-                    <td style={{ padding: "8px", fontWeight: 700, color: C.ink, fontFamily: "var(--mono)", fontSize: 12 }}>{r.ticker}</td>
-                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 12 }}>${fmt(r.price)}</td>
-                    <td style={{ padding: "8px", textAlign: "right" }}><span style={{ color: recColor(r.rec), fontWeight: 700, fontSize: 10, fontFamily: "var(--mono)" }}>{r.rec}</span></td>
-                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11 }}>{fmtPct(r.conf * 100, 0)}</td>
-                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: r.sharpe > 1 ? C.up : r.sharpe > 0 ? C.hold : C.down }}>{fmt(r.sharpe)}</td>
-                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11 }}>{fmtPct(r.vol)}</td>
-                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: C.down }}>{fmtPct(r.maxDD)}</td>
-                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: r.mom > 0 ? C.up : C.down }}>{r.mom > 0 ? "+" : ""}{fmtPct(r.mom)}</td>
-                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: r.stretch > 65 ? C.down : r.stretch < 35 ? C.up : C.hold }}>{fmt(r.stretch, 0)}</td>
+          <HelpWrap help={{ title: t("help.comparisonTable.title"), body: t("help.comparisonTable.body") }} block>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...thStyle(null), textAlign: "left", cursor: "default" }}>{t("comparison.ticker")}</th>
+                    <th style={thStyle("price")} onClick={() => doSort("price")}>{t("comparison.price")}{sortCol === "price" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
+                    <th style={thStyle("rec")} onClick={() => doSort("rec")}>{t("comparison.signal")}{sortCol === "rec" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
+                    <th style={thStyle("conf")} onClick={() => doSort("conf")}>{t("comparison.conf")}{sortCol === "conf" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
+                    <th style={thStyle("sharpe")} onClick={() => doSort("sharpe")}>{t("comparison.sharpe")}{sortCol === "sharpe" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
+                    <th style={thStyle("vol")} onClick={() => doSort("vol")}>{t("comparison.vol")}{sortCol === "vol" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
+                    <th style={thStyle("maxDD")} onClick={() => doSort("maxDD")}>{t("comparison.maxDD")}{sortCol === "maxDD" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
+                    <th style={thStyle("mom")} onClick={() => doSort("mom")}>{t("comparison.momentum")}{sortCol === "mom" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
+                    <th style={thStyle("stretch")} onClick={() => doSort("stretch")}>{t("comparison.stretch")}{sortCol === "stretch" ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {sorted.map((r, i) => (
+                    <tr key={r.ticker} style={{ borderBottom: `1px solid ${C.ruleFaint}`, background: i % 2 ? C.warmWhite + "80" : "transparent" }}>
+                      <td style={{ padding: "8px", fontWeight: 700, color: C.ink, fontFamily: "var(--mono)", fontSize: 12 }}>{r.ticker}</td>
+                      <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 12 }}>${fmt(r.price)}</td>
+                      <td style={{ padding: "8px", textAlign: "right" }}><span style={{ color: recColor(r.rec), fontWeight: 700, fontSize: 10, fontFamily: "var(--mono)" }}>{r.rec}</span></td>
+                      <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11 }}>{fmtPct(r.conf * 100, 0)}</td>
+                      <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: r.sharpe > 1 ? C.up : r.sharpe > 0 ? C.hold : C.down }}>{fmt(r.sharpe)}</td>
+                      <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11 }}>{fmtPct(r.vol)}</td>
+                      <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: C.down }}>{fmtPct(r.maxDD)}</td>
+                      <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: r.mom > 0 ? C.up : C.down }}>{r.mom > 0 ? "+" : ""}{fmtPct(r.mom)}</td>
+                      <td style={{ padding: "8px", textAlign: "right", fontFamily: "var(--mono)", fontSize: 11, color: r.stretch > 65 ? C.down : r.stretch < 35 ? C.up : C.hold }}>{fmt(r.stretch, 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </HelpWrap>
           {sorted.length > 1 && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <Section title="Sharpe Comparison">
+              <Section title={t("comparison.sharpeComparison")}>
                 <ResponsiveContainer width="100%" height={Math.max(120, sorted.length * 32)}>
                   <BarChart data={sorted} layout="vertical" margin={{ top: 0, right: 12, bottom: 0, left: 0 }}>
                     <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} horizontal={false} />
                     <XAxis type="number" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} />
                     <YAxis dataKey="ticker" type="category" tick={{ fill: C.ink, fontSize: 11, fontWeight: 700, fontFamily: "var(--mono)" }} width={45} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }} />
-                    <Bar dataKey="sharpe" name="Sharpe" fill={C.inkSoft} radius={[0, 2, 2, 0]} />
+                    <Bar dataKey="sharpe" name={t("comparison.sharpe")} fill={C.inkSoft} radius={[0, 2, 2, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </Section>
-              <Section title="Volatility Comparison">
+              <Section title={t("comparison.volatilityComparison")}>
                 <ResponsiveContainer width="100%" height={Math.max(120, sorted.length * 32)}>
                   <BarChart data={sorted} layout="vertical" margin={{ top: 0, right: 12, bottom: 0, left: 0 }}>
                     <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} horizontal={false} />
                     <XAxis type="number" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickFormatter={v => `${v}%`} />
                     <YAxis dataKey="ticker" type="category" tick={{ fill: C.ink, fontSize: 11, fontWeight: 700, fontFamily: "var(--mono)" }} width={45} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }} formatter={v => [`${fmt(v)}%`, "Volatility"]} />
-                    <Bar dataKey="vol" name="Volatility" fill={C.accent + "AA"} radius={[0, 2, 2, 0]} />
+                    <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }} formatter={v => [`${fmt(v)}%`, t("comparison.volatility")]} />
+                    <Bar dataKey="vol" name={t("comparison.volatility")} fill={C.accent + "AA"} radius={[0, 2, 2, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </Section>
@@ -4816,6 +8641,7 @@ function ComparisonTab() {
 function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onRemoveWatchlist, onAddAlert, onRemoveAlert }) {
   const [open, setOpen] = useState(false);
   const menuPresence = useMenuPresence(open, 140);
+  const { t } = useI18n();
   const [subTab, setSubTab] = useState("watchlist");
   const [wlInput, setWlInput] = useState("");
   const [alForm, setAlForm] = useState({ ticker: "", type: "above", value: "" });
@@ -4847,7 +8673,7 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button onClick={() => setOpen(!open)} style={{ padding: "0 0 10px 0", background: "none", border: "none", borderBottom: open ? `2px solid ${C.ink}` : "2px solid transparent", color: open ? C.ink : C.inkMuted, fontSize: 12, fontWeight: open ? 700 : 500, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)" }}>
-        Tools ▾ {(watchlist.length + alerts.length) > 0 && <span style={{ fontSize: 9, background: C.ink, color: C.cream, borderRadius: "50%", padding: "1px 5px", marginLeft: 4 }}>{watchlist.length + alerts.length}</span>}
+        {t("nav.tools")} ▾ {(watchlist.length + alerts.length) > 0 && <span style={{ fontSize: 9, background: C.ink, color: C.cream, borderRadius: "50%", padding: "1px 5px", marginLeft: 4 }}>{watchlist.length + alerts.length}</span>}
       </button>
       {menuPresence.mounted && (
         <div
@@ -4855,21 +8681,21 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
           style={{ position: "absolute", top: "100%", right: 0, width: 380, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.08)", zIndex: 2100, padding: 16, maxHeight: 480, overflowY: "auto", pointerEvents: menuPresence.phase === "open" ? "auto" : "none" }}
         >
           <div style={{ display: "flex", gap: 12, borderBottom: `1px solid ${C.rule}`, marginBottom: 12, paddingBottom: 8 }}>
-            {["watchlist", "alerts"].map(t => (
-              <button key={t} onClick={() => setSubTab(t)} style={{ background: "none", border: "none", color: subTab === t ? C.ink : C.inkMuted, fontSize: 11, fontWeight: subTab === t ? 700 : 400, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)", borderBottom: subTab === t ? `2px solid ${C.ink}` : "none", paddingBottom: 4 }}>
-                {t} ({t === "watchlist" ? watchlist.length : alerts.length})
+            {[{ key: "watchlist", label: t("tools.watchlist") }, { key: "alerts", label: t("tools.alerts") }].map(({ key, label }) => (
+              <button key={key} onClick={() => setSubTab(key)} style={{ background: "none", border: "none", color: subTab === key ? C.ink : C.inkMuted, fontSize: 11, fontWeight: subTab === key ? 700 : 400, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)", borderBottom: subTab === key ? `2px solid ${C.ink}` : "none", paddingBottom: 4 }}>
+                {label} ({key === "watchlist" ? watchlist.length : alerts.length})
               </button>
             ))}
           </div>
           {subTab === "watchlist" && (
             <>
               <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                <input value={wlInput} onChange={e => setWlInput(e.target.value)} placeholder="Ticker"
+                <input value={wlInput} onChange={e => setWlInput(e.target.value)} placeholder={t("tools.ticker")}
                   style={{ flex: 1, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", fontSize: 12, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}
                   onKeyDown={e => e.key === "Enter" && addWl()} />
-                <button onClick={addWl} disabled={busy} style={{ padding: "6px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>ADD</button>
+                <button onClick={addWl} disabled={busy} style={{ padding: "6px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>{t("tools.add")}</button>
               </div>
-              {watchlist.length === 0 ? <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>Empty watchlist</div> :
+              {watchlist.length === 0 ? <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>{t("tools.emptyWatchlist")}</div> :
                 watchlist.map(w => (
                   <div key={w.ticker} onClick={() => { onAnalyze(w.ticker); setOpen(false); }}
                     style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer" }}>
@@ -4895,18 +8721,18 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
           {subTab === "alerts" && (
             <>
               <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
-                <input value={alForm.ticker} onChange={e => setAlForm(p => ({ ...p, ticker: e.target.value }))} placeholder="Ticker"
+                <input value={alForm.ticker} onChange={e => setAlForm(p => ({ ...p, ticker: e.target.value }))} placeholder={t("tools.ticker")}
                   style={{ width: 70, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", fontSize: 11, fontFamily: "var(--mono)", color: C.ink, outline: "none" }} />
                 <select value={alForm.type} onChange={e => setAlForm(p => ({ ...p, type: e.target.value }))}
                   style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 6px", fontSize: 11, fontFamily: "var(--body)", color: C.ink, outline: "none" }}>
-                  <option value="above">Above</option><option value="below">Below</option>
+                  <option value="above">{t("tools.above")}</option><option value="below">{t("tools.below")}</option>
                 </select>
                 <input value={alForm.value} onChange={e => setAlForm(p => ({ ...p, value: e.target.value }))} placeholder="$" type="number"
                   style={{ width: 80, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", fontSize: 11, fontFamily: "var(--mono)", color: C.ink, outline: "none" }}
                   onKeyDown={e => e.key === "Enter" && addAlert()} />
-                <button onClick={addAlert} disabled={busy} style={{ padding: "6px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>SET</button>
+                <button onClick={addAlert} disabled={busy} style={{ padding: "6px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", opacity: busy ? 0.5 : 1 }}>{t("tools.set")}</button>
               </div>
-              {alerts.length === 0 ? <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>No alerts</div> :
+              {alerts.length === 0 ? <div style={{ textAlign: "center", padding: 20, color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>{t("tools.noAlerts")}</div> :
                 alerts.map(a => (
                   <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
                     <div>
@@ -4914,7 +8740,7 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
                       <span style={{ color: C.inkMuted, fontSize: 11, marginLeft: 6 }}>{a.type === "above" ? "≥" : "≤"} ${fmt(a.value)}</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)", color: a.triggered ? C.up : C.hold }}>{a.triggered ? "TRIGGERED" : "WATCHING"}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "var(--mono)", color: a.triggered ? C.up : C.hold }}>{a.triggered ? t("tools.triggered") : t("tools.watching")}</span>
                       <button onClick={() => onRemoveAlert?.(a.id)} style={{ background: "none", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 14 }}>×</button>
                     </div>
                   </div>
@@ -4938,6 +8764,7 @@ function AuthModal({ open, onClose }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!open) return;
@@ -4950,8 +8777,8 @@ function AuthModal({ open, onClose }) {
 
   const submitEmailAuth = async () => {
     if (!supabase) return;
-    if (mode === "signup" && !firstName.trim()) { setError("First name required."); return; }
-    if (!email || !password) { setError("Email and password required."); return; }
+    if (mode === "signup" && !firstName.trim()) { setError(t("auth.errFirstName")); return; }
+    if (!email || !password) { setError(t("auth.errEmailPassword")); return; }
     setBusy(true); setError(""); setNotice("");
     if (mode === "signup") {
       const { error: err } = await supabase.auth.signUp({
@@ -4960,7 +8787,7 @@ function AuthModal({ open, onClose }) {
         options: { emailRedirectTo: window.location.origin, data: { first_name: firstName.trim() } },
       });
       if (err) setError(err.message);
-      else setNotice("Check your email to confirm your account.");
+      else setNotice(t("auth.checkEmail"));
     } else {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) setError(err.message);
@@ -5000,38 +8827,38 @@ function AuthModal({ open, onClose }) {
                 paddingBottom: 6,
               }}
             >
-              {m === "signin" ? "Sign In" : "Create Account"}
+              {m === "signin" ? t("auth.signIn") : t("auth.createAccount")}
             </button>
           ))}
         </div>
 
         {!hasSupabaseConfig && (
           <div style={{ background: C.warmWhite, padding: 12, border: `1px dashed ${C.rule}`, fontSize: 12, color: C.inkMuted, marginBottom: 12 }}>
-            Supabase config missing. Add your `VITE_SUPABASE_URL` and publishable key, then restart the dev server.
+            {t("auth.missingConfig")}
           </div>
         )}
 
         <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
-          <button onClick={() => oauth("google")} disabled={busy || !hasSupabaseConfig} style={{ padding: "10px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Continue with Google</button>
+          <button onClick={() => oauth("google")} disabled={busy || !hasSupabaseConfig} style={{ padding: "10px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{t("auth.continueGoogle")}</button>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0 12px" }}>
           <span style={{ flex: 1, height: 1, background: C.ruleFaint }} />
-          <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--mono)" }}>or</span>
+          <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--mono)" }}>{t("auth.or")}</span>
           <span style={{ flex: 1, height: 1, background: C.ruleFaint }} />
         </div>
 
         <div style={{ display: "grid", gap: 8 }}>
           {mode === "signup" && (
-            <input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First name"
+            <input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder={t("auth.firstName")}
               style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "10px 12px", fontSize: 12, fontFamily: "var(--body)", color: C.ink, outline: "none" }} />
           )}
-          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" type="email"
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder={t("auth.email")} type="email"
             style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "10px 12px", fontSize: 12, fontFamily: "var(--body)", color: C.ink, outline: "none" }} />
-          <input value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" type="password"
+          <input value={password} onChange={e => setPassword(e.target.value)} placeholder={t("auth.password")} type="password"
             style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "10px 12px", fontSize: 12, fontFamily: "var(--body)", color: C.ink, outline: "none" }} />
           <button onClick={submitEmailAuth} disabled={busy || !hasSupabaseConfig} style={{ padding: "10px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-            {mode === "signin" ? "Sign In" : "Create Account"}
+            {mode === "signin" ? t("auth.signIn") : t("auth.createAccount")}
           </button>
         </div>
 
@@ -5152,10 +8979,14 @@ function App() {
   const [helpTooltip, setHelpTooltip] = useState(null);
   const [chartIntent, setChartIntent] = useState(null);
 
-  const t = useCallback((key) => {
-    return (TRANSLATIONS[locale] && TRANSLATIONS[locale][key])
+  const t = useCallback((key, vars) => {
+    let value = (TRANSLATIONS[locale] && TRANSLATIONS[locale][key])
       || TRANSLATIONS["en-US"][key]
       || key;
+    if (vars && typeof value === "string") {
+      value = Object.entries(vars).reduce((acc, [k, v]) => acc.replace(new RegExp(`\\{${k}\\}`, "g"), String(v)), value);
+    }
+    return value;
   }, [locale]);
 
   const showHelp = useCallback((e, help) => {
@@ -5560,8 +9391,17 @@ function App() {
     setTab("charts");
   }, []);
   const consumeChartIntent = useCallback(() => setChartIntent(null), []);
+  const navHelp = useMemo(() => ({
+    home: { title: t("help.nav.home.title"), body: t("help.nav.home.body") },
+    analysis: { title: t("help.nav.analysis.title"), body: t("help.nav.analysis.body") },
+    charts: { title: t("help.nav.charts.title"), body: t("help.nav.charts.body") },
+    heatmap: { title: t("help.nav.heatmap.title"), body: t("help.nav.heatmap.body") },
+    comparison: { title: t("help.nav.comparison.title"), body: t("help.nav.comparison.body") },
+  }), [t]);
   return (
-    <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", maxWidth: "70%", margin: "0 auto", width: "100%" }}>
+    <I18nContext.Provider value={{ t, locale }}>
+      <HelpContext.Provider value={{ enabled: helpMode, show: showHelp, hide: hideHelp }}>
+        <div style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", maxWidth: "70%", margin: "0 auto", width: "100%" }}>
       <header style={{ padding: "16px 24px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 2000 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
@@ -5575,8 +9415,8 @@ function App() {
               onShow={showHelp}
               onHide={hideHelp}
               help={{
-                title: "Search",
-                body: "Type a ticker or company name. Press Enter or click Analyze to run the model.",
+                title: t("help.search.title"),
+                body: t("help.search.body"),
               }}
             >
               <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }} placeholder={t("search.placeholder")}
@@ -5615,8 +9455,8 @@ function App() {
               onShow={showHelp}
               onHide={hideHelp}
               help={{
-                title: "Analyze",
-                body: "Fetches fresh data and updates the recommendation, signals, and charts.",
+                title: t("help.analyze.title"),
+                body: t("help.analyze.body"),
               }}
             >
               <button onClick={() => { const sym = searchQuery.trim().toUpperCase(); if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); } }} disabled={loading || !searchQuery.trim()}
@@ -5637,12 +9477,14 @@ function App() {
             ].map(({ key, label, pro, badge }) => {
               const locked = !!pro && !isPro;
               return (
-                <button key={key} onClick={() => setTab(key)} style={tabStyle(key, locked)}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span>{label}</span>
-                    {locked && <ProTag small />}
-                  </span>
-                </button>
+                <HelpWrap key={key} help={navHelp[key]}>
+                  <button onClick={() => setTab(key)} style={tabStyle(key, locked)}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <span>{label}</span>
+                      {locked && <ProTag small />}
+                    </span>
+                  </button>
+                </HelpWrap>
               );
             })}
           </div>
@@ -5659,8 +9501,8 @@ function App() {
               onShow={showHelp}
               onHide={hideHelp}
               help={{
-                title: "Tools",
-                body: "Open watchlist and alerts to manage tickers without leaving the page.",
+                title: t("help.tools.title"),
+                body: t("help.tools.body"),
               }}
             >
               <LiteTools
@@ -5679,8 +9521,8 @@ function App() {
                 onShow={showHelp}
                 onHide={hideHelp}
                 help={{
-                  title: "Account",
-                  body: "Access settings, language, upgrades, and sign out.",
+                  title: t("help.account.title"),
+                  body: t("help.account.body"),
                 }}
               >
                 <button
@@ -5933,9 +9775,11 @@ function App() {
         </div>
       )}
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
-      {showPerf && <PerfMonitor onClose={() => setShowPerf(false)} />}
-    </div>
+          <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+          {showPerf && <PerfMonitor onClose={() => setShowPerf(false)} />}
+        </div>
+      </HelpContext.Provider>
+    </I18nContext.Provider>
   );
 }
 
