@@ -1,18 +1,32 @@
 /* Inline-heavy app styles */
 
-@keyframes menuPop {
+@keyframes menuPopIn {
   from { opacity: 0; transform: translateY(-6px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-@keyframes menuPopSide {
+@keyframes menuPopOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-6px) scale(0.98); }
+}
+
+@keyframes menuPopSideIn {
   from { opacity: 0; transform: translateX(-6px) scale(0.98); }
   to { opacity: 1; transform: translateX(0) scale(1); }
 }
 
+@keyframes menuPopSideOut {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to { opacity: 0; transform: translateX(-6px) scale(0.98); }
+}
+
 .menu-pop {
-  animation: menuPop 0.16s ease-out;
+  animation: menuPopIn 0.16s ease-out;
   transform-origin: top left;
+}
+
+.menu-pop.menu-pop-exit {
+  animation: menuPopOut 0.12s ease-in;
 }
 
 .menu-pop-rightOrigin {
@@ -20,6 +34,10 @@
 }
 
 .menu-pop-side {
-  animation: menuPopSide 0.16s ease-out;
+  animation: menuPopSideIn 0.16s ease-out;
   transform-origin: top left;
+}
+
+.menu-pop-side.menu-pop-exit {
+  animation: menuPopSideOut 0.12s ease-in;
 }

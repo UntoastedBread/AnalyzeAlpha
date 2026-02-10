@@ -68,8 +68,7 @@ select option { background: #FAF7F2; color: #1A1612; }
   display: none;
 }
 .ticker-strip-scroll:hover .ticker-strip-inner {
-  animation-play-state: running;
-  animation-duration: 60s;
+  animation-play-state: paused;
 }
 .ticker-strip-inner {
   animation: tickerScroll 30s linear infinite;

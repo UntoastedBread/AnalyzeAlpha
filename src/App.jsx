@@ -1768,6 +1768,37 @@ function usePrevious(value) {
   return ref.current;
 }
 
+function useMenuPresence(open, duration = 160) {
+  const [mounted, setMounted] = useState(open);
+  const [phase, setPhase] = useState(open ? "open" : "closed");
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      setMounted(true);
+      setPhase("open");
+      return;
+    }
+    if (!mounted) return;
+    setPhase("closing");
+    timerRef.current = setTimeout(() => {
+      setMounted(false);
+      setPhase("closed");
+      timerRef.current = null;
+    }, duration);
+  }, [open, mounted, duration]);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  return { mounted, phase };
+}
+
 function useInView(rootMargin = "200px 0px") {
   const ref = useRef(null);
   const [inView, setInView] = useState(false);
@@ -4781,6 +4812,7 @@ function ComparisonTab() {
 // ═══════════════════════════════════════════════════════════
 function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onRemoveWatchlist, onAddAlert, onRemoveAlert }) {
   const [open, setOpen] = useState(false);
+  const menuPresence = useMenuPresence(open, 140);
   const [subTab, setSubTab] = useState("watchlist");
   const [wlInput, setWlInput] = useState("");
   const [alForm, setAlForm] = useState({ ticker: "", type: "above", value: "" });
@@ -4814,8 +4846,11 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
       <button onClick={() => setOpen(!open)} style={{ padding: "0 0 10px 0", background: "none", border: "none", borderBottom: open ? `2px solid ${C.ink}` : "2px solid transparent", color: open ? C.ink : C.inkMuted, fontSize: 12, fontWeight: open ? 700 : 500, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)" }}>
         Tools ▾ {(watchlist.length + alerts.length) > 0 && <span style={{ fontSize: 9, background: C.ink, color: C.cream, borderRadius: "50%", padding: "1px 5px", marginLeft: 4 }}>{watchlist.length + alerts.length}</span>}
       </button>
-      {open && (
-        <div className="menu-pop menu-pop-rightOrigin" style={{ position: "absolute", top: "100%", right: 0, width: 380, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.08)", zIndex: 2100, padding: 16, maxHeight: 480, overflowY: "auto" }}>
+      {menuPresence.mounted && (
+        <div
+          className={`menu-pop menu-pop-rightOrigin${menuPresence.phase === "closing" ? " menu-pop-exit" : ""}`}
+          style={{ position: "absolute", top: "100%", right: 0, width: 380, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.08)", zIndex: 2100, padding: 16, maxHeight: 480, overflowY: "auto", pointerEvents: menuPresence.phase === "open" ? "auto" : "none" }}
+        >
           <div style={{ display: "flex", gap: 12, borderBottom: `1px solid ${C.rule}`, marginBottom: 12, paddingBottom: 8 }}>
             {["watchlist", "alerts"].map(t => (
               <button key={t} onClick={() => setSubTab(t)} style={{ background: "none", border: "none", color: subTab === t ? C.ink : C.inkMuted, fontSize: 11, fontWeight: subTab === t ? 700 : 400, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)", borderBottom: subTab === t ? `2px solid ${C.ink}` : "none", paddingBottom: 4 }}>
@@ -5108,6 +5143,8 @@ function App() {
   const chartTimerRef = useRef(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const accountMenuPresence = useMenuPresence(accountMenuOpen, 140);
+  const langMenuPresence = useMenuPresence(langMenuOpen, 120);
   const [helpMode, setHelpMode] = useState(false);
   const [helpTooltip, setHelpTooltip] = useState(null);
   const [chartIntent, setChartIntent] = useState(null);
@@ -5644,7 +5681,11 @@ function App() {
                 }}
               >
                 <button
-                  onClick={() => setAccountMenuOpen(o => !o)}
+                  onClick={() => setAccountMenuOpen(o => {
+                    const next = !o;
+                    if (!next) setLangMenuOpen(false);
+                    return next;
+                  })}
                   onKeyDown={e => {
                     if (e.key === "Escape") { setAccountMenuOpen(false); setLangMenuOpen(false); }
                   }}
@@ -5653,8 +5694,8 @@ function App() {
                   {t("nav.account")}
                 </button>
               </HelpWrap>
-              {accountMenuOpen && (
-                <div className="menu-pop menu-pop-rightOrigin" style={{
+              {accountMenuPresence.mounted && (
+                <div className={`menu-pop menu-pop-rightOrigin${accountMenuPresence.phase === "closing" ? " menu-pop-exit" : ""}`} style={{
                   position: "absolute",
                   right: 0,
                   top: "100%",
@@ -5666,6 +5707,7 @@ function App() {
                   boxShadow: "4px 8px 24px rgba(0,0,0,0.08)",
                   padding: 16,
                   zIndex: 2200,
+                  pointerEvents: accountMenuPresence.phase === "open" ? "auto" : "none",
                 }}>
                   <div style={{ padding: "6px 8px 10px", fontSize: 12, color: C.inkMuted, fontFamily: "var(--mono)" }}>
                     {session?.user?.email || t("menu.signedOut")}
@@ -5697,11 +5739,11 @@ function App() {
                       <span style={{ flex: 1, textAlign: "left" }}>{t("menu.language")}</span>
                       <IconChevronRight color={C.inkFaint} />
                     </button>
-                    {langMenuOpen && (
+                    {langMenuPresence.mounted && (
                       <div
                         onMouseEnter={() => setLangMenuOpen(true)}
                         onMouseLeave={() => setLangMenuOpen(false)}
-                        className="menu-pop-side"
+                        className={`menu-pop-side${langMenuPresence.phase === "closing" ? " menu-pop-exit" : ""}`}
                         style={{
                           position: "absolute",
                           left: "100%",
@@ -5715,6 +5757,7 @@ function App() {
                           boxShadow: "4px 8px 24px rgba(0,0,0,0.08)",
                           padding: "8px 6px",
                           zIndex: 2300,
+                          pointerEvents: langMenuPresence.phase === "open" ? "auto" : "none",
                         }}
                       >
                         {LANGUAGES.map((lang) => {
