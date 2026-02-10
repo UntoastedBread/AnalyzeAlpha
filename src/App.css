@@ -1,1 +1,25 @@
-/* Styles are handled inline — this file exists for CRA compatibility */
+/* Inline-heavy app styles */
+
+@keyframes menuPop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes menuPopSide {
+  from { opacity: 0; transform: translateX(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+.menu-pop {
+  animation: menuPop 0.16s ease-out;
+  transform-origin: top left;
+}
+
+.menu-pop-rightOrigin {
+  transform-origin: top right;
+}
+
+.menu-pop-side {
+  animation: menuPopSide 0.16s ease-out;
+  transform-origin: top left;
+}

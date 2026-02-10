@@ -1999,7 +1999,7 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
   });
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(26,22,18,0.35)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(26,22,18,0.35)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ background: C.cream, border: `1px solid ${C.rule}`, width: "96%", height: "92%", maxWidth: 1400, boxShadow: "8px 16px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: `1px solid ${C.rule}` }}>
           <div style={{ fontFamily: "var(--display)", fontSize: 18, color: C.ink }}>{title}</div>
@@ -4815,7 +4815,7 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
         Tools ▾ {(watchlist.length + alerts.length) > 0 && <span style={{ fontSize: 9, background: C.ink, color: C.cream, borderRadius: "50%", padding: "1px 5px", marginLeft: 4 }}>{watchlist.length + alerts.length}</span>}
       </button>
       {open && (
-        <div style={{ position: "absolute", top: "100%", right: 0, width: 380, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.08)", zIndex: 2100, padding: 16, maxHeight: 480, overflowY: "auto" }}>
+        <div className="menu-pop menu-pop-rightOrigin" style={{ position: "absolute", top: "100%", right: 0, width: 380, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.08)", zIndex: 2100, padding: 16, maxHeight: 480, overflowY: "auto" }}>
           <div style={{ display: "flex", gap: 12, borderBottom: `1px solid ${C.rule}`, marginBottom: 12, paddingBottom: 8 }}>
             {["watchlist", "alerts"].map(t => (
               <button key={t} onClick={() => setSubTab(t)} style={{ background: "none", border: "none", color: subTab === t ? C.ink : C.inkMuted, fontSize: 11, fontWeight: subTab === t ? 700 : 400, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)", borderBottom: subTab === t ? `2px solid ${C.ink}` : "none", paddingBottom: 4 }}>
@@ -5552,7 +5552,7 @@ function App() {
               />
             </HelpWrap>
             {showSearchDropdown && searchResults.length > 0 && (
-              <div style={{ position: "absolute", top: "100%", left: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
+              <div className="menu-pop" style={{ position: "absolute", top: "100%", left: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
                 {searchResults.map((r) => (
                   <button key={r.symbol} onClick={() => { analyze(r.symbol); setSearchQuery(""); setShowSearchDropdown(false); }}
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 14px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
@@ -5654,7 +5654,7 @@ function App() {
                 </button>
               </HelpWrap>
               {accountMenuOpen && (
-                <div style={{
+                <div className="menu-pop menu-pop-rightOrigin" style={{
                   position: "absolute",
                   right: 0,
                   top: "100%",
@@ -5701,6 +5701,7 @@ function App() {
                       <div
                         onMouseEnter={() => setLangMenuOpen(true)}
                         onMouseLeave={() => setLangMenuOpen(false)}
+                        className="menu-pop-side"
                         style={{
                           position: "absolute",
                           left: "100%",
