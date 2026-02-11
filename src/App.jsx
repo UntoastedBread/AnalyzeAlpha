@@ -79,8 +79,8 @@ const buildUrlFromRoute = ({ tab, analysisSubTab, accountSubTab, ticker, chart, 
   const url = new URL(window.location.href);
   const params = url.searchParams;
 
-  if (tab && tab !== "home") params.set("tab", tab);
-  else params.delete("tab");
+  const safeTab = normalizeTab(tab);
+  params.set("tab", safeTab);
 
   if (tab === "analysis" && analysisSubTab && analysisSubTab !== "stock") {
     params.set("analysis", analysisSubTab);
@@ -94,13 +94,13 @@ const buildUrlFromRoute = ({ tab, analysisSubTab, accountSubTab, ticker, chart, 
     params.delete("account");
   }
 
-  if (ticker) params.set("ticker", ticker);
+  if ((safeTab === "analysis" || safeTab === "charts") && ticker) params.set("ticker", ticker);
   else params.delete("ticker");
 
-  if (tab === "charts" && chart) params.set("chart", chart);
+  if (safeTab === "charts" && chart) params.set("chart", chart);
   else params.delete("chart");
 
-  if (tab === "charts" && chartType && chartType !== "line") {
+  if (safeTab === "charts" && chartType && chartType !== "line") {
     params.set("chartType", chartType);
   } else {
     params.delete("chartType");
@@ -9665,6 +9665,13 @@ function App() {
   }, [tab, chartSelection]);
 
   useEffect(() => {
+    if (tab === "analysis" || tab === "charts") return;
+    if (routeSyncRef.current) return;
+    if (!routeTicker) return;
+    setRouteTicker("");
+  }, [tab, routeTicker]);
+
+  useEffect(() => {
     if (!helpMode) setHelpTooltip(null);
   }, [helpMode]);
 
@@ -9991,10 +9998,11 @@ function App() {
 
   useEffect(() => {
     if (!result?.ticker) return;
+    if (tab !== "analysis" && tab !== "charts") return;
     const next = result.ticker.trim().toUpperCase();
     if (!next || next === routeTicker) return;
     setRouteTicker(next);
-  }, [result?.ticker, routeTicker]);
+  }, [result?.ticker, routeTicker, tab]);
 
   const updateFirstName = useCallback(async (name) => {
     if (!supabase || !userId) return { error: t("error.notSignedIn") };
