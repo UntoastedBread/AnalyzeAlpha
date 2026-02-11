@@ -7538,6 +7538,27 @@ function AccountTab({
   const [nameInput, setNameInput] = useState(profileName || "");
   const [nameStatus, setNameStatus] = useState("");
 
+  if (!session) {
+    return (
+      <div style={{ display: "grid", placeItems: "center", minHeight: 320 }}>
+        <div style={{ display: "grid", gap: 12, width: "min(360px, 92vw)" }}>
+          <button
+            onClick={() => onOpenAuth?.("signin")}
+            style={{ padding: "12px 16px", background: C.ink, color: C.cream, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}
+          >
+            {t("auth.signIn")}
+          </button>
+          <button
+            onClick={() => onOpenAuth?.("signup")}
+            style={{ padding: "12px 16px", background: "transparent", color: C.ink, border: `1px solid ${C.rule}`, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}
+          >
+            {t("auth.createAccount")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     setNameInput(profileName || "");
   }, [profileName]);
@@ -7596,7 +7617,7 @@ function AccountTab({
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted }}>{syncLabel}</span>
               {!session && (
-                <button onClick={onOpenAuth} style={{ padding: "8px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                <button onClick={() => onOpenAuth?.("signin")} style={{ padding: "8px 14px", background: C.ink, color: C.cream, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                   {t("common.signIn")}
                 </button>
               )}
@@ -9325,12 +9346,24 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
 // ═══════════════════════════════════════════════════════════
 // AUTH MODAL
 // ═══════════════════════════════════════════════════════════
+function GoogleLogo({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 533.5 544.3" aria-hidden="true">
+      <path fill="#4285F4" d="M533.5 278.4c0-17.4-1.6-34.1-4.6-50.4H272v95.3h146.9c-6.3 34.1-25.1 63-53.5 82.1v68h86.6c50.7-46.7 79.5-115.6 79.5-195z" />
+      <path fill="#34A853" d="M272 544.3c72.6 0 133.6-24.1 178.1-65.2l-86.6-68c-24.1 16.2-55 25.8-91.5 25.8-70.4 0-130-47.7-151.3-111.9H32.7v70.4C77.1 475.2 168.7 544.3 272 544.3z" />
+      <path fill="#FBBC05" d="M120.7 324.9c-10.3-30.8-10.3-64.1 0-94.9V159.6H32.7c-38.2 76.4-38.2 166.7 0 243.1l88-68.0z" />
+      <path fill="#EA4335" d="M272 107.7c39.5-.6 77.2 14.2 106.3 41.5l79.2-79.2C409.5 24.2 346.3-0.8 272 0 168.7 0 77.1 69.1 32.7 159.6l88 70.4c21.3-64.2 80.9-111.9 151.3-111.9z" />
+    </svg>
+  );
+}
+
 function AuthModal({ open, onClose, startMode = "signin" }) {
   const [mode, setMode] = useState(startMode);
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [oauthProvider, setOauthProvider] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const { t } = useI18n();
@@ -9342,6 +9375,8 @@ function AuthModal({ open, onClose, startMode = "signin" }) {
 
   useEffect(() => {
     if (!open) return;
+    setBusy(false);
+    setOauthProvider(null);
     setError("");
     setNotice("");
     if (mode === "signin") setFirstName("");
@@ -9373,10 +9408,19 @@ function AuthModal({ open, onClose, startMode = "signin" }) {
   const oauth = async (provider) => {
     if (!supabase) return;
     setBusy(true); setError(""); setNotice("");
+    setOauthProvider(provider);
     const options = { redirectTo: window.location.origin };
-    await supabase.auth.signInWithOAuth({ provider, options });
-    setBusy(false);
+    const { error: err } = await supabase.auth.signInWithOAuth({ provider, options });
+    if (err) {
+      setError(err.message);
+      setBusy(false);
+      setOauthProvider(null);
+    }
   };
+
+  const googleLabel = busy && oauthProvider === "google"
+    ? `${t("auth.continueGoogle")}…`
+    : t("auth.continueGoogle");
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(20,16,12,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000 }}>
@@ -9413,7 +9457,17 @@ function AuthModal({ open, onClose, startMode = "signin" }) {
         )}
 
         <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
-          <button onClick={() => oauth("google")} disabled={busy || !hasSupabaseConfig} style={{ padding: "10px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{t("auth.continueGoogle")}</button>
+          <button
+            onClick={() => oauth("google")}
+            disabled={busy || !hasSupabaseConfig}
+            style={{ padding: "10px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <GoogleLogo size={16} />
+              <span>{googleLabel}</span>
+              {busy && oauthProvider === "google" && <span className="spinner" aria-hidden="true" />}
+            </span>
+          </button>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0 12px" }}>
@@ -9523,6 +9577,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState("signin");
+  const [authToast, setAuthToast] = useState(null);
   const [syncState, setSyncState] = useState({ status: "idle", last: null, error: null });
   const [remoteHydrated, setRemoteHydrated] = useState(false);
   const workspaceRef = useRef(initialWorkspace);
@@ -9563,6 +9618,8 @@ function App() {
   const routeSyncRef = useRef(false);
   const routeHydratedRef = useRef(false);
   const routedTickerRef = useRef(null);
+  const authToastTimerRef = useRef(null);
+  const prevSessionRef = useRef(null);
 
   const t = useCallback((key, vars) => {
     let value = (TRANSLATIONS[locale] && TRANSLATIONS[locale][key])
@@ -9729,13 +9786,21 @@ function App() {
     if (!supabase) return;
     let active = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (active) setSession(data.session || null);
+      if (!active) return;
+      const next = data.session || null;
+      setSession(next);
+      prevSessionRef.current = next;
     });
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
+      prevSessionRef.current = nextSession;
+      if (event === "SIGNED_IN") {
+        const email = nextSession?.user?.email || t("account.user");
+        showAuthToast(t("account.signedInAs", { email }));
+      }
     });
     return () => { active = false; data?.subscription?.unsubscribe(); };
-  }, []);
+  }, [t, showAuthToast]);
 
   const applyWorkspace = useCallback((ws) => {
     const safe = sanitizeWorkspace(ws);
@@ -10030,6 +10095,13 @@ function App() {
     setAuthOpen(true);
   }, []);
 
+  const showAuthToast = useCallback((message) => {
+    if (!message) return;
+    setAuthToast(message);
+    if (authToastTimerRef.current) clearTimeout(authToastTimerRef.current);
+    authToastTimerRef.current = setTimeout(() => setAuthToast(null), 2000);
+  }, []);
+
   const tabStyle = (t, locked = false) => ({
     padding: "0 0 10px 0", marginRight: 24, background: "none", border: "none",
     borderBottom: tab === t ? `2px solid ${C.ink}` : "2px solid transparent",
@@ -10220,10 +10292,14 @@ function App() {
                   zIndex: 2200,
                   pointerEvents: accountMenuPresence.phase === "open" ? "auto" : "none",
                 }}>
-                  <div style={{ padding: "6px 8px 10px", fontSize: 12, color: C.inkMuted, fontFamily: "var(--mono)" }}>
-                    {session?.user?.email || t("menu.signedOut")}
-                  </div>
-                  <div style={{ height: 1, background: C.rule, margin: "4px 8px 8px" }} />
+                  {session && (
+                    <>
+                      <div style={{ padding: "6px 8px 10px", fontSize: 12, color: C.inkMuted, fontFamily: "var(--mono)" }}>
+                        {session?.user?.email}
+                      </div>
+                      <div style={{ height: 1, background: C.rule, margin: "4px 8px 8px" }} />
+                    </>
+                  )}
 
                   {!session ? (
                     <div style={{ display: "grid", gap: 10, padding: "6px 8px 4px" }}>
@@ -10377,7 +10453,7 @@ function App() {
             onRemoveWatchlist={removeFromWatchlist}
             onAddAlert={addAlert}
             onRemoveAlert={removeAlert}
-            onOpenAuth={() => openAuth("signin")}
+            onOpenAuth={openAuth}
             session={session}
             syncState={syncState}
             profileName={profileName}
@@ -10478,6 +10554,11 @@ function App() {
         </div>
       )}
 
+          {authToast && (
+            <div className="auth-toast" role="status" aria-live="polite">
+              {authToast}
+            </div>
+          )}
           <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} startMode={authMode} />
           {showPerf && <PerfMonitor onClose={() => setShowPerf(false)} />}
         </div>
