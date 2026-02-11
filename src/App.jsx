@@ -28,6 +28,7 @@ const INTERVAL_MS = {
 const WORKSPACE_STORAGE_KEY = "aa_workspace_v1";
 const WORKSPACE_VERSION = 1;
 const LANG_STORAGE_KEY = "aa_lang_v1";
+const THEME_STORAGE_KEY = "aa_theme_v1";
 
 const APP_TABS = ["home", "analysis", "charts", "heatmap", "comparison", "account"];
 const ANALYSIS_TABS = ["stock", "financials"];
@@ -5670,13 +5671,23 @@ const CHANGELOG = [
 // ═══════════════════════════════════════════════════════════
 // DESIGN SYSTEM + UI COMPONENTS
 // ═══════════════════════════════════════════════════════════
-const C = {
+const LIGHT_THEME = {
   cream: "#FAF7F2", warmWhite: "#F5F1EA", paper: "#EDE8DF",
   rule: "#D4CBBB", ruleFaint: "#E8E1D6",
   ink: "#1A1612", inkSoft: "#3D362E", inkMuted: "#7A7067", inkFaint: "#A69E94",
   up: "#1B6B3A", upBg: "#E8F5ED", down: "#9B1B1B", downBg: "#FBE8E8",
   hold: "#8B6914", holdBg: "#FDF6E3", accent: "#8B2500", chart4: "#5B4A8A",
 };
+
+const DARK_THEME = {
+  cream: "#14110E", warmWhite: "#1B1713", paper: "#242019",
+  rule: "#3A3228", ruleFaint: "#2B251F",
+  ink: "#F5EFE7", inkSoft: "#E1D7CA", inkMuted: "#B6A99A", inkFaint: "#8A7E70",
+  up: "#3CCB7F", upBg: "#193123", down: "#FF6B6B", downBg: "#3A1B1B",
+  hold: "#E0B35A", holdBg: "#3A2F12", accent: "#F28A5C", chart4: "#8C78D4",
+};
+
+let C = LIGHT_THEME;
 
 const fmt = (n, d = 2) => n != null ? Number(n).toFixed(d) : "—";
 const fmtPct = (n, d = 1) => n != null ? `${Number(n).toFixed(d)}%` : "—";
@@ -7173,7 +7184,7 @@ function AssetRow({ section, onAnalyze }) {
 // ═══════════════════════════════════════════════════════════
 // HOME TAB
 // ═══════════════════════════════════════════════════════════
-function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName }) {
+function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName, isDark = false, onToggleTheme }) {
   const { t, locale } = useI18n();
   const [indexPage, setIndexPage] = useState(0);
   const [stripData, setStripData] = useState([]);
@@ -7387,21 +7398,40 @@ function HomeTab({ onAnalyze, region = "Global", onRegionChange, greetingName })
 
       {/* Greeting */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 2px 12px", marginTop: 6, marginBottom: 6 }}>
-        <span style={{ width: 22, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-            <g stroke={C.accent} strokeWidth="1.6" strokeLinecap="round">
-              <line x1="12" y1="2" x2="12" y2="6" />
-              <line x1="12" y1="18" x2="12" y2="22" />
-              <line x1="2" y1="12" x2="6" y2="12" />
-              <line x1="18" y1="12" x2="22" y2="12" />
-              <line x1="4.5" y1="4.5" x2="7.5" y2="7.5" />
-              <line x1="16.5" y1="16.5" x2="19.5" y2="19.5" />
-              <line x1="4.5" y1="19.5" x2="7.5" y2="16.5" />
-              <line x1="16.5" y1="7.5" x2="19.5" y2="4.5" />
-            </g>
-            <circle cx="12" cy="12" r="3" fill={C.accent} />
-          </svg>
-        </span>
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          className={`theme-toggle ${isDark ? "theme-toggle-dark" : "theme-toggle-light"}`}
+          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          <span className="theme-icon sun" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24">
+              <g stroke={C.accent} strokeWidth="1.6" strokeLinecap="round">
+                <line x1="12" y1="2" x2="12" y2="6" />
+                <line x1="12" y1="18" x2="12" y2="22" />
+                <line x1="2" y1="12" x2="6" y2="12" />
+                <line x1="18" y1="12" x2="22" y2="12" />
+                <line x1="4.5" y1="4.5" x2="7.5" y2="7.5" />
+                <line x1="16.5" y1="16.5" x2="19.5" y2="19.5" />
+                <line x1="4.5" y1="19.5" x2="7.5" y2="16.5" />
+                <line x1="16.5" y1="7.5" x2="19.5" y2="4.5" />
+              </g>
+              <circle cx="12" cy="12" r="3" fill={C.accent} />
+            </svg>
+          </span>
+          <span className="theme-icon moon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24">
+              <path
+                d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5Z"
+                fill="none"
+                stroke={C.accent}
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </button>
         <div style={{ fontSize: 22, fontFamily: "var(--display)", color: C.ink, letterSpacing: "-0.01em" }}>
           {greetingText}
         </div>
@@ -9568,6 +9598,12 @@ function App() {
   const [routeTicker, setRouteTicker] = useState(initialRoute.ticker);
   const [chartSelection, setChartSelection] = useState(initialRoute.chart);
   const [chartType, setChartType] = useState(initialRoute.chartType);
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === "undefined") return "light";
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
   const [locale, setLocale] = useState(() => {
     if (typeof window === "undefined") return "en-US";
     const saved = localStorage.getItem(LANG_STORAGE_KEY);
@@ -9622,6 +9658,9 @@ function App() {
   const prevSessionRef = useRef(null);
   const authHydratedRef = useRef(false);
 
+  const isDark = theme === "dark";
+  C = isDark ? DARK_THEME : LIGHT_THEME;
+
   const t = useCallback((key, vars) => {
     let value = (TRANSLATIONS[locale] && TRANSLATIONS[locale][key])
       || TRANSLATIONS["en-US"][key]
@@ -9637,6 +9676,10 @@ function App() {
     setAuthToast(message);
     if (authToastTimerRef.current) clearTimeout(authToastTimerRef.current);
     authToastTimerRef.current = setTimeout(() => setAuthToast(null), 2000);
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => (prev === "dark" ? "light" : "dark"));
   }, []);
 
   const showHelp = useCallback((e, help) => {
@@ -9688,6 +9731,22 @@ function App() {
       document.documentElement.lang = locale;
     }
   }, [locale]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    const root = document.documentElement;
+    root.dataset.theme = theme;
+    root.style.setProperty("--app-bg", C.cream);
+    root.style.setProperty("--scroll-track", C.warmWhite);
+    root.style.setProperty("--scroll-thumb", C.rule);
+    root.style.setProperty("--toast-bg", isDark ? "rgba(12,10,8,0.92)" : "rgba(26,22,18,0.92)");
+    root.style.setProperty("--toast-text", isDark ? C.ink : "#F9F6F1");
+    root.style.setProperty("--toast-border", "rgba(255,255,255,0.12)");
+    root.style.setProperty("--spinner-track", isDark ? "rgba(20,17,14,0.35)" : "rgba(255,255,255,0.35)");
+    root.style.setProperty("--spinner-head", isDark ? C.cream : "#fff");
+    root.style.setProperty("--theme-focus", C.accent);
+  }, [theme, isDark]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -10468,7 +10527,16 @@ function App() {
       <main style={{ flex: 1, padding: "20px 24px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1, minWidth: 0 }} key={tab + (result?.ticker || "")}>
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
-        {!loading && !error && tab === "home" && <HomeTab onAnalyze={analyze} region={homeRegion} onRegionChange={setHomeRegion} greetingName={profileName} />}
+        {!loading && !error && tab === "home" && (
+          <HomeTab
+            onAnalyze={analyze}
+            region={homeRegion}
+            onRegionChange={setHomeRegion}
+            greetingName={profileName}
+            isDark={isDark}
+            onToggleTheme={toggleTheme}
+          />
+        )}
         {!loading && !error && tab === "account" && (
           <AccountTab
             onAnalyze={analyze}

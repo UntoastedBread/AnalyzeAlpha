@@ -58,8 +58,8 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.35);
-  border-top-color: #fff;
+  border: 2px solid var(--spinner-track, rgba(255,255,255,0.35));
+  border-top-color: var(--spinner-head, #fff);
   animation: spin 0.8s linear infinite;
 }
 
@@ -67,9 +67,9 @@
   position: fixed;
   top: 16px;
   right: 16px;
-  background: rgba(26,22,18,0.92);
-  color: #F9F6F1;
-  border: 1px solid rgba(255,255,255,0.12);
+  background: var(--toast-bg, rgba(26,22,18,0.92));
+  color: var(--toast-text, #F9F6F1);
+  border: 1px solid var(--toast-border, rgba(255,255,255,0.12));
   box-shadow: 0 10px 30px rgba(0,0,0,0.28);
   padding: 10px 14px;
   font-size: 11px;
@@ -79,4 +79,52 @@
   z-index: 11000;
   pointer-events: none;
   animation: toastInOut 2s ease-in-out both;
+}
+
+.theme-toggle {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--theme-focus, #8B2500);
+  outline-offset: 3px;
+  border-radius: 50%;
+}
+
+.theme-toggle .theme-icon {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.theme-toggle-light .moon {
+  opacity: 0;
+  transform: rotate(90deg) scale(0.55);
+}
+
+.theme-toggle-light .sun {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+
+.theme-toggle-dark .sun {
+  opacity: 0;
+  transform: rotate(-90deg) scale(0.55);
+}
+
+.theme-toggle-dark .moon {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
 }
