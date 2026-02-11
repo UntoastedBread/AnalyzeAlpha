@@ -9620,6 +9620,7 @@ function App() {
   const routedTickerRef = useRef(null);
   const authToastTimerRef = useRef(null);
   const prevSessionRef = useRef(null);
+  const authHydratedRef = useRef(false);
 
   const t = useCallback((key, vars) => {
     let value = (TRANSLATIONS[locale] && TRANSLATIONS[locale][key])
@@ -9797,17 +9798,25 @@ function App() {
       const next = data.session || null;
       setSession(next);
       prevSessionRef.current = next;
+      authHydratedRef.current = true;
     });
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      const prevSession = prevSessionRef.current;
       setSession(nextSession);
       prevSessionRef.current = nextSession;
-      if (event === "SIGNED_IN") {
+      if (event === "SIGNED_IN" && authHydratedRef.current && !prevSession) {
         const email = nextSession?.user?.email || t("account.user");
         showAuthToast(t("account.signedInAs", { email }));
       }
     });
     return () => { active = false; data?.subscription?.unsubscribe(); };
   }, [t, showAuthToast]);
+
+  useEffect(() => {
+    if (session) return;
+    setAccountMenuOpen(false);
+    setLangMenuOpen(false);
+  }, [session]);
 
   const applyWorkspace = useCallback((ws) => {
     const safe = sanitizeWorkspace(ws);
@@ -10254,31 +10263,32 @@ function App() {
                 onRemoveAlert={removeAlert}
               />
             </HelpWrap>
-            <div ref={accountMenuRef} style={{ position: "relative" }}>
-              <HelpWrap
-                enabled={helpMode}
-                onShow={showHelp}
-                onHide={hideHelp}
-                help={{
-                  title: t("help.account.title"),
-                  body: t("help.account.body"),
-                }}
-              >
-                <button
-                  onClick={() => setAccountMenuOpen(o => {
-                    const next = !o;
-                    if (!next) setLangMenuOpen(false);
-                    return next;
-                  })}
-                  onKeyDown={e => {
-                    if (e.key === "Escape") { setAccountMenuOpen(false); setLangMenuOpen(false); }
+            {session ? (
+              <div ref={accountMenuRef} style={{ position: "relative" }}>
+                <HelpWrap
+                  enabled={helpMode}
+                  onShow={showHelp}
+                  onHide={hideHelp}
+                  help={{
+                    title: t("help.account.title"),
+                    body: t("help.account.body"),
                   }}
-                  style={tabStyle("account")}
                 >
-                  {t("nav.account")}
-                </button>
-              </HelpWrap>
-              {accountMenuPresence.mounted && (
+                  <button
+                    onClick={() => setAccountMenuOpen(o => {
+                      const next = !o;
+                      if (!next) setLangMenuOpen(false);
+                      return next;
+                    })}
+                    onKeyDown={e => {
+                      if (e.key === "Escape") { setAccountMenuOpen(false); setLangMenuOpen(false); }
+                    }}
+                    style={tabStyle("account")}
+                  >
+                    {t("nav.account")}
+                  </button>
+                </HelpWrap>
+                {accountMenuPresence.mounted && (
                 <div className={`menu-pop menu-pop-rightOrigin${accountMenuPresence.phase === "closing" ? " menu-pop-exit" : ""}`} style={{
                   position: "absolute",
                   right: 0,
@@ -10431,8 +10441,26 @@ function App() {
                     </>
                   )}
                 </div>
-              )}
-            </div>
+                )}
+              </div>
+            ) : (
+              <HelpWrap
+                enabled={helpMode}
+                onShow={showHelp}
+                onHide={hideHelp}
+                help={{
+                  title: t("help.account.title"),
+                  body: t("help.account.body"),
+                }}
+              >
+                <button
+                  onClick={() => openAuth("signin")}
+                  style={tabStyle("account")}
+                >
+                  {t("common.signIn")}
+                </button>
+              </HelpWrap>
+            )}
           </div>
         </nav>
       </header>
