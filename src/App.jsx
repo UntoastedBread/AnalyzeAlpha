@@ -9631,6 +9631,13 @@ function App() {
     return value;
   }, [locale]);
 
+  const showAuthToast = useCallback((message) => {
+    if (!message) return;
+    setAuthToast(message);
+    if (authToastTimerRef.current) clearTimeout(authToastTimerRef.current);
+    authToastTimerRef.current = setTimeout(() => setAuthToast(null), 2000);
+  }, []);
+
   const showHelp = useCallback((e, help) => {
     if (!helpMode || !help) return;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -10095,12 +10102,6 @@ function App() {
     setAuthOpen(true);
   }, []);
 
-  const showAuthToast = useCallback((message) => {
-    if (!message) return;
-    setAuthToast(message);
-    if (authToastTimerRef.current) clearTimeout(authToastTimerRef.current);
-    authToastTimerRef.current = setTimeout(() => setAuthToast(null), 2000);
-  }, []);
 
   const tabStyle = (t, locked = false) => ({
     padding: "0 0 10px 0", marginRight: 24, background: "none", border: "none",
