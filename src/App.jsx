@@ -9325,8 +9325,8 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
 // ═══════════════════════════════════════════════════════════
 // AUTH MODAL
 // ═══════════════════════════════════════════════════════════
-function AuthModal({ open, onClose }) {
-  const [mode, setMode] = useState("signin");
+function AuthModal({ open, onClose, startMode = "signin" }) {
+  const [mode, setMode] = useState(startMode);
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -9334,6 +9334,11 @@ function AuthModal({ open, onClose }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const { t } = useI18n();
+
+  useEffect(() => {
+    if (!open) return;
+    setMode(startMode);
+  }, [open, startMode]);
 
   useEffect(() => {
     if (!open) return;
@@ -9517,6 +9522,7 @@ function App() {
   const [isPro, setIsPro] = useState(false);
   const [session, setSession] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState("signin");
   const [syncState, setSyncState] = useState({ status: "idle", last: null, error: null });
   const [remoteHydrated, setRemoteHydrated] = useState(false);
   const workspaceRef = useRef(initialWorkspace);
@@ -10019,6 +10025,11 @@ function App() {
     await supabase.auth.signOut();
   }, []);
 
+  const openAuth = useCallback((mode = "signin") => {
+    setAuthMode(mode);
+    setAuthOpen(true);
+  }, []);
+
   const tabStyle = (t, locked = false) => ({
     padding: "0 0 10px 0", marginRight: 24, background: "none", border: "none",
     borderBottom: tab === t ? `2px solid ${C.ink}` : "2px solid transparent",
@@ -10214,115 +10225,134 @@ function App() {
                   </div>
                   <div style={{ height: 1, background: C.rule, margin: "4px 8px 8px" }} />
 
-                  <button
-                    onClick={() => { setTab("account"); setAccountMenuOpen(false); setLangMenuOpen(false); }}
-                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
-                    onMouseEnter={e => e.currentTarget.style.background = C.paper}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                  >
-                    <IconGear color={C.inkMuted} />
-                    <span style={{ flex: 1, textAlign: "left" }}>{t("menu.settings")}</span>
-                  </button>
+                  {!session ? (
+                    <div style={{ display: "grid", gap: 10, padding: "6px 8px 4px" }}>
+                      <button
+                        onClick={() => { openAuth("signin"); setAccountMenuOpen(false); setLangMenuOpen(false); }}
+                        style={{ padding: "10px 12px", background: C.ink, color: C.cream, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}
+                      >
+                        {t("auth.signIn")}
+                      </button>
+                      <button
+                        onClick={() => { openAuth("signup"); setAccountMenuOpen(false); setLangMenuOpen(false); }}
+                        style={{ padding: "10px 12px", background: "transparent", color: C.ink, border: `1px solid ${C.rule}`, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase" }}
+                      >
+                        {t("auth.createAccount")}
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => { setTab("account"); setAccountMenuOpen(false); setLangMenuOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
+                        onMouseEnter={e => e.currentTarget.style.background = C.paper}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                      >
+                        <IconGear color={C.inkMuted} />
+                        <span style={{ flex: 1, textAlign: "left" }}>{t("menu.settings")}</span>
+                      </button>
 
-                  <div
-                    onMouseEnter={() => setLangMenuOpen(true)}
-                    onMouseLeave={() => setLangMenuOpen(false)}
-                    style={{ position: "relative" }}
-                  >
-                    <button
-                      onClick={() => setLangMenuOpen(o => !o)}
-                      style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
-                      onMouseEnter={e => e.currentTarget.style.background = C.paper}
-                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                    >
-                      <IconGlobe color={C.inkMuted} />
-                      <span style={{ flex: 1, textAlign: "left" }}>{t("menu.language")}</span>
-                      <IconChevronRight color={C.inkFaint} />
-                    </button>
-                    {langMenuPresence.mounted && (
                       <div
                         onMouseEnter={() => setLangMenuOpen(true)}
                         onMouseLeave={() => setLangMenuOpen(false)}
-                        className={`menu-pop-side${langMenuPresence.phase === "closing" ? " menu-pop-exit" : ""}`}
-                        style={{
-                          position: "absolute",
-                          left: "100%",
-                          top: 0,
-                          marginLeft: -1,
-                          minWidth: 260,
-                          background: C.cream,
-                          borderRadius: 0,
-                          border: `1px solid ${C.rule}`,
-                          borderLeft: "none",
-                          boxShadow: "4px 8px 24px rgba(0,0,0,0.08)",
-                          padding: "8px 6px",
-                          zIndex: 2300,
-                          pointerEvents: langMenuPresence.phase === "open" ? "auto" : "none",
-                        }}
+                        style={{ position: "relative" }}
                       >
-                        {LANGUAGES.map((lang) => {
-                          const active = lang.code === locale;
-                          return (
-                            <button
-                              key={lang.code}
-                              onClick={() => { setLocale(lang.code); setAccountMenuOpen(false); setLangMenuOpen(false); }}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                width: "100%",
-                                padding: "8px 12px",
-                                background: active ? C.paper : "transparent",
-                                border: "none",
-                                color: C.ink,
-                                cursor: "pointer",
-                                fontSize: 13,
-                                fontFamily: "var(--body)",
-                              }}
-                              onMouseEnter={e => e.currentTarget.style.background = C.paper}
-                              onMouseLeave={e => e.currentTarget.style.background = active ? C.paper : "transparent"}
-                            >
-                              <span style={{ textAlign: "left" }}>{lang.label}</span>
-                              {active && <IconCheck color={C.inkFaint} />}
-                            </button>
-                          );
-                        })}
+                        <button
+                          onClick={() => setLangMenuOpen(o => !o)}
+                          style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
+                          onMouseEnter={e => e.currentTarget.style.background = C.paper}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                        >
+                          <IconGlobe color={C.inkMuted} />
+                          <span style={{ flex: 1, textAlign: "left" }}>{t("menu.language")}</span>
+                          <IconChevronRight color={C.inkFaint} />
+                        </button>
+                        {langMenuPresence.mounted && (
+                          <div
+                            onMouseEnter={() => setLangMenuOpen(true)}
+                            onMouseLeave={() => setLangMenuOpen(false)}
+                            className={`menu-pop-side${langMenuPresence.phase === "closing" ? " menu-pop-exit" : ""}`}
+                            style={{
+                              position: "absolute",
+                              left: "100%",
+                              top: 0,
+                              marginLeft: -1,
+                              minWidth: 260,
+                              background: C.cream,
+                              borderRadius: 0,
+                              border: `1px solid ${C.rule}`,
+                              borderLeft: "none",
+                              boxShadow: "4px 8px 24px rgba(0,0,0,0.08)",
+                              padding: "8px 6px",
+                              zIndex: 2300,
+                              pointerEvents: langMenuPresence.phase === "open" ? "auto" : "none",
+                            }}
+                          >
+                            {LANGUAGES.map((lang) => {
+                              const active = lang.code === locale;
+                              return (
+                                <button
+                                  key={lang.code}
+                                  onClick={() => { setLocale(lang.code); setAccountMenuOpen(false); setLangMenuOpen(false); }}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    width: "100%",
+                                    padding: "8px 12px",
+                                    background: active ? C.paper : "transparent",
+                                    border: "none",
+                                    color: C.ink,
+                                    cursor: "pointer",
+                                    fontSize: 13,
+                                    fontFamily: "var(--body)",
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.background = C.paper}
+                                  onMouseLeave={e => e.currentTarget.style.background = active ? C.paper : "transparent"}
+                                >
+                                  <span style={{ textAlign: "left" }}>{lang.label}</span>
+                                  {active && <IconCheck color={C.inkFaint} />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  <div style={{ height: 1, background: C.rule, margin: "6px 8px 8px" }} />
+                      <div style={{ height: 1, background: C.rule, margin: "6px 8px 8px" }} />
 
-                  <button
-                    onClick={() => { setAccountMenuOpen(false); setLangMenuOpen(false); }}
-                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
-                    onMouseEnter={e => e.currentTarget.style.background = C.paper}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                  >
-                    <IconCrown color={C.inkMuted} />
-                    <span style={{ flex: 1, textAlign: "left" }}>{t("menu.upgrade")}</span>
-                  </button>
-                  <button
-                    onClick={() => { setAccountMenuOpen(false); setLangMenuOpen(false); }}
-                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
-                    onMouseEnter={e => e.currentTarget.style.background = C.paper}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                  >
-                    <IconGift color={C.inkMuted} />
-                    <span style={{ flex: 1, textAlign: "left" }}>{t("menu.gift")}</span>
-                  </button>
+                      <button
+                        onClick={() => { setAccountMenuOpen(false); setLangMenuOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
+                        onMouseEnter={e => e.currentTarget.style.background = C.paper}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                      >
+                        <IconCrown color={C.inkMuted} />
+                        <span style={{ flex: 1, textAlign: "left" }}>{t("menu.upgrade")}</span>
+                      </button>
+                      <button
+                        onClick={() => { setAccountMenuOpen(false); setLangMenuOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
+                        onMouseEnter={e => e.currentTarget.style.background = C.paper}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                      >
+                        <IconGift color={C.inkMuted} />
+                        <span style={{ flex: 1, textAlign: "left" }}>{t("menu.gift")}</span>
+                      </button>
 
-                  <div style={{ height: 1, background: C.rule, margin: "6px 8px 8px" }} />
+                      <div style={{ height: 1, background: C.rule, margin: "6px 8px 8px" }} />
 
-                  <button
-                    onClick={() => { handleSignOut(); setAccountMenuOpen(false); setLangMenuOpen(false); }}
-                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
-                    onMouseEnter={e => e.currentTarget.style.background = C.paper}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                  >
-                    <IconLogout color={C.inkMuted} />
-                    <span style={{ flex: 1, textAlign: "left" }}>{t("menu.logout")}</span>
-                  </button>
+                      <button
+                        onClick={() => { handleSignOut(); setAccountMenuOpen(false); setLangMenuOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 8px", background: "transparent", border: "none", color: C.ink, cursor: "pointer", fontSize: 13, fontFamily: "var(--body)" }}
+                        onMouseEnter={e => e.currentTarget.style.background = C.paper}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                      >
+                        <IconLogout color={C.inkMuted} />
+                        <span style={{ flex: 1, textAlign: "left" }}>{t("menu.logout")}</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -10347,7 +10377,7 @@ function App() {
             onRemoveWatchlist={removeFromWatchlist}
             onAddAlert={addAlert}
             onRemoveAlert={removeAlert}
-            onOpenAuth={() => setAuthOpen(true)}
+            onOpenAuth={() => openAuth("signin")}
             session={session}
             syncState={syncState}
             profileName={profileName}
@@ -10448,7 +10478,7 @@ function App() {
         </div>
       )}
 
-          <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+          <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} startMode={authMode} />
           {showPerf && <PerfMonitor onClose={() => setShowPerf(false)} />}
         </div>
       </HelpContext.Provider>
