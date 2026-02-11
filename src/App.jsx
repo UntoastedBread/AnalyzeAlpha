@@ -7538,6 +7538,10 @@ function AccountTab({
   const [nameInput, setNameInput] = useState(profileName || "");
   const [nameStatus, setNameStatus] = useState("");
 
+  useEffect(() => {
+    setNameInput(profileName || "");
+  }, [profileName]);
+
   if (!session) {
     return (
       <div style={{ display: "grid", placeItems: "center", minHeight: 320 }}>
@@ -7558,10 +7562,6 @@ function AccountTab({
       </div>
     );
   }
-
-  useEffect(() => {
-    setNameInput(profileName || "");
-  }, [profileName]);
 
   const syncLabel = !session
     ? t("account.syncLocal")
