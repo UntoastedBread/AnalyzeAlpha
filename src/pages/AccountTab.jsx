@@ -21,6 +21,8 @@ function AccountTab({
   profileName,
   onUpdateName,
   onSignOut,
+  defaultChartType = "line",
+  onSetDefaultChartType,
 }) {
   const {
     useI18n,
@@ -164,25 +166,25 @@ function AccountTab({
       </div>
 
       <div style={{ display: "flex", gap: 12, borderBottom: `1px solid ${C.rule}`, paddingBottom: 8 }}>
-        {["overview", "preferences"].map(t => (
+        {["overview", "preferences"].map(tabKey => (
           <button
-            key={t}
-            onClick={() => setActiveSubTab(t)}
+            key={tabKey}
+            onClick={() => setActiveSubTab(tabKey)}
             style={{
               background: "none",
               border: "none",
-              color: activeSubTab === t ? C.ink : C.inkMuted,
+              color: activeSubTab === tabKey ? C.ink : C.inkMuted,
               fontSize: 11,
-              fontWeight: activeSubTab === t ? 700 : 400,
+              fontWeight: activeSubTab === tabKey ? 700 : 400,
               cursor: "pointer",
               textTransform: "uppercase",
               letterSpacing: "0.1em",
               fontFamily: "var(--body)",
-              borderBottom: activeSubTab === t ? `2px solid ${C.ink}` : "none",
+              borderBottom: activeSubTab === tabKey ? `2px solid ${C.ink}` : "none",
               paddingBottom: 6,
             }}
           >
-            {t === "overview" ? t("account.overview") : t("account.preferences")}
+            {tabKey === "overview" ? t("account.overview") : t("account.preferences")}
           </button>
         ))}
       </div>
@@ -319,10 +321,21 @@ function AccountTab({
         </>
       ) : (
         <Section title={t("account.preferences")} help={{ title: t("help.accountPreferences.title"), body: t("help.accountPreferences.body") }}>
-          <div style={{ display: "grid", gap: 6 }}>
+          <div style={{ display: "grid", gap: 8 }}>
             <Row label={t("account.defaultPeriod")} value={prefs?.period || "1y"} />
             <Row label={t("account.defaultInterval")} value={prefs?.interval || "1d"} />
-            <Row label={t("account.homeRegion")} value={labelFor(prefs?.region || "Global", t)} border={false} />
+            <Row label={t("account.homeRegion")} value={labelFor(prefs?.region || "Global", t)} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0" }}>
+              <span style={{ color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>Default chart style</span>
+              <select
+                value={defaultChartType}
+                onChange={(e) => onSetDefaultChartType?.(e.target.value)}
+                style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", color: C.ink, fontSize: 11, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}
+              >
+                <option value="line">{t("common.line")}</option>
+                <option value="candles">{t("common.candles")}</option>
+              </select>
+            </div>
           </div>
         </Section>
       )}

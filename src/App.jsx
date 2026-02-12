@@ -54,9 +54,9 @@ const normalizeChartMode = (mode) => {
   return CHART_MODES.includes(val) ? val : null;
 };
 const normalizeChartType = (type) => {
-  if (!type) return "line";
+  if (!type) return null;
   const val = String(type).toLowerCase();
-  return CHART_TYPES.includes(val) ? val : "line";
+  return CHART_TYPES.includes(val) ? val : null;
 };
 
 const readRouteFromLocation = () => {
@@ -153,6 +153,7 @@ function emptyWorkspace() {
       period: "1y",
       interval: "1d",
       region: "Global",
+      chartType: "line",
       updatedAt: Date.now(),
     },
   };
@@ -1854,7 +1855,8 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
   }, []);
 
   useEffect(() => {
-    if (typeof document === "undefined") return undefined;
+    const browserWindow = typeof globalThis !== "undefined" ? globalThis.window : undefined;
+    if (typeof document === "undefined" || !browserWindow) return undefined;
     const body = document.body;
     const html = document.documentElement;
     const prevBodyOverflow = body.style.overflow;
@@ -1867,12 +1869,12 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
     html.style.overscrollBehavior = "none";
 
     const preventScroll = (e) => e.preventDefault();
-    window.addEventListener("wheel", preventScroll, { passive: false });
-    window.addEventListener("touchmove", preventScroll, { passive: false });
+    browserWindow.addEventListener("wheel", preventScroll, { passive: false });
+    browserWindow.addEventListener("touchmove", preventScroll, { passive: false });
 
     return () => {
-      window.removeEventListener("wheel", preventScroll);
-      window.removeEventListener("touchmove", preventScroll);
+      browserWindow.removeEventListener("wheel", preventScroll);
+      browserWindow.removeEventListener("touchmove", preventScroll);
       body.style.overflow = prevBodyOverflow;
       html.style.overflow = prevHtmlOverflow;
       body.style.overscrollBehavior = prevBodyOverscroll;
@@ -2106,20 +2108,63 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
   return createPortal(modal, document.body);
 }
 
-function LoadingScreen({ ticker, isPro }) {
+function LoadingScreen({ ticker, isPro, chartType = "line" }) {
   const { t } = useI18n();
+  const candleMode = chartType === "candles";
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 420, gap: 20, position: "relative" }}>
       <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, zIndex: 1 }}>
-        <div style={{ position: "relative" }}>
-          <div style={{ position: "relative", zIndex: 1, animation: "alphaFloat 3s ease-in-out infinite" }}>
-            <LogoIcon size={40} />
+        {candleMode ? (
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 78, padding: "0 4px" }}>
+            {Array.from({ length: 12 }).map((_, i) => {
+              const up = i % 3 !== 0;
+              const color = up ? C.up : C.down;
+              const bodyHeight = 14 + ((i * 9) % 16);
+              const bodyBottom = 11 + ((i * 5) % 10);
+              const wickHeight = bodyHeight + 16 + (i % 4) * 4;
+              return (
+                <div key={i} style={{ position: "relative", width: 9, height: 74, animation: `candleFloat 1.6s ease-in-out ${i * 0.08}s infinite` }}>
+                  <span
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      bottom: 8,
+                      width: 1,
+                      height: wickHeight,
+                      transform: "translateX(-50%)",
+                      background: color,
+                      opacity: 0.6,
+                    }}
+                  />
+                  <span
+                    style={{
+                      position: "absolute",
+                      left: 1,
+                      bottom: bodyBottom,
+                      width: 7,
+                      height: bodyHeight,
+                      background: color,
+                      borderRadius: 1,
+                      transformOrigin: "bottom center",
+                      animation: `candleBodyPulse 1.25s ease-in-out ${i * 0.05}s infinite`,
+                    }}
+                  />
+                </div>
+              );
+            })}
           </div>
-        </div>
+        ) : (
+          <div style={{ position: "relative" }}>
+            <div style={{ position: "relative", zIndex: 1, animation: "alphaFloat 3s ease-in-out infinite" }}>
+              <LogoIcon size={40} />
+            </div>
+          </div>
+        )}
         <BrandMark size={28} pro={isPro} weight={300} />
       </div>
       <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.inkMuted, zIndex: 1 }}>
-        {t("loading.analyzing")} <span style={{ fontWeight: 700, color: C.ink, fontFamily: "var(--mono)" }}>{ticker}</span>
+        {candleMode ? "Building candle view for " : `${t("loading.analyzing")} `}
+        <span style={{ fontWeight: 700, color: C.ink, fontFamily: "var(--mono)" }}>{ticker}</span>
       </div>
       <div style={{ width: 200, height: 2, background: C.ruleFaint, borderRadius: 2, overflow: "hidden", zIndex: 1 }}>
         <div style={{ width: "55%", height: "100%", background: "linear-gradient(90deg, rgba(26,22,18,0), rgba(26,22,18,0.7), rgba(26,22,18,0))", animation: "proSweep 1.6s ease infinite" }} />
@@ -3300,7 +3345,7 @@ function App() {
   const [accountSubTab, setAccountSubTab] = useState(initialRoute.accountSubTab);
   const [routeTicker, setRouteTicker] = useState(initialRoute.ticker);
   const [chartSelection, setChartSelection] = useState(initialRoute.chart);
-  const [chartType, setChartType] = useState(initialRoute.chartType);
+  const [chartType, setChartType] = useState(() => initialRoute.chartType || initialWorkspace.prefs?.chartType || "line");
   const [theme, setTheme] = useState(() => {
     if (typeof window === "undefined") return "light";
     const saved = localStorage.getItem(THEME_STORAGE_KEY);
@@ -3327,6 +3372,8 @@ function App() {
   const [recentAnalyses, setRecentAnalyses] = useState(initialWorkspace.recent);
   const [savedComparisons, setSavedComparisons] = useState(initialWorkspace.comparisons);
   const [prefs, setPrefs] = useState(initialWorkspace.prefs);
+  const accountChartTypePref = prefs?.chartType === "candles" ? "candles" : "line";
+  const resolvedChartType = chartType || accountChartTypePref;
   const [homeRegion, setHomeRegion] = useState(initialWorkspace.prefs?.region || "Global");
   const [ticker, setTicker] = useState("");
   const [period, setPeriod] = useState(initialWorkspace.prefs?.period || "1y");
@@ -3509,6 +3556,11 @@ function App() {
     if (routeSyncRef.current) return;
     if (chartSelection) setChartSelection(null);
   }, [tab, chartSelection]);
+
+  useEffect(() => {
+    if (chartType) return;
+    setChartType(accountChartTypePref);
+  }, [chartType, accountChartTypePref]);
 
   useEffect(() => {
     if (tab === "analysis" || tab === "charts") return;
@@ -3791,6 +3843,7 @@ function App() {
   const analyze = useCallback(async (t, options = {}) => {
     const sym = (t || ticker).trim().toUpperCase();
     if (!sym) return;
+    setChartType(accountChartTypePref);
     setTicker(sym); setLoading(true); setError(null); setLivePrice(null); setChartLivePrice(null); setLatency(null);
     try {
       const fd = await fetchStockData(sym, period, interval);
@@ -3809,7 +3862,7 @@ function App() {
       setError({ message: t("error.allSourcesFailed"), debug: e.debug || { error: String(e) } });
     }
     setLoading(false);
-  }, [ticker, period, interval, recordRecent]);
+  }, [ticker, period, interval, recordRecent, accountChartTypePref]);
 
   useEffect(() => {
     if (!routeTicker) return;
@@ -3830,6 +3883,7 @@ function App() {
     setIntervalValue(i);
     const sym = t.trim().toUpperCase();
     if (!sym) return;
+    setChartType(accountChartTypePref);
     setTicker(sym); setLoading(true); setError(null); setLivePrice(null); setChartLivePrice(null); setLatency(null);
     try {
       const fd = await fetchStockData(sym, p, i);
@@ -3847,7 +3901,7 @@ function App() {
       setError({ message: t("error.allSourcesFailed"), debug: e.debug || { error: String(e) } });
     }
     setLoading(false);
-  }, [recordRecent]);
+  }, [recordRecent, accountChartTypePref]);
 
   useEffect(() => {
     if (!result?.ticker) return;
@@ -3875,6 +3929,14 @@ function App() {
   const openAuth = useCallback((mode = "signin") => {
     setAuthMode(mode);
     setAuthOpen(true);
+  }, []);
+  const setDefaultChartType = useCallback((type) => {
+    const next = type === "candles" ? "candles" : "line";
+    setPrefs(prev => {
+      if (prev?.chartType === next) return prev;
+      return { ...prev, chartType: next, updatedAt: Date.now() };
+    });
+    setChartType(next);
   }, []);
   const openProSignup = useCallback(() => {
     setTab("account");
@@ -4418,7 +4480,7 @@ function App() {
       </header>
 
       <main style={{ flex: 1, padding: viewport.isMobile ? "16px 14px" : "20px 24px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1, minWidth: 0 }} key={tab + (result?.ticker || "")}>
-        {loading && <LoadingScreen ticker={ticker} isPro={isPro} />}
+        {loading && <LoadingScreen ticker={ticker} isPro={isPro} chartType={resolvedChartType} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
         {!loading && !error && tab === "home" && (
           <HomeTab
@@ -4453,6 +4515,8 @@ function App() {
             profileName={profileName}
             onUpdateName={updateFirstName}
             onSignOut={handleSignOut}
+            defaultChartType={accountChartTypePref}
+            onSetDefaultChartType={setDefaultChartType}
           />
         )}
         {!loading && !error && tab === "analysis" && (
@@ -4466,10 +4530,13 @@ function App() {
             isPro={isPro}
             period={period}
             interval={interval}
+            chartType={resolvedChartType}
             subTab={analysisSubTab}
             onSubTabChange={setAnalysisSubTab}
             onReanalyze={reanalyze}
             onOpenCharts={openCharts}
+            onChartTypeChange={setChartType}
+            defaultChartType={accountChartTypePref}
             onUpgradePro={openProSignup}
             openChartsLabel={t("chart.openCharts")}
             helpMode={helpMode}
@@ -4490,8 +4557,9 @@ function App() {
             onConsumeIntent={consumeChartIntent}
             expandedMode={chartSelection}
             onExpandedModeChange={setChartSelection}
-            chartType={chartType}
+            chartType={resolvedChartType}
             onChartTypeChange={setChartType}
+            defaultChartType={accountChartTypePref}
           />
         )}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab deps={pageDeps} viewport={viewport} /> : (

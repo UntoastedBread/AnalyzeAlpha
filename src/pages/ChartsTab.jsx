@@ -19,6 +19,7 @@ function ChartsTab({
   onExpandedModeChange,
   chartType,
   onChartTypeChange,
+  defaultChartType = "line",
 }) {
   const {
     useI18n,
@@ -61,9 +62,9 @@ function ChartsTab({
   const expandBtn = { padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" };
 
   useEffect(() => {
-    onChartTypeChange?.("line");
+    onChartTypeChange?.(defaultChartType || "line");
     onExpandedModeChange?.(null);
-  }, [result?.ticker, onChartTypeChange, onExpandedModeChange]);
+  }, [result?.ticker, onChartTypeChange, onExpandedModeChange, defaultChartType]);
 
   useEffect(() => {
     setBrushRange({ start: null, end: null });

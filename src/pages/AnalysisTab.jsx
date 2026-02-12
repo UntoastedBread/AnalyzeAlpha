@@ -20,6 +20,9 @@ function AnalysisTab({
   onSubTabChange,
   onReanalyze,
   onOpenCharts,
+  chartType,
+  onChartTypeChange,
+  defaultChartType = "line",
   onUpgradePro,
   openChartsLabel,
   helpMode,
@@ -58,9 +61,9 @@ function AnalysisTab({
   const isTablet = Boolean(viewport?.isTablet);
   const activeSubTab = subTab || "stock";
   const setActiveSubTab = onSubTabChange || (() => {});
+  const activeChartType = chartType || defaultChartType || "line";
   const [finPeriod, setFinPeriod] = useState("LTM");
   const [assumptions, setAssumptions] = useState(null);
-  const [chartType, setChartType] = useState("line");
   const [animateMainLine, setAnimateMainLine] = useState(true);
   const peerSeed = hashCode(result?.ticker || "PEERS");
   const price = livePrice || result?.currentPrice || 0;
@@ -135,15 +138,15 @@ function AnalysisTab({
     onSubTabChange?.("stock");
     setFinPeriod(result.fundamentals?.periods?.[0]?.label || "LTM");
     setAssumptions(result.valuationModels?.assumptions || null);
-    setChartType("line");
-  }, [result, onSubTabChange]);
+    onChartTypeChange?.(defaultChartType || "line");
+  }, [result, onSubTabChange, onChartTypeChange, defaultChartType]);
 
   useEffect(() => {
     if (!result?.ticker) return undefined;
     setAnimateMainLine(true);
     const id = setTimeout(() => setAnimateMainLine(false), CHART_ANIM_MS + 40);
     return () => clearTimeout(id);
-  }, [result?.ticker, period, interval, chartType, CHART_ANIM_MS]);
+  }, [result?.ticker, period, interval, activeChartType, CHART_ANIM_MS]);
 
   if (!result) {
     return (
@@ -402,8 +405,8 @@ function AnalysisTab({
             )
           }>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-            <ControlChip C={C} active={chartType === "line"} onClick={() => setChartType("line")}>{t("common.line")}</ControlChip>
-            <ControlChip C={C} active={chartType === "candles"} onClick={() => setChartType("candles")}>{t("common.candles")}</ControlChip>
+            <ControlChip C={C} active={activeChartType === "line"} onClick={() => onChartTypeChange?.("line")}>{t("common.line")}</ControlChip>
+            <ControlChip C={C} active={activeChartType === "candles"} onClick={() => onChartTypeChange?.("candles")}>{t("common.candles")}</ControlChip>
           </div>
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
@@ -415,7 +418,7 @@ function AnalysisTab({
               <Line dataKey="bl" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" name={t("analysis.bbLower")} isAnimationActive={false} />
               <Line dataKey="s20" stroke={C.accent + "AA"} dot={false} strokeWidth={1} name={t("analysis.sma20")} isAnimationActive={false} />
               <Line dataKey="s50" stroke={C.chart4 + "88"} dot={false} strokeWidth={1} name={t("analysis.sma50")} isAnimationActive={false} />
-              {chartType === "candles" ? (
+              {activeChartType === "candles" ? (
                 <Customized component={CandlestickSeries} />
               ) : (
                 <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={2} name={t("analysis.close")} isAnimationActive={animateMainLine} animationDuration={CHART_ANIM_MS} />

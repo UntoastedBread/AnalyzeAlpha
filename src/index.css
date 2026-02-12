@@ -53,6 +53,14 @@ select option { background: #FAF7F2; color: #1A1612; }
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-2px); }
 }
+@keyframes candleFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes candleBodyPulse {
+  0%, 100% { transform: scaleY(0.72); }
+  50% { transform: scaleY(1.14); }
+}
 
 /* Ticker strip marquee */
 @keyframes tickerScroll {
