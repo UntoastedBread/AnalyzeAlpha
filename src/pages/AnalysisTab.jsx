@@ -599,18 +599,26 @@ function AnalysisTab({
             {t("analysis.financialsProDesc")}
           </div>
           <video
-            controls
+            autoPlay
+            loop
+            muted
             playsInline
-            preload="metadata"
+            preload="auto"
+            disablePictureInPicture
+            controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
+            tabIndex={-1}
+            aria-hidden="true"
+            draggable={false}
             style={{
               width: "min(520px, 100%)",
               borderRadius: 14,
               border: `1px solid ${C.rule}`,
               background: C.paper,
+              pointerEvents: "none",
             }}
           >
+            <source src="/media/financials-pro-preview.m4v" type="video/mp4" />
             <source src="/media/financials-pro-preview.mov" type="video/quicktime" />
-            Your browser does not support embedded video.
           </video>
           <div style={{ display: "grid", gap: 4, marginTop: 2 }}>
             {[t("analysis.financialsProF0"), t("analysis.financialsProF1"), t("analysis.financialsProF2")].map((feature) => (
