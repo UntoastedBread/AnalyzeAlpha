@@ -61,6 +61,7 @@ function AnalysisTab({
   const [finPeriod, setFinPeriod] = useState("LTM");
   const [assumptions, setAssumptions] = useState(null);
   const [chartType, setChartType] = useState("line");
+  const [animateMainLine, setAnimateMainLine] = useState(true);
   const peerSeed = hashCode(result?.ticker || "PEERS");
   const price = livePrice || result?.currentPrice || 0;
   const prevAnimated = usePrevious(price) ?? price;
@@ -136,6 +137,13 @@ function AnalysisTab({
     setAssumptions(result.valuationModels?.assumptions || null);
     setChartType("line");
   }, [result, onSubTabChange]);
+
+  useEffect(() => {
+    if (!result?.ticker) return undefined;
+    setAnimateMainLine(true);
+    const id = setTimeout(() => setAnimateMainLine(false), CHART_ANIM_MS + 40);
+    return () => clearTimeout(id);
+  }, [result?.ticker, period, interval, chartType, CHART_ANIM_MS]);
 
   if (!result) {
     return (
@@ -403,14 +411,14 @@ function AnalysisTab({
               <XAxis dataKey="n" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} interval={9} />
               <YAxis domain={["auto", "auto"]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={55} />
               <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} />
-              <Line dataKey="bu" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" name={t("analysis.bbUpper")} />
-              <Line dataKey="bl" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" name={t("analysis.bbLower")} />
-              <Line dataKey="s20" stroke={C.accent + "AA"} dot={false} strokeWidth={1} name={t("analysis.sma20")} />
-              <Line dataKey="s50" stroke={C.chart4 + "88"} dot={false} strokeWidth={1} name={t("analysis.sma50")} />
+              <Line dataKey="bu" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" name={t("analysis.bbUpper")} isAnimationActive={false} />
+              <Line dataKey="bl" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" name={t("analysis.bbLower")} isAnimationActive={false} />
+              <Line dataKey="s20" stroke={C.accent + "AA"} dot={false} strokeWidth={1} name={t("analysis.sma20")} isAnimationActive={false} />
+              <Line dataKey="s50" stroke={C.chart4 + "88"} dot={false} strokeWidth={1} name={t("analysis.sma50")} isAnimationActive={false} />
               {chartType === "candles" ? (
                 <Customized component={CandlestickSeries} />
               ) : (
-                <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={2} name={t("analysis.close")} isAnimationActive animationDuration={CHART_ANIM_MS} />
+                <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={2} name={t("analysis.close")} isAnimationActive={animateMainLine} animationDuration={CHART_ANIM_MS} />
               )}
             </ComposedChart>
           </ResponsiveContainer>

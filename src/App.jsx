@@ -1854,6 +1854,33 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
   }, []);
 
   useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const body = document.body;
+    const html = document.documentElement;
+    const prevBodyOverflow = body.style.overflow;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverscroll = body.style.overscrollBehavior;
+    const prevHtmlOverscroll = html.style.overscrollBehavior;
+    body.style.overflow = "hidden";
+    html.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    html.style.overscrollBehavior = "none";
+
+    const preventScroll = (e) => e.preventDefault();
+    window.addEventListener("wheel", preventScroll, { passive: false });
+    window.addEventListener("touchmove", preventScroll, { passive: false });
+
+    return () => {
+      window.removeEventListener("wheel", preventScroll);
+      window.removeEventListener("touchmove", preventScroll);
+      body.style.overflow = prevBodyOverflow;
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overscrollBehavior = prevBodyOverscroll;
+      html.style.overscrollBehavior = prevHtmlOverscroll;
+    };
+  }, []);
+
+  useEffect(() => {
     const len = data?.length || 0;
     if (!len) return;
     const key = dataKey || title || "chart";
@@ -1960,7 +1987,7 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
   });
 
   const modal = (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(26,22,18,0.35)", zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(26,22,18,0.35)", zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, overscrollBehavior: "none" }}>
       <div style={{ background: C.cream, border: `1px solid ${C.rule}`, width: "96%", height: "92%", maxWidth: 1400, boxShadow: "8px 16px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: `1px solid ${C.rule}` }}>
           <div style={{ fontFamily: "var(--display)", fontSize: 18, color: C.ink }}>{title}</div>
@@ -1999,7 +2026,7 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
                   <XAxis dataKey="n" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
                   <YAxis tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={45} />
                   <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }} />
-                  <Bar dataKey="v" fill={C.inkSoft + "25"} stroke={C.inkSoft + "40"} strokeWidth={0.5} />
+                  <Bar dataKey="v" fill={C.inkSoft + "25"} stroke={C.inkSoft + "40"} strokeWidth={0.5} isAnimationActive={false} />
                 </BarChart>
               ) : mode === "rsi" ? (
                 <LineChart data={windowData} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
@@ -2009,7 +2036,7 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
                   <ReferenceLine y={70} stroke={C.down + "40"} strokeDasharray="3 3" />
                   <ReferenceLine y={30} stroke={C.up + "40"} strokeDasharray="3 3" />
                   <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }} />
-                  <Line dataKey="rsi" stroke={C.accent} dot={false} strokeWidth={1.5} />
+                  <Line dataKey="rsi" stroke={C.accent} dot={false} strokeWidth={1.5} isAnimationActive={false} />
                 </LineChart>
               ) : mode === "macd" ? (
                 <ComposedChart data={windowData} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
@@ -2018,9 +2045,9 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
                   <YAxis tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={40} />
                   <ReferenceLine y={0} stroke={C.rule} />
                   <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }} />
-                  <Bar dataKey="mh" fill={C.inkSoft + "20"} stroke={C.inkSoft + "40"} strokeWidth={0.5} />
-                  <Line dataKey="macd" stroke={C.ink} dot={false} strokeWidth={1.5} />
-                  <Line dataKey="ms" stroke={C.accent} dot={false} strokeWidth={1} />
+                  <Bar dataKey="mh" fill={C.inkSoft + "20"} stroke={C.inkSoft + "40"} strokeWidth={0.5} isAnimationActive={false} />
+                  <Line dataKey="macd" stroke={C.ink} dot={false} strokeWidth={1.5} isAnimationActive={false} />
+                  <Line dataKey="ms" stroke={C.accent} dot={false} strokeWidth={1} isAnimationActive={false} />
                 </ComposedChart>
               ) : mode === "stoch" ? (
                 <LineChart data={windowData} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
@@ -2030,8 +2057,8 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
                   <ReferenceLine y={80} stroke={C.down + "40"} strokeDasharray="3 3" />
                   <ReferenceLine y={20} stroke={C.up + "40"} strokeDasharray="3 3" />
                   <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }} />
-                  <Line dataKey="sk" stroke={C.ink} dot={false} strokeWidth={1.5} />
-                  <Line dataKey="sd" stroke={C.accent} dot={false} strokeWidth={1} />
+                  <Line dataKey="sk" stroke={C.ink} dot={false} strokeWidth={1.5} isAnimationActive={false} />
+                  <Line dataKey="sd" stroke={C.accent} dot={false} strokeWidth={1} isAnimationActive={false} />
                 </LineChart>
               ) : (
                 <ComposedChart data={windowData} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
@@ -2039,15 +2066,15 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
                   <XAxis dataKey="n" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
                   <YAxis domain={["auto", "auto"]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={55} />
                   <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} />
-                  <Line dataKey="bu" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" />
-                  <Line dataKey="bl" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" />
-                  <Line dataKey="s20" stroke={C.accent + "AA"} dot={false} strokeWidth={1} />
-                  <Line dataKey="s50" stroke={C.chart4 + "88"} dot={false} strokeWidth={1} />
-                  <Line dataKey="s200" stroke={C.down + "66"} dot={false} strokeWidth={1} />
+                  <Line dataKey="bu" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" isAnimationActive={false} />
+                  <Line dataKey="bl" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" isAnimationActive={false} />
+                  <Line dataKey="s20" stroke={C.accent + "AA"} dot={false} strokeWidth={1} isAnimationActive={false} />
+                  <Line dataKey="s50" stroke={C.chart4 + "88"} dot={false} strokeWidth={1} isAnimationActive={false} />
+                  <Line dataKey="s200" stroke={C.down + "66"} dot={false} strokeWidth={1} isAnimationActive={false} />
                   {chartType === "candles" ? (
                     <Customized component={CandlestickSeries} />
                   ) : (
-                    <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={1.5} />
+                    <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={1.5} isAnimationActive={false} />
                   )}
                 </ComposedChart>
               )}
@@ -2061,7 +2088,7 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
               <LineChart data={data || []}>
                 <XAxis dataKey="n" hide />
                 <YAxis hide domain={["auto", "auto"]} />
-                <Line dataKey="c" stroke={C.inkSoft} dot={false} strokeWidth={1} />
+                <Line dataKey="c" stroke={C.inkSoft} dot={false} strokeWidth={1} isAnimationActive={false} />
                 <Brush dataKey="n" height={22} stroke={C.rule} fill={C.warmWhite} travellerWidth={8}
                   startIndex={window.start} endIndex={window.end}
                   onChange={(r) => {
@@ -3319,7 +3346,6 @@ function App() {
   const accountMenuRef = useRef(null);
   const liveRef = useRef(null);
   const prevPriceRef = useRef(null);
-  const chartTimerRef = useRef(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [a11yMenuOpen, setA11yMenuOpen] = useState(false);
@@ -3739,6 +3765,7 @@ function App() {
           const last = fd.data[fd.data.length - 1];
           prevPriceRef.current = livePrice || result.currentPrice;
           setLivePrice(last.Close);
+          setChartLivePrice(last.Close);
         }
       } catch (e) { /* silent */ }
     };
@@ -3761,23 +3788,10 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result?.ticker, !!livePrice]);
 
-  // Delay chart updates until animation finishes
-  useEffect(() => {
-    if (chartTimerRef.current) clearTimeout(chartTimerRef.current);
-    if (livePrice == null) {
-      setChartLivePrice(null);
-      return;
-    }
-    chartTimerRef.current = setTimeout(() => {
-      setChartLivePrice(livePrice);
-    }, CHART_ANIM_MS);
-    return () => { if (chartTimerRef.current) clearTimeout(chartTimerRef.current); };
-  }, [livePrice]);
-
   const analyze = useCallback(async (t, options = {}) => {
     const sym = (t || ticker).trim().toUpperCase();
     if (!sym) return;
-    setTicker(sym); setLoading(true); setError(null); setLivePrice(null); setLatency(null);
+    setTicker(sym); setLoading(true); setError(null); setLivePrice(null); setChartLivePrice(null); setLatency(null);
     try {
       const fd = await fetchStockData(sym, period, interval);
       const analysis = runAnalysis(sym, fd.data);
@@ -3787,6 +3801,7 @@ function App() {
       analysis.latency = fd.latency;
       analysis.debug = fd.debug;
       setResult(analysis);
+      setChartLivePrice(analysis.currentPrice);
       setLatency(fd.latency);
       recordRecent(analysis);
       if (!options.preserveTab) setTab("analysis");
@@ -3815,7 +3830,7 @@ function App() {
     setIntervalValue(i);
     const sym = t.trim().toUpperCase();
     if (!sym) return;
-    setTicker(sym); setLoading(true); setError(null); setLivePrice(null); setLatency(null);
+    setTicker(sym); setLoading(true); setError(null); setLivePrice(null); setChartLivePrice(null); setLatency(null);
     try {
       const fd = await fetchStockData(sym, p, i);
       const analysis = runAnalysis(sym, fd.data);
@@ -3825,6 +3840,7 @@ function App() {
       analysis.latency = fd.latency;
       analysis.debug = fd.debug;
       setResult(analysis);
+      setChartLivePrice(analysis.currentPrice);
       setLatency(fd.latency);
       recordRecent(analysis);
     } catch (e) {

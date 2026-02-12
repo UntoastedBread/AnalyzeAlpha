@@ -39,6 +39,8 @@ function ChartsTab({
   const ticker = result?.ticker || "";
   const toggle = k => setShow(p => ({ ...p, [k]: !p[k] }));
   const activeChartType = chartType || "line";
+  const [animatePriceLine, setAnimatePriceLine] = useState(true);
+  const [brushRange, setBrushRange] = useState({ start: null, end: null });
   const cd = useMemo(() => {
     if (!data || !data.length) return [];
     const base = applyLivePoint(data, chartLivePrice, interval || result?.interval);
@@ -62,6 +64,35 @@ function ChartsTab({
     onChartTypeChange?.("line");
     onExpandedModeChange?.(null);
   }, [result?.ticker, onChartTypeChange, onExpandedModeChange]);
+
+  useEffect(() => {
+    setBrushRange({ start: null, end: null });
+  }, [ticker, period, interval]);
+
+  useEffect(() => {
+    if (!cd.length) {
+      setBrushRange(prev => (prev.start === 0 && prev.end === 0 ? prev : { start: 0, end: 0 }));
+      return;
+    }
+    setBrushRange((prev) => {
+      const max = cd.length - 1;
+      if (prev.start == null || prev.end == null) {
+        const end = max;
+        const span = Math.min(cd.length, 180);
+        return { start: Math.max(0, end - span + 1), end };
+      }
+      const start = Math.max(0, Math.min(prev.start, max));
+      const end = Math.max(start, Math.min(prev.end, max));
+      if (start === prev.start && end === prev.end) return prev;
+      return { start, end };
+    });
+  }, [cd.length]);
+
+  useEffect(() => {
+    setAnimatePriceLine(true);
+    const id = setTimeout(() => setAnimatePriceLine(false), CHART_ANIM_MS + 40);
+    return () => clearTimeout(id);
+  }, [ticker, period, interval, activeChartType, CHART_ANIM_MS]);
 
   useEffect(() => {
     if (!intent || !result) return;
@@ -127,10 +158,26 @@ function ChartsTab({
             <XAxis dataKey="n" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} interval={Math.floor(cd.length / 12)} />
             <YAxis domain={["auto", "auto"]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={55} />
             <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }} />
-            {show.bb && <><Line dataKey="bu" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" /><Line dataKey="bl" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" /><Line dataKey="bm" stroke={C.inkFaint} dot={false} strokeWidth={1} opacity={0.4} /></>}
-            {show.sma && <><Line dataKey="s20" stroke={C.accent} dot={false} strokeWidth={1} /><Line dataKey="s50" stroke={C.chart4} dot={false} strokeWidth={1} /><Line dataKey="s200" stroke={C.down + "66"} dot={false} strokeWidth={1} /></>}
-            {activeChartType === "candles" ? <Customized component={CandlestickSeries} /> : <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={1.5} isAnimationActive animationDuration={CHART_ANIM_MS} />}
-            <Brush dataKey="n" height={18} stroke={C.rule} fill={C.warmWhite} travellerWidth={7} />
+            {show.bb && <><Line dataKey="bu" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" isAnimationActive={false} /><Line dataKey="bl" stroke={C.inkFaint} dot={false} strokeWidth={1} strokeDasharray="4 3" isAnimationActive={false} /><Line dataKey="bm" stroke={C.inkFaint} dot={false} strokeWidth={1} opacity={0.4} isAnimationActive={false} /></>}
+            {show.sma && <><Line dataKey="s20" stroke={C.accent} dot={false} strokeWidth={1} isAnimationActive={false} /><Line dataKey="s50" stroke={C.chart4} dot={false} strokeWidth={1} isAnimationActive={false} /><Line dataKey="s200" stroke={C.down + "66"} dot={false} strokeWidth={1} isAnimationActive={false} /></>}
+            {activeChartType === "candles" ? <Customized component={CandlestickSeries} /> : <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={1.5} isAnimationActive={animatePriceLine} animationDuration={CHART_ANIM_MS} />}
+            <Brush
+              dataKey="n"
+              height={18}
+              stroke={C.rule}
+              fill={C.warmWhite}
+              travellerWidth={7}
+              startIndex={brushRange.start ?? 0}
+              endIndex={brushRange.end ?? Math.max(0, cd.length - 1)}
+              onChange={(r) => {
+                if (!r || r.startIndex == null || r.endIndex == null) return;
+                const max = Math.max(0, cd.length - 1);
+                let start = Math.max(0, Math.min(r.startIndex, max));
+                let end = Math.max(0, Math.min(r.endIndex, max));
+                if (end < start) [start, end] = [end, start];
+                setBrushRange(prev => (prev.start === start && prev.end === end ? prev : { start, end }));
+              }}
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </Section>
@@ -140,7 +187,7 @@ function ChartsTab({
             <ResponsiveContainer width="100%" height={80}>
               <BarChart data={cd} margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
                 <XAxis dataKey="n" hide /><YAxis hide />
-                <Bar dataKey="v" fill={C.inkSoft + "25"} stroke={C.inkSoft + "40"} strokeWidth={0.5} />
+                <Bar dataKey="v" fill={C.inkSoft + "25"} stroke={C.inkSoft + "40"} strokeWidth={0.5} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </Section>
@@ -156,7 +203,7 @@ function ChartsTab({
                   <XAxis dataKey="n" hide /><YAxis domain={[0, 100]} tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} ticks={[30, 70]} axisLine={false} tickLine={false} width={30} />
                   <ReferenceLine y={70} stroke={C.down + "40"} strokeDasharray="3 3" />
                   <ReferenceLine y={30} stroke={C.up + "40"} strokeDasharray="3 3" />
-                  <Line dataKey="rsi" stroke={C.accent} dot={false} strokeWidth={1.5} />
+                  <Line dataKey="rsi" stroke={C.accent} dot={false} strokeWidth={1.5} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </Section>
@@ -168,9 +215,9 @@ function ChartsTab({
                   <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                   <XAxis dataKey="n" hide /><YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={40} />
                   <ReferenceLine y={0} stroke={C.rule} />
-                  <Bar dataKey="mh" fill={C.inkSoft + "20"} stroke={C.inkSoft + "40"} strokeWidth={0.5} />
-                  <Line dataKey="macd" stroke={C.ink} dot={false} strokeWidth={1.5} />
-                  <Line dataKey="ms" stroke={C.accent} dot={false} strokeWidth={1} />
+                  <Bar dataKey="mh" fill={C.inkSoft + "20"} stroke={C.inkSoft + "40"} strokeWidth={0.5} isAnimationActive={false} />
+                  <Line dataKey="macd" stroke={C.ink} dot={false} strokeWidth={1.5} isAnimationActive={false} />
+                  <Line dataKey="ms" stroke={C.accent} dot={false} strokeWidth={1} isAnimationActive={false} />
                 </ComposedChart>
               </ResponsiveContainer>
             </Section>
@@ -183,8 +230,8 @@ function ChartsTab({
                   <XAxis dataKey="n" hide /><YAxis domain={[0, 100]} tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} ticks={[20, 80]} axisLine={false} tickLine={false} width={30} />
                   <ReferenceLine y={80} stroke={C.down + "40"} strokeDasharray="3 3" />
                   <ReferenceLine y={20} stroke={C.up + "40"} strokeDasharray="3 3" />
-                  <Line dataKey="sk" stroke={C.ink} dot={false} strokeWidth={1.5} />
-                  <Line dataKey="sd" stroke={C.accent} dot={false} strokeWidth={1} />
+                  <Line dataKey="sk" stroke={C.ink} dot={false} strokeWidth={1.5} isAnimationActive={false} />
+                  <Line dataKey="sd" stroke={C.accent} dot={false} strokeWidth={1} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </Section>
