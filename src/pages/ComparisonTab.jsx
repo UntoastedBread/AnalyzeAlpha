@@ -5,6 +5,8 @@ import {
 } from "recharts";
 import { UIButton, TableHeadCell, TableCell } from "../components/ui/primitives";
 
+const COMP_LINE_COLORS = ["#1A1612", "#8B2500", "#5B4A8A", "#1B6B3A", "#D4A017", "#2E86AB", "#A23B72", "#C73E1D"];
+
 function ComparisonTab({ deps, viewport }) {
   const {
     useI18n,
@@ -17,7 +19,6 @@ function ComparisonTab({ deps, viewport }) {
     fmtPct,
     Section,
     HelpWrap,
-    COMP_LINE_COLORS,
   } = deps;
   const { t } = useI18n();
   const isMobile = Boolean(viewport?.isMobile);

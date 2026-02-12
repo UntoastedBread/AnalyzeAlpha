@@ -1,5 +1,78 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
+function squarify(items, W, H) {
+  if (!items.length) return [];
+  const total = items.reduce((s, i) => s + i.size, 0);
+  const scaled = items.map((i) => ({ ...i, area: (i.size / total) * W * H })).sort((a, b) => b.area - a.area);
+  const rects = [];
+  let rem = [...scaled];
+  let x = 0;
+  let y = 0;
+  let w = W;
+  let h = H;
+
+  function worst(row, side) {
+    const rowArea = row.reduce((s, r) => s + r.area, 0);
+    const rowW = rowArea / side;
+    let mx = 0;
+    for (const r of row) {
+      const rh = r.area / rowW;
+      const asp = Math.max(rowW / rh, rh / rowW);
+      if (asp > mx) mx = asp;
+    }
+    return mx;
+  }
+
+  while (rem.length > 0) {
+    const vert = w < h;
+    const side = vert ? w : h;
+    let row = [rem[0]];
+    let rowArea = rem[0].area;
+    for (let i = 1; i < rem.length; i++) {
+      const nr = [...row, rem[i]];
+      const na = rowArea + rem[i].area;
+      if (worst(nr, side) <= worst(row, side)) {
+        row = nr;
+        rowArea = na;
+      } else {
+        break;
+      }
+    }
+    const rowSize = rowArea / side;
+    let off = 0;
+    for (const item of row) {
+      const itemSize = item.area / rowSize;
+      rects.push({
+        ...item,
+        x: vert ? x + off : x,
+        y: vert ? y : y + off,
+        w: vert ? itemSize : rowSize,
+        h: vert ? rowSize : itemSize,
+      });
+      off += itemSize;
+    }
+    if (vert) {
+      y += rowSize;
+      h -= rowSize;
+    } else {
+      x += rowSize;
+      w -= rowSize;
+    }
+    rem = rem.slice(row.length);
+  }
+  return rects;
+}
+
+function sharpeToColor(s) {
+  if (s > 1.5) return "#0D5F2C";
+  if (s > 1) return "#1B6B3A";
+  if (s > 0.5) return "#3D8B5A";
+  if (s > 0) return "#8BAA7A";
+  if (s > -0.5) return "#C4A05A";
+  if (s > -1) return "#C47A5A";
+  return "#9B1B1B";
+}
+
 function HeatmapPanel({ deps, viewport, indexName, universe }) {
   const {
     useI18n,
@@ -7,8 +80,6 @@ function HeatmapPanel({ deps, viewport, indexName, universe }) {
     useInView,
     fetchStockData,
     runAnalysis,
-    squarify,
-    sharpeToColor,
     labelFor,
     BrandMark,
     fmt,
@@ -191,7 +262,4 @@ function HeatmapTab({ deps, viewport }) {
 // ═══════════════════════════════════════════════════════════
 // COMPARISON TAB
 // ═══════════════════════════════════════════════════════════
-const COMP_LINE_COLORS = ["#1A1612", "#8B2500", "#5B4A8A", "#1B6B3A", "#D4A017", "#2E86AB", "#A23B72", "#C73E1D"];
-
-
 export default HeatmapTab;
