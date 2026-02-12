@@ -1389,8 +1389,8 @@ const LIGHT_THEME = {
   ink: "#1A1612", inkSoft: "#3D362E", inkMuted: "#7A7067", inkFaint: "#A69E94",
   up: "#1B6B3A", upBg: "#E8F5ED", down: "#9B1B1B", downBg: "#FBE8E8",
   hold: "#8B6914", holdBg: "#FDF6E3", accent: "#8B2500", chart4: "#5B4A8A",
-  stripBg: "#1A1612", stripText: "#FFFFFF", stripMuted: "rgba(255,255,255,0.55)",
-  stripBorder: "rgba(255,255,255,0.12)", stripHover: "rgba(255,255,255,0.06)",
+  stripBg: "#FAF7F2", stripText: "#1A1612", stripMuted: "rgba(122,112,103,0.85)",
+  stripBorder: "#D4CBBB", stripHover: "rgba(26,22,18,0.04)",
 };
 
 const DARK_THEME = {
@@ -1399,8 +1399,8 @@ const DARK_THEME = {
   ink: "#F5EFE7", inkSoft: "#E1D7CA", inkMuted: "#B6A99A", inkFaint: "#8A7E70",
   up: "#3CCB7F", upBg: "#193123", down: "#FF6B6B", downBg: "#3A1B1B",
   hold: "#E0B35A", holdBg: "#3A2F12", accent: "#F28A5C", chart4: "#8C78D4",
-  stripBg: "#14110E", stripText: "#F5EFE7", stripMuted: "rgba(245,239,231,0.6)",
-  stripBorder: "rgba(245,239,231,0.12)", stripHover: "rgba(255,255,255,0.06)",
+  stripBg: "#14110E", stripText: "#F5EFE7", stripMuted: "rgba(245,239,231,0.68)",
+  stripBorder: "#3A3228", stripHover: "rgba(245,239,231,0.06)",
 };
 
 let C = LIGHT_THEME;
@@ -2315,6 +2315,8 @@ function MoverPopup({ title, stocks, onAnalyze, onClose }) {
 
 function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
   const { t } = useI18n();
+  const viewport = useViewport();
+  const hideSparkline = viewport.isMobile;
   const [showPopup, setShowPopup] = useState(false);
   const display = stocks ? stocks.slice(0, 5) : [];
 
@@ -2340,17 +2342,19 @@ function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
         <>
           {display.map((s) => (
             <button key={s.ticker} onClick={() => onAnalyze?.(s.ticker)}
-              style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", width: "100%", padding: "8px 4px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
+              style={{ display: "grid", gridTemplateColumns: hideSparkline ? "minmax(0, 1fr) auto" : "minmax(0, 1fr) auto auto", alignItems: "center", gap: hideSparkline ? 8 : 10, width: "100%", padding: "8px 4px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
               onMouseEnter={e => e.currentTarget.style.background = C.paper}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-              <div style={{ display: "grid", gap: 2, minWidth: 0, overflow: "hidden" }}>
+              <div style={{ display: "grid", gap: 2, minWidth: hideSparkline ? 68 : 76 }}>
                 <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
                 <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
               </div>
-              <div style={{ padding: "0 8px" }}>
-                {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
-              </div>
-              <div style={{ textAlign: "right" }}>
+              {!hideSparkline && (
+                <div style={{ padding: "0 4px" }}>
+                  {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} width={74} height={30} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
+                </div>
+              )}
+              <div style={{ textAlign: "right", minWidth: hideSparkline ? 90 : 84 }}>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: s.changePct >= 0 ? C.up : C.down, marginLeft: 8 }}>
                   {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
@@ -3882,6 +3886,7 @@ function App() {
     textTransform: "uppercase",
     letterSpacing: "0.12em",
     fontFamily: "var(--body)",
+    whiteSpace: "nowrap",
   });
   const openCharts = useCallback((intent) => {
     if (intent?.mode) setChartSelection(normalizeChartMode(intent.mode));
@@ -4047,7 +4052,7 @@ function App() {
               );
             })}
           </div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 16, width: viewport.isTablet ? "100%" : "auto", justifyContent: viewport.isTablet ? "flex-start" : "flex-end", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: viewport.isMobile ? 12 : 16, width: "auto", justifyContent: viewport.isTablet ? "flex-start" : "flex-end", flexWrap: "nowrap", maxWidth: "100%" }}>
             <button
               onClick={() => setHelpMode(m => !m)}
               style={utilityTabStyle(helpMode)}
@@ -4097,7 +4102,7 @@ function App() {
                     onKeyDown={e => {
                       if (e.key === "Escape") { setAccountMenuOpen(false); setLangMenuOpen(false); setA11yMenuOpen(false); }
                     }}
-                    style={tabStyle("account")}
+                    style={{ ...tabStyle("account"), marginRight: 0 }}
                   >
                     {t("nav.account")}
                   </button>
@@ -4385,7 +4390,7 @@ function App() {
               >
                 <button
                   onClick={() => openAuth("signin")}
-                  style={tabStyle("account")}
+                  style={{ ...tabStyle("account"), marginRight: 0 }}
                 >
                   {t("common.signIn")}
                 </button>
