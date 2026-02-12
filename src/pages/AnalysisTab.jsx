@@ -35,7 +35,6 @@ function AnalysisTab({
     usePrevious,
     BrandMark,
     ProTag,
-    ProGate,
     recColor,
     valColor,
     translateEnum,
@@ -591,15 +590,36 @@ function AnalysisTab({
       )}
 
       {activeSubTab === "financials" && !isPro && (
-        <ProGate
-          title={t("analysis.financialsProTitle")}
-          description={t("analysis.financialsProDesc")}
-          features={[
-            t("analysis.financialsProF0"),
-            t("analysis.financialsProF1"),
-            t("analysis.financialsProF2"),
-          ]}
-        />
+        <div style={{ border: `1px dashed ${C.rule}`, background: C.warmWhite, padding: isMobile ? 18 : 26, display: "grid", gap: 14, justifyItems: "center" }}>
+          <div style={{ display: "flex", justifyContent: "center" }}><ProTag /></div>
+          <div style={{ fontFamily: "var(--display)", fontSize: isMobile ? 34 : 42, color: C.ink, lineHeight: 1.05, textAlign: "center" }}>
+            Financials Are Pro
+          </div>
+          <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", lineHeight: 1.6, textAlign: "center", maxWidth: 700 }}>
+            {t("analysis.financialsProDesc")}
+          </div>
+          <video
+            controls
+            playsInline
+            preload="metadata"
+            style={{
+              width: "min(520px, 100%)",
+              borderRadius: 14,
+              border: `1px solid ${C.rule}`,
+              background: C.paper,
+            }}
+          >
+            <source src="/media/financials-pro-preview.mov" type="video/quicktime" />
+            Your browser does not support embedded video.
+          </video>
+          <div style={{ display: "grid", gap: 4, marginTop: 2 }}>
+            {[t("analysis.financialsProF0"), t("analysis.financialsProF1"), t("analysis.financialsProF2")].map((feature) => (
+              <div key={feature} style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--mono)", textAlign: "center" }}>
+                {feature}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {activeSubTab === "financials" && isPro && (

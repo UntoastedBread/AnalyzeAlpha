@@ -2315,8 +2315,6 @@ function MoverPopup({ title, stocks, onAnalyze, onClose }) {
 
 function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
   const { t } = useI18n();
-  const viewport = useViewport();
-  const hideSparkline = viewport.isMobile;
   const [showPopup, setShowPopup] = useState(false);
   const display = stocks ? stocks.slice(0, 5) : [];
 
@@ -2342,19 +2340,17 @@ function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
         <>
           {display.map((s) => (
             <button key={s.ticker} onClick={() => onAnalyze?.(s.ticker)}
-              style={{ display: "grid", gridTemplateColumns: hideSparkline ? "minmax(0, 1fr) auto" : "minmax(0, 1fr) auto auto", alignItems: "center", gap: hideSparkline ? 8 : 10, width: "100%", padding: "8px 4px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
+              style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", width: "100%", padding: "8px 4px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
               onMouseEnter={e => e.currentTarget.style.background = C.paper}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-              <div style={{ display: "grid", gap: 2, minWidth: hideSparkline ? 68 : 76 }}>
+              <div style={{ display: "grid", gap: 2, minWidth: 0, overflow: "hidden" }}>
                 <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: C.ink }}>{s.ticker}</span>
                 <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
               </div>
-              {!hideSparkline && (
-                <div style={{ padding: "0 4px" }}>
-                  {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} width={74} height={30} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
-                </div>
-              )}
-              <div style={{ textAlign: "right", minWidth: hideSparkline ? 90 : 84 }}>
+              <div style={{ padding: "0 8px" }}>
+                {s.spark && s.spark.length > 1 && <Sparkline data={s.spark} color={s.changePct >= 0 ? C.up : C.down} prevClose={s.prevClose} />}
+              </div>
+              <div style={{ textAlign: "right" }}>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 600, color: C.ink }}>${fmt(s.price)}</span>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: s.changePct >= 0 ? C.up : C.down, marginLeft: 8 }}>
                   {s.changePct >= 0 ? "+" : ""}{s.changePct.toFixed(2)}%
