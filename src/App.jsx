@@ -3960,7 +3960,7 @@ function App() {
   return (
     <I18nContext.Provider value={{ t, locale }}>
       <HelpContext.Provider value={{ enabled: helpMode, show: showHelp, hide: hideHelp }}>
-        <div className="app-shell" style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", width: "100%", filter: `${colorBlindFilter(a11y.colorBlind)} ${a11y.highContrast ? "contrast(1.14)" : ""}`.trim() }}>
+        <div className="app-shell" style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", width: "min(1200px, 100%)", marginInline: "auto", filter: `${colorBlindFilter(a11y.colorBlind)} ${a11y.highContrast ? "contrast(1.14)" : ""}`.trim() }}>
       <header style={{ padding: viewport.isMobile ? "12px 14px 0" : "16px 24px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 2000 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
