@@ -5677,6 +5677,8 @@ const LIGHT_THEME = {
   ink: "#1A1612", inkSoft: "#3D362E", inkMuted: "#7A7067", inkFaint: "#A69E94",
   up: "#1B6B3A", upBg: "#E8F5ED", down: "#9B1B1B", downBg: "#FBE8E8",
   hold: "#8B6914", holdBg: "#FDF6E3", accent: "#8B2500", chart4: "#5B4A8A",
+  stripBg: "#1A1612", stripText: "#FFFFFF", stripMuted: "rgba(255,255,255,0.55)",
+  stripBorder: "rgba(255,255,255,0.12)", stripHover: "rgba(255,255,255,0.06)",
 };
 
 const DARK_THEME = {
@@ -5685,6 +5687,8 @@ const DARK_THEME = {
   ink: "#F5EFE7", inkSoft: "#E1D7CA", inkMuted: "#B6A99A", inkFaint: "#8A7E70",
   up: "#3CCB7F", upBg: "#193123", down: "#FF6B6B", downBg: "#3A1B1B",
   hold: "#E0B35A", holdBg: "#3A2F12", accent: "#F28A5C", chart4: "#8C78D4",
+  stripBg: "#14110E", stripText: "#F5EFE7", stripMuted: "rgba(245,239,231,0.6)",
+  stripBorder: "rgba(245,239,231,0.12)", stripHover: "rgba(255,255,255,0.06)",
 };
 
 let C = LIGHT_THEME;
@@ -6425,7 +6429,7 @@ function TickerStrip({ data, loading, onAnalyze }) {
         gap: 10,
         padding: "10px 20px",
         minWidth: 140,
-        borderRight: `1px solid rgba(255,255,255,0.08)`,
+        borderRight: `1px solid ${C.stripBorder}`,
         whiteSpace: "nowrap",
         background: "transparent",
         border: "none",
@@ -6434,23 +6438,23 @@ function TickerStrip({ data, loading, onAnalyze }) {
         textAlign: "left",
         transition: "transform 0.2s ease, background 0.2s ease",
       }}
-      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.background = C.stripHover; }}
       onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = "transparent"; }}
     >
-      <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", fontWeight: 600 }}>{labelFor(item.label, t)}</span>
-      <span style={{ fontSize: 12, fontFamily: "var(--mono)", color: "#fff", fontWeight: 600 }}>
+      <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.stripMuted, letterSpacing: "0.06em", fontWeight: 600 }}>{labelFor(item.label, t)}</span>
+      <span style={{ fontSize: 12, fontFamily: "var(--mono)", color: C.stripText, fontWeight: 600 }}>
         {item.loaded ? (item.price >= 1000 ? item.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : item.price.toFixed(2)) : "—"}
       </span>
-      <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: item.changePct > 0 ? "#4ADE80" : item.changePct < 0 ? "#F87171" : "rgba(255,255,255,0.5)" }}>
+      <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: item.changePct > 0 ? "#4ADE80" : item.changePct < 0 ? "#F87171" : C.stripMuted }}>
         {item.loaded ? `${item.changePct >= 0 ? "+" : ""}${item.changePct.toFixed(2)}%` : ""}
       </span>
     </button>
   );
 
   return (
-    <div style={{ display: "flex", alignItems: "center", background: C.ink, overflow: "hidden", minWidth: 0 }}>
+    <div style={{ display: "flex", alignItems: "center", background: C.stripBg, color: C.stripText, overflow: "hidden", minWidth: 0 }}>
       {/* LIVE badge — fixed, does not scroll */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRight: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRight: `1px solid ${C.stripBorder}`, flexShrink: 0 }}>
         <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "livePulse 2s ease-in-out infinite", boxShadow: "0 0 6px rgba(74,222,128,0.4)" }} />
         <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: "#4ADE80", fontWeight: 700, letterSpacing: "0.08em" }}>{t("common.live")}</span>
       </div>
@@ -6459,7 +6463,7 @@ function TickerStrip({ data, loading, onAnalyze }) {
         {loading ? (
           <div style={{ display: "flex" }}>
             {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", minWidth: 140, borderRight: `1px solid rgba(255,255,255,0.08)` }}>
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", minWidth: 140, borderRight: `1px solid ${C.stripBorder}` }}>
                 <SkeletonBlock width={60} height={10} style={{ opacity: 0.2 }} />
                 <SkeletonBlock width={50} height={12} style={{ opacity: 0.15 }} />
               </div>
