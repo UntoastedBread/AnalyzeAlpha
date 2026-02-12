@@ -20,6 +20,7 @@ function AnalysisTab({
   onSubTabChange,
   onReanalyze,
   onOpenCharts,
+  onUpgradePro,
   openChartsLabel,
   helpMode,
   onShowHelp,
@@ -620,13 +621,31 @@ function AnalysisTab({
             <source src="/media/financials-pro-preview.m4v" type="video/mp4" />
             <source src="/media/financials-pro-preview.mov" type="video/quicktime" />
           </video>
-          <div style={{ display: "grid", gap: 4, marginTop: 2 }}>
+          <ul style={{ display: "grid", gap: 6, marginTop: 2, marginBottom: 2, paddingLeft: 18, color: C.inkFaint, width: "min(560px, 100%)" }}>
             {[t("analysis.financialsProF0"), t("analysis.financialsProF1"), t("analysis.financialsProF2")].map((feature) => (
-              <div key={feature} style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--mono)", textAlign: "center" }}>
+              <li key={feature} style={{ fontSize: 11, fontFamily: "var(--mono)", lineHeight: 1.45 }}>
                 {feature}
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
+          <button
+            type="button"
+            onClick={() => onUpgradePro?.()}
+            style={{
+              padding: isMobile ? "9px 14px" : "10px 16px",
+              border: "none",
+              background: C.ink,
+              color: C.cream,
+              cursor: "pointer",
+              fontSize: 11,
+              fontWeight: 700,
+              fontFamily: "var(--body)",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Sign Up For Pro
+          </button>
         </div>
       )}
 

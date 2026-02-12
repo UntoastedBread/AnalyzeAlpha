@@ -3860,6 +3860,11 @@ function App() {
     setAuthMode(mode);
     setAuthOpen(true);
   }, []);
+  const openProSignup = useCallback(() => {
+    setTab("account");
+    setAccountSubTab("overview");
+    if (!session) openAuth("signup");
+  }, [session, openAuth]);
 
 
   const tabStyle = (t, locked = false) => ({
@@ -4449,6 +4454,7 @@ function App() {
             onSubTabChange={setAnalysisSubTab}
             onReanalyze={reanalyze}
             onOpenCharts={openCharts}
+            onUpgradePro={openProSignup}
             openChartsLabel={t("chart.openCharts")}
             helpMode={helpMode}
             onShowHelp={showHelp}
