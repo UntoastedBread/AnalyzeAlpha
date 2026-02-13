@@ -57,6 +57,20 @@ function HomeTab({
   const [trendingLoading, setTrendingLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [agoText, setAgoText] = useState("");
+  const [customizing, setCustomizing] = useState(false);
+  const [widgets, setWidgets] = useState(() => {
+    try {
+      const saved = localStorage.getItem("aa_home_widgets_v1");
+      return saved ? JSON.parse(saved) : { tickerStrip: true, indexes: true, movers: true, news: true, assetClasses: true, marketBrief: true, changelog: true, earningsCalendar: true, economicSnapshot: true };
+    } catch { return { tickerStrip: true, indexes: true, movers: true, news: true, assetClasses: true, marketBrief: true, changelog: true, earningsCalendar: true, economicSnapshot: true }; }
+  });
+  const toggleWidget = (key) => {
+    setWidgets(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem("aa_home_widgets_v1", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
 
   // "Updated Xs ago" counter
   useEffect(() => {
@@ -235,10 +249,48 @@ function HomeTab({
 
   return (
     <div style={{ display: "grid", gap: isMobile ? 20 : 18, minWidth: 0 }}>
+      {/* Customize toggle */}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button
+          onClick={() => setCustomizing(c => !c)}
+          style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: customizing ? C.ink : "transparent", color: customizing ? C.cream : C.inkMuted, fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" }}
+        >
+          {customizing ? "Done" : "Customize"}
+        </button>
+      </div>
+      {customizing && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "10px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
+          {[
+            { key: "tickerStrip", label: "Ticker Strip" },
+            { key: "indexes", label: "Indexes" },
+            { key: "movers", label: "Movers" },
+            { key: "news", label: "News" },
+            { key: "assetClasses", label: "Asset Classes" },
+            { key: "marketBrief", label: "Market Brief" },
+            { key: "earningsCalendar", label: "Earnings Calendar" },
+            { key: "economicSnapshot", label: "Economic Snapshot" },
+            { key: "changelog", label: "Changelog" },
+          ].map(w => (
+            <button
+              key={w.key}
+              onClick={() => toggleWidget(w.key)}
+              style={{
+                padding: "6px 12px", border: `1px solid ${widgets[w.key] ? C.ink : C.rule}`,
+                background: widgets[w.key] ? C.ink : "transparent",
+                color: widgets[w.key] ? C.cream : C.inkMuted,
+                fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.06em",
+              }}
+            >
+              {w.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Ticker Strip */}
-      <HelpWrap help={{ title: t("help.tickerStrip.title"), body: t("help.tickerStrip.body") }} block>
+      {widgets.tickerStrip && <HelpWrap help={{ title: t("help.tickerStrip.title"), body: t("help.tickerStrip.body") }} block>
         <TickerStrip data={stripData} loading={stripLoading} onAnalyze={onAnalyze} />
-      </HelpWrap>
+      </HelpWrap>}
 
       {/* Region Selector + Updated timestamp */}
       <HelpWrap help={{ title: t("help.region.title"), body: t("help.region.body") }} block>
@@ -298,17 +350,17 @@ function HomeTab({
       {/* Headlines + Indexes */}
       <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "minmax(0, 1.35fr) minmax(0, 0.65fr)", gap: isMobile ? 18 : 16, alignItems: "start" }}>
         <div style={{ display: "grid", gap: isMobile ? 18 : 16, minWidth: 0, overflow: "hidden" }}>
-          <Section
+          {widgets.news && <Section
             title={t("home.marketNews")}
             help={{ title: t("help.marketNews.title"), body: t("help.marketNews.body") }}
           >
             <NewsSection news={news} loading={newsLoading} />
-          </Section>
+          </Section>}
           <HelpWrap help={{ title: t("help.portfolioSnapshot.title"), body: t("help.portfolioSnapshot.body") }} block>
             <PortfolioTileCard data={PORTFOLIO_TILE} />
           </HelpWrap>
         </div>
-        <Section
+        {widgets.indexes && <Section
           title={t("home.indexes")}
           actions={indexActions}
           style={{ minWidth: 0 }}
@@ -330,11 +382,18 @@ function HomeTab({
               );
             })}
           </div>
-        </Section>
+        </Section>}
       </div>
 
+      {/* Earnings Calendar */}
+      {widgets.earningsCalendar && (
+        <LazySection minHeight={120}>
+          <EarningsCalendar C={C} t={t} isMobile={isMobile} Section={Section} onAnalyze={onAnalyze} />
+        </LazySection>
+      )}
+
       {/* Market Movers — 3 columns */}
-      <LazySection minHeight={240}>
+      {widgets.movers && <LazySection minHeight={240}>
         <HelpWrap help={{ title: t("help.movers.title"), body: t("help.movers.body") }} block>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
             <HelpWrap help={{ title: t("help.moverGainers.title"), body: t("help.moverGainers.body") }} block>
@@ -348,10 +407,10 @@ function HomeTab({
             </HelpWrap>
           </div>
         </HelpWrap>
-      </LazySection>
+      </LazySection>}
 
       {/* Asset Class Sections */}
-      <LazySection minHeight={200}>
+      {widgets.assetClasses && <LazySection minHeight={200}>
         <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
           {ASSET_SECTIONS.map(section => (
             <HelpWrap key={section.title} help={{ title: t("help.assetClasses.title"), body: t("help.assetClasses.body") }} block>
@@ -359,10 +418,17 @@ function HomeTab({
             </HelpWrap>
           ))}
         </div>
-      </LazySection>
+      </LazySection>}
+
+      {/* Economic Snapshot */}
+      {widgets.economicSnapshot && (
+        <LazySection minHeight={120}>
+          <EconomicSnapshot C={C} t={t} isMobile={isMobile} Section={Section} />
+        </LazySection>
+      )}
 
       {/* Market Brief */}
-      <LazySection minHeight={220}>
+      {widgets.marketBrief && <LazySection minHeight={220}>
         <Section
           title={t("home.marketBriefSection")}
           help={{ title: t("help.marketBrief.title"), body: t("help.marketBrief.body") }}
@@ -382,20 +448,106 @@ function HomeTab({
             </HelpWrap>
           </div>
         </Section>
-      </LazySection>
+      </LazySection>}
 
       {/* Changelog Banner */}
-      <LazySection minHeight={120}>
+      {widgets.changelog && <LazySection minHeight={120}>
         <HelpWrap help={{ title: t("help.changelog.title"), body: t("help.changelog.body") }} block>
           <ChangelogBanner />
         </HelpWrap>
-      </LazySection>
+      </LazySection>}
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════
-// ACCOUNT TAB
+// EARNINGS CALENDAR (Home widget)
 // ═══════════════════════════════════════════════════════════
+const WATCHLIST_EARNINGS = [
+  { ticker: "AAPL", name: "Apple", date: "2026-04-30", estEPS: "2.35", prevEPS: "2.18" },
+  { ticker: "MSFT", name: "Microsoft", date: "2026-04-22", estEPS: "3.22", prevEPS: "3.03" },
+  { ticker: "GOOGL", name: "Alphabet", date: "2026-04-29", estEPS: "2.01", prevEPS: "1.89" },
+  { ticker: "AMZN", name: "Amazon", date: "2026-05-01", estEPS: "1.36", prevEPS: "1.17" },
+  { ticker: "NVDA", name: "NVIDIA", date: "2026-05-28", estEPS: "0.88", prevEPS: "0.82" },
+  { ticker: "META", name: "Meta", date: "2026-04-23", estEPS: "6.29", prevEPS: "5.85" },
+  { ticker: "TSLA", name: "Tesla", date: "2026-04-22", estEPS: "0.73", prevEPS: "0.52" },
+  { ticker: "JPM", name: "JPMorgan", date: "2026-04-11", estEPS: "4.61", prevEPS: "4.33" },
+];
+
+function EarningsCalendar({ C, t, isMobile, Section, onAnalyze }) {
+  const now = new Date().toISOString().slice(0, 10);
+  const upcoming = WATCHLIST_EARNINGS.filter(e => e.date >= now).sort((a, b) => a.date.localeCompare(b.date));
+  const past = WATCHLIST_EARNINGS.filter(e => e.date < now).sort((a, b) => b.date.localeCompare(a.date));
+
+  return (
+    <Section C={C} title="Upcoming Earnings">
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+        {(upcoming.length > 0 ? upcoming : past.slice(0, 4)).map(e => {
+          const daysUntil = Math.ceil((new Date(e.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          return (
+            <div
+              key={e.ticker}
+              onClick={() => onAnalyze?.(e.ticker)}
+              style={{ padding: "12px 14px", border: `1px solid ${C.ruleFaint}`, background: C.warmWhite, cursor: "pointer" }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--mono)", color: C.ink }}>{e.ticker}</span>
+                {daysUntil > 0 && (
+                  <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 6px", background: daysUntil <= 7 ? C.downBg : C.holdBg, color: daysUntil <= 7 ? C.down : C.hold, fontFamily: "var(--body)" }}>
+                    {daysUntil}d
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 4 }}>{e.name}</div>
+              <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--mono)" }}>{e.date}</div>
+              <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 10, fontFamily: "var(--mono)" }}>
+                <span style={{ color: C.inkMuted }}>Est: ${e.estEPS}</span>
+                <span style={{ color: C.inkFaint }}>Prev: ${e.prevEPS}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// ECONOMIC SNAPSHOT (Home widget)
+// ═══════════════════════════════════════════════════════════
+const UPCOMING_EVENTS = [
+  { date: "2026-03-12", event: "CPI Report", impact: "HIGH" },
+  { date: "2026-03-18", event: "FOMC Meeting", impact: "HIGH" },
+  { date: "2026-04-03", event: "Non-Farm Payrolls", impact: "HIGH" },
+  { date: "2026-04-29", event: "FOMC Meeting", impact: "HIGH" },
+  { date: "2026-05-13", event: "CPI Report", impact: "HIGH" },
+  { date: "2026-06-17", event: "FOMC Meeting", impact: "HIGH" },
+  { date: "2026-07-01", event: "Non-Farm Payrolls", impact: "MEDIUM" },
+];
+
+function EconomicSnapshot({ C, t, isMobile, Section }) {
+  const now = new Date().toISOString().slice(0, 10);
+  const upcoming = UPCOMING_EVENTS.filter(e => e.date >= now).slice(0, 4);
+  const impactColor = (imp) => imp === "HIGH" ? C.down : imp === "MEDIUM" ? C.hold : C.inkMuted;
+
+  return (
+    <Section C={C} title="Economic Calendar">
+      <div style={{ display: "grid", gap: 6 }}>
+        {upcoming.map((e, i) => {
+          const daysUntil = Math.ceil((new Date(e.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 12px", border: `1px solid ${C.ruleFaint}`, background: i % 2 === 0 ? C.warmWhite : "transparent" }}>
+              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted, minWidth: 75 }}>{e.date}</span>
+              <span style={{ flex: 1, fontSize: 11, fontFamily: "var(--body)", color: C.ink, fontWeight: 600 }}>{e.event}</span>
+              <span style={{ fontSize: 8, fontWeight: 700, padding: "2px 6px", background: `${impactColor(e.impact)}22`, color: impactColor(e.impact), fontFamily: "var(--body)", letterSpacing: "0.08em" }}>{e.impact}</span>
+              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, minWidth: 35, textAlign: "right" }}>{daysUntil > 0 ? `${daysUntil}d` : "Today"}</span>
+            </div>
+          );
+        })}
+        {upcoming.length === 0 && <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", padding: 12 }}>No upcoming events scheduled.</div>}
+      </div>
+    </Section>
+  );
+}
 
 export default HomeTab;

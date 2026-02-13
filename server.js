@@ -385,6 +385,264 @@ app.get('/api/recommendations/:ticker', (req, res) => {
   });
 });
 
+// ── Options chain ────────────────────────────────────────
+app.get('/api/options/:ticker', (req, res) => {
+  const ticker = normalizeParam(req.params.ticker);
+  if (!/^[A-Za-z0-9=^.\-]{1,12}$/.test(ticker)) {
+    return res.status(400).json({ error: 'Invalid ticker' });
+  }
+  const url = `https://query2.finance.yahoo.com/v7/finance/options/${encodeURIComponent(ticker)}`;
+  console.log(`[Proxy] Options: ${ticker}`);
+
+  let responded = false;
+  const fail = (status, message) => {
+    if (responded) return;
+    responded = true;
+    res.status(status).json({ error: message });
+  };
+
+  const apiReq = https.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+    }
+  }, (apiRes) => {
+    let data = '';
+    let bytes = 0;
+    apiRes.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES) {
+        apiReq.destroy(new Error('Upstream response too large'));
+        return fail(413, 'Upstream response too large');
+      }
+      data += chunk;
+    });
+    apiRes.on('end', () => {
+      if (responded) return;
+      try {
+        res.setHeader('Content-Type', 'application/json');
+        res.status(apiRes.statusCode).send(data);
+        console.log(`[Proxy] ✓ Options ${ticker} — ${apiRes.statusCode}`);
+      } catch (e) {
+        fail(500, e.message);
+      }
+    });
+  }).on('error', (e) => {
+    console.error(`[Proxy] ✗ Options ${ticker} — ${e.message}`);
+    fail(502, e.message);
+  });
+  apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+    apiReq.destroy(new Error('Upstream timeout'));
+    fail(504, 'Upstream timeout');
+  });
+});
+
+// ── Fundamentals (financial statements) ─────────────────
+app.get('/api/fundamentals/:ticker', (req, res) => {
+  const ticker = normalizeParam(req.params.ticker);
+  if (!/^[A-Za-z0-9=^.\-]{1,12}$/.test(ticker)) {
+    return res.status(400).json({ error: 'Invalid ticker' });
+  }
+  const modules = 'incomeStatementHistory,balanceSheetHistory,cashflowStatementHistory,earningsHistory,financialData,defaultKeyStatistics,summaryDetail';
+  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}`;
+  console.log(`[Proxy] Fundamentals: ${ticker}`);
+
+  let responded = false;
+  const fail = (status, message) => {
+    if (responded) return;
+    responded = true;
+    res.status(status).json({ error: message });
+  };
+
+  const apiReq = https.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+    }
+  }, (apiRes) => {
+    let data = '';
+    let bytes = 0;
+    apiRes.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES) {
+        apiReq.destroy(new Error('Upstream response too large'));
+        return fail(413, 'Upstream response too large');
+      }
+      data += chunk;
+    });
+    apiRes.on('end', () => {
+      if (responded) return;
+      try {
+        res.setHeader('Content-Type', 'application/json');
+        res.status(apiRes.statusCode).send(data);
+        console.log(`[Proxy] ✓ Fundamentals ${ticker} — ${apiRes.statusCode}`);
+      } catch (e) {
+        fail(500, e.message);
+      }
+    });
+  }).on('error', (e) => {
+    console.error(`[Proxy] ✗ Fundamentals ${ticker} — ${e.message}`);
+    fail(502, e.message);
+  });
+  apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+    apiReq.destroy(new Error('Upstream timeout'));
+    fail(504, 'Upstream timeout');
+  });
+});
+
+// ── Earnings data ───────────────────────────────────────
+app.get('/api/earnings/:ticker', (req, res) => {
+  const ticker = normalizeParam(req.params.ticker);
+  if (!/^[A-Za-z0-9=^.\-]{1,12}$/.test(ticker)) {
+    return res.status(400).json({ error: 'Invalid ticker' });
+  }
+  const modules = 'earningsHistory,earningsTrend,calendarEvents';
+  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}`;
+  console.log(`[Proxy] Earnings: ${ticker}`);
+
+  let responded = false;
+  const fail = (status, message) => {
+    if (responded) return;
+    responded = true;
+    res.status(status).json({ error: message });
+  };
+
+  const apiReq = https.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+    }
+  }, (apiRes) => {
+    let data = '';
+    let bytes = 0;
+    apiRes.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES) {
+        apiReq.destroy(new Error('Upstream response too large'));
+        return fail(413, 'Upstream response too large');
+      }
+      data += chunk;
+    });
+    apiRes.on('end', () => {
+      if (responded) return;
+      try {
+        res.setHeader('Content-Type', 'application/json');
+        res.status(apiRes.statusCode).send(data);
+        console.log(`[Proxy] ✓ Earnings ${ticker} — ${apiRes.statusCode}`);
+      } catch (e) {
+        fail(500, e.message);
+      }
+    });
+  }).on('error', (e) => {
+    console.error(`[Proxy] ✗ Earnings ${ticker} — ${e.message}`);
+    fail(502, e.message);
+  });
+  apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+    apiReq.destroy(new Error('Upstream timeout'));
+    fail(504, 'Upstream timeout');
+  });
+});
+
+// ── Dividend history ────────────────────────────────────
+app.get('/api/dividends/:ticker', (req, res) => {
+  const ticker = normalizeParam(req.params.ticker);
+  if (!/^[A-Za-z0-9=^.\-]{1,12}$/.test(ticker)) {
+    return res.status(400).json({ error: 'Invalid ticker' });
+  }
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=10y&interval=3mo&events=div`;
+  console.log(`[Proxy] Dividends: ${ticker}`);
+
+  let responded = false;
+  const fail = (status, message) => {
+    if (responded) return;
+    responded = true;
+    res.status(status).json({ error: message });
+  };
+
+  const apiReq = https.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+    }
+  }, (apiRes) => {
+    let data = '';
+    let bytes = 0;
+    apiRes.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES) {
+        apiReq.destroy(new Error('Upstream response too large'));
+        return fail(413, 'Upstream response too large');
+      }
+      data += chunk;
+    });
+    apiRes.on('end', () => {
+      if (responded) return;
+      try {
+        res.setHeader('Content-Type', 'application/json');
+        res.status(apiRes.statusCode).send(data);
+        console.log(`[Proxy] ✓ Dividends ${ticker} — ${apiRes.statusCode}`);
+      } catch (e) {
+        fail(500, e.message);
+      }
+    });
+  }).on('error', (e) => {
+    console.error(`[Proxy] ✗ Dividends ${ticker} — ${e.message}`);
+    fail(502, e.message);
+  });
+  apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+    apiReq.destroy(new Error('Upstream timeout'));
+    fail(504, 'Upstream timeout');
+  });
+});
+
+// ── Institutional/insider holders ───────────────────────
+app.get('/api/holders/:ticker', (req, res) => {
+  const ticker = normalizeParam(req.params.ticker);
+  if (!/^[A-Za-z0-9=^.\-]{1,12}$/.test(ticker)) {
+    return res.status(400).json({ error: 'Invalid ticker' });
+  }
+  const modules = 'insiderHolders,institutionOwnership,majorHoldersBreakdown';
+  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}`;
+  console.log(`[Proxy] Holders: ${ticker}`);
+
+  let responded = false;
+  const fail = (status, message) => {
+    if (responded) return;
+    responded = true;
+    res.status(status).json({ error: message });
+  };
+
+  const apiReq = https.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+    }
+  }, (apiRes) => {
+    let data = '';
+    let bytes = 0;
+    apiRes.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES) {
+        apiReq.destroy(new Error('Upstream response too large'));
+        return fail(413, 'Upstream response too large');
+      }
+      data += chunk;
+    });
+    apiRes.on('end', () => {
+      if (responded) return;
+      try {
+        res.setHeader('Content-Type', 'application/json');
+        res.status(apiRes.statusCode).send(data);
+        console.log(`[Proxy] ✓ Holders ${ticker} — ${apiRes.statusCode}`);
+      } catch (e) {
+        fail(500, e.message);
+      }
+    });
+  }).on('error', (e) => {
+    console.error(`[Proxy] ✗ Holders ${ticker} — ${e.message}`);
+    fail(502, e.message);
+  });
+  apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+    apiReq.destroy(new Error('Upstream timeout'));
+    fail(504, 'Upstream timeout');
+  });
+});
+
 const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`\n  ┌─────────────────────────────────────┐`);

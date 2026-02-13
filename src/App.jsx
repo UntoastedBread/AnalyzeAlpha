@@ -14,6 +14,12 @@ import AnalysisTab from "./pages/AnalysisTab";
 import ChartsTab from "./pages/ChartsTab";
 import HeatmapTab from "./pages/HeatmapTab";
 import ComparisonTab from "./pages/ComparisonTab";
+import ScreenerTab from "./pages/ScreenerTab";
+import BacktestTab from "./pages/BacktestTab";
+import PortfolioTab from "./pages/PortfolioTab";
+import MarketsTab from "./pages/MarketsTab";
+import CommunityTab from "./pages/CommunityTab";
+import AIChatWidget from "./components/AIChatWidget";
 import { UIButton, ControlChip } from "./components/ui/primitives";
 import "./App.css";
 
@@ -39,15 +45,21 @@ const LANG_STORAGE_KEY = "aa_lang_v1";
 const THEME_STORAGE_KEY = "aa_theme_v1";
 const A11Y_STORAGE_KEY = "aa_a11y_v1";
 
-const APP_TABS = ["home", "analysis", "charts", "heatmap", "comparison", "account"];
-const ANALYSIS_TABS = ["stock", "financials"];
+const APP_TABS = ["home", "analysis", "charts", "screener", "markets", "portfolio", "community", "heatmap", "comparison", "account"];
+const ANALYSIS_TABS = ["stock", "financials", "options", "dividends"];
 const ACCOUNT_TABS = ["overview", "preferences"];
+const MARKETS_TABS = ["heatmap", "sectors", "crypto", "economic"];
+const PORTFOLIO_TABS = ["holdings", "paper-trading", "backtesting"];
+const SCREENER_TABS = ["screener", "comparison"];
 const CHART_MODES = ["price", "volume", "rsi", "macd", "stoch"];
 const CHART_TYPES = ["line", "candles"];
 
 const normalizeTab = (tab) => (APP_TABS.includes(tab) ? tab : "home");
 const normalizeAnalysisTab = (tab) => (ANALYSIS_TABS.includes(tab) ? tab : "stock");
 const normalizeAccountTab = (tab) => (ACCOUNT_TABS.includes(tab) ? tab : "overview");
+const normalizeMarketsTab = (tab) => (MARKETS_TABS.includes(tab) ? tab : "heatmap");
+const normalizePortfolioTab = (tab) => (PORTFOLIO_TABS.includes(tab) ? tab : "holdings");
+const normalizeScreenerTab = (tab) => (SCREENER_TABS.includes(tab) ? tab : "screener");
 const normalizeChartMode = (mode) => {
   if (!mode) return null;
   const val = String(mode).toLowerCase();
@@ -149,6 +161,9 @@ function emptyWorkspace() {
     alerts: [],
     recent: [],
     comparisons: [],
+    portfolio: { holdings: [] },
+    paperPortfolio: { cash: 100000, positions: [], history: [], equityCurve: [{ date: new Date().toISOString().slice(0, 10), value: 100000 }] },
+    notificationPrefs: { enabled: false, priceAlerts: true, earnings: false },
     prefs: {
       period: "1y",
       interval: "1d",
@@ -168,6 +183,14 @@ function sanitizeWorkspace(data) {
     alerts: Array.isArray(data.alerts) ? data.alerts : base.alerts,
     recent: Array.isArray(data.recent) ? data.recent : base.recent,
     comparisons: Array.isArray(data.comparisons) ? data.comparisons : base.comparisons,
+    portfolio: data.portfolio && typeof data.portfolio === "object" ? { holdings: Array.isArray(data.portfolio.holdings) ? data.portfolio.holdings : [] } : base.portfolio,
+    paperPortfolio: data.paperPortfolio && typeof data.paperPortfolio === "object" ? {
+      cash: typeof data.paperPortfolio.cash === "number" ? data.paperPortfolio.cash : 100000,
+      positions: Array.isArray(data.paperPortfolio.positions) ? data.paperPortfolio.positions : [],
+      history: Array.isArray(data.paperPortfolio.history) ? data.paperPortfolio.history : [],
+      equityCurve: Array.isArray(data.paperPortfolio.equityCurve) ? data.paperPortfolio.equityCurve : base.paperPortfolio.equityCurve,
+    } : base.paperPortfolio,
+    notificationPrefs: data.notificationPrefs && typeof data.notificationPrefs === "object" ? data.notificationPrefs : base.notificationPrefs,
     prefs: {
       ...base.prefs,
       ...(data.prefs && typeof data.prefs === "object" ? data.prefs : {}),
@@ -352,6 +375,9 @@ function mergeWorkspaces(local, remote) {
     alerts: mergeUnique(a.alerts, b.alerts, (al) => `${al.ticker}|${al.type}|${al.value}`),
     recent: mergeUnique(a.recent, b.recent, (r) => `${r.ticker}|${r.ts || r.timestamp || ""}`),
     comparisons: mergeUnique(a.comparisons, b.comparisons, (c) => c?.id || c?.key || JSON.stringify(c)),
+    portfolio: (a.portfolio?.holdings?.length || 0) >= (b.portfolio?.holdings?.length || 0) ? a.portfolio : b.portfolio,
+    paperPortfolio: (a.paperPortfolio?.history?.length || 0) >= (b.paperPortfolio?.history?.length || 0) ? a.paperPortfolio : b.paperPortfolio,
+    notificationPrefs: a.notificationPrefs || b.notificationPrefs,
     prefs,
   };
 }
@@ -3371,6 +3397,12 @@ function App() {
   const [alerts, setAlerts] = useState(initialWorkspace.alerts);
   const [recentAnalyses, setRecentAnalyses] = useState(initialWorkspace.recent);
   const [savedComparisons, setSavedComparisons] = useState(initialWorkspace.comparisons);
+  const [portfolio, setPortfolio] = useState(initialWorkspace.portfolio || { holdings: [] });
+  const [paperPortfolio, setPaperPortfolio] = useState(initialWorkspace.paperPortfolio || { cash: 100000, positions: [], history: [], equityCurve: [{ date: new Date().toISOString().slice(0, 10), value: 100000 }] });
+  const [notificationPrefs, setNotificationPrefs] = useState(initialWorkspace.notificationPrefs || { enabled: false, priceAlerts: true, earnings: false });
+  const [marketsSubTab, setMarketsSubTab] = useState("heatmap");
+  const [portfolioSubTab, setPortfolioSubTab] = useState("holdings");
+  const [screenerSubTab, setScreenerSubTab] = useState("screener");
   const [prefs, setPrefs] = useState(initialWorkspace.prefs);
   const accountChartTypePref = prefs?.chartType === "candles" ? "candles" : "line";
   const resolvedChartType = chartType || accountChartTypePref;
@@ -3563,7 +3595,7 @@ function App() {
   }, [chartType, accountChartTypePref]);
 
   useEffect(() => {
-    if (tab === "analysis" || tab === "charts") return;
+    if (tab === "analysis" || tab === "charts" || tab === "screener") return;
     if (routeSyncRef.current) return;
     if (!routeTicker) return;
     setRouteTicker("");
@@ -3591,8 +3623,11 @@ function App() {
     alerts,
     recent: recentAnalyses,
     comparisons: savedComparisons,
+    portfolio,
+    paperPortfolio,
+    notificationPrefs,
     prefs,
-  }), [watchlist, alerts, recentAnalyses, savedComparisons, prefs]);
+  }), [watchlist, alerts, recentAnalyses, savedComparisons, portfolio, paperPortfolio, notificationPrefs, prefs]);
 
   useEffect(() => {
     workspaceRef.current = workspaceData;
@@ -3652,6 +3687,9 @@ function App() {
     setAlerts(safe.alerts);
     setRecentAnalyses(safe.recent);
     setSavedComparisons(safe.comparisons);
+    setPortfolio(safe.portfolio);
+    setPaperPortfolio(safe.paperPortfolio);
+    setNotificationPrefs(safe.notificationPrefs);
     setPrefs(safe.prefs);
     setHomeRegion(safe.prefs?.region || "Global");
     setPeriod(safe.prefs?.period || "1y");
@@ -3944,6 +3982,19 @@ function App() {
     if (!session) openAuth("signup");
   }, [session, openAuth]);
 
+  // Service worker registration for push notifications
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    const handler = (event) => {
+      if (event.data?.type === "ALERT_TRIGGERED") {
+        setAlerts(prev => prev.map(a => a.id === event.data.alertId ? { ...a, triggered: true } : a));
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handler);
+    return () => navigator.serviceWorker.removeEventListener("message", handler);
+  }, []);
+
 
   const tabStyle = (t, locked = false) => ({
     padding: "0 0 10px 0", marginRight: viewport.isMobile ? 14 : 24, background: "none", border: "none",
@@ -3973,10 +4024,23 @@ function App() {
     setTab("charts");
   }, []);
   const consumeChartIntent = useCallback(() => setChartIntent(null), []);
+  const handleChatNavigate = useCallback((targetTab, subTab, opts) => {
+    setTab(targetTab);
+    if (subTab) {
+      if (targetTab === "markets") setMarketsSubTab(subTab);
+      else if (targetTab === "portfolio") setPortfolioSubTab(subTab);
+      else if (targetTab === "screener") setScreenerSubTab(subTab);
+    }
+  }, []);
+
   const navHelp = useMemo(() => ({
     home: { title: t("help.nav.home.title"), body: t("help.nav.home.body") },
     analysis: { title: t("help.nav.analysis.title"), body: t("help.nav.analysis.body") },
     charts: { title: t("help.nav.charts.title"), body: t("help.nav.charts.body") },
+    screener: { title: "Stock Screener", body: "Filter and scan stocks by technical and fundamental criteria." },
+    markets: { title: "Markets", body: "Heatmaps, sector analysis, crypto dashboard, and economic calendar." },
+    portfolio: { title: "Portfolio", body: "Track your holdings, paper trade, and backtest strategies." },
+    community: { title: "Community", body: "Share analyses, view trending tickers, and see the leaderboard." },
     heatmap: { title: t("help.nav.heatmap.title"), body: t("help.nav.heatmap.body") },
     comparison: { title: t("help.nav.comparison.title"), body: t("help.nav.comparison.body") },
   }), [t]);
@@ -3995,6 +4059,7 @@ function App() {
     PORTFOLIO_TILE,
     STRATEGIES,
     SECTOR_COLORS,
+    SECTOR_ETFS,
     fetchTickerStrip,
     fetchIntradayData,
     fetchMarketMovers,
@@ -4004,6 +4069,7 @@ function App() {
     runAnalysis,
     applyLivePoint,
     runValuationModels,
+    calcFundamentals,
     hashCode,
     seededRange,
     usePrevious,
@@ -4110,13 +4176,15 @@ function App() {
           </div>
         </div>
         <nav style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexDirection: viewport.isTablet ? "column" : "row", gap: viewport.isTablet ? 10 : 0 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", width: "100%" }}>
+          <div style={{ display: "flex", flexWrap: "nowrap", width: "100%", overflowX: "auto" }}>
             {[
               { key: "home", label: t("nav.home") },
               { key: "analysis", label: t("nav.analysis") },
               { key: "charts", label: t("nav.charts") },
-              { key: "heatmap", label: t("nav.heatmap"), pro: true },
-              { key: "comparison", label: t("nav.comparison"), pro: true },
+              { key: "screener", label: "Screener" },
+              { key: "markets", label: "Markets" },
+              { key: "portfolio", label: "Portfolio" },
+              { key: "community", label: "Community" },
             ].map(({ key, label, pro, badge }) => {
               const locked = !!pro && !isPro;
               return (
@@ -4517,6 +4585,8 @@ function App() {
             onSignOut={handleSignOut}
             defaultChartType={accountChartTypePref}
             onSetDefaultChartType={setDefaultChartType}
+            notificationPrefs={notificationPrefs}
+            onNotificationPrefsChange={setNotificationPrefs}
           />
         )}
         {!loading && !error && tab === "analysis" && (
@@ -4562,6 +4632,45 @@ function App() {
             defaultChartType={accountChartTypePref}
           />
         )}
+        {!loading && !error && tab === "screener" && (
+          <ScreenerTab
+            deps={pageDeps}
+            viewport={viewport}
+            onAnalyze={analyze}
+            isPro={isPro}
+            onUpgradePro={openProSignup}
+          />
+        )}
+        {!loading && !error && tab === "markets" && (
+          <MarketsTab
+            deps={pageDeps}
+            viewport={viewport}
+            subTab={marketsSubTab}
+            onSubTabChange={setMarketsSubTab}
+            isPro={isPro}
+            onUpgradePro={openProSignup}
+          />
+        )}
+        {!loading && !error && tab === "portfolio" && (
+          <PortfolioTab
+            deps={pageDeps}
+            viewport={viewport}
+            portfolio={portfolio}
+            onPortfolioChange={setPortfolio}
+            paperPortfolio={paperPortfolio}
+            onPaperPortfolioChange={setPaperPortfolio}
+            onAnalyze={analyze}
+          />
+        )}
+        {!loading && !error && tab === "community" && (
+          <CommunityTab
+            deps={pageDeps}
+            viewport={viewport}
+            session={session}
+            recentAnalyses={recentAnalyses}
+            onAnalyze={analyze}
+          />
+        )}
         {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab deps={pageDeps} viewport={viewport} /> : (
           <ProGate
             title={t("pro.heatmap.title")}
@@ -4590,7 +4699,7 @@ function App() {
           <button onClick={() => setShowPerf(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: showPerf ? C.ink : "transparent", color: showPerf ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
             DEV: PERF
           </button>
-          <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v0.3.12</span>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v0.4.0</span>
         </div>
       </footer>
 
@@ -4628,6 +4737,7 @@ function App() {
           )}
           <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} startMode={authMode} />
           {showPerf && <PerfMonitor onClose={() => setShowPerf(false)} />}
+          <AIChatWidget C={C} onNavigate={handleChatNavigate} onAnalyze={analyze} />
         </div>
       </HelpContext.Provider>
     </I18nContext.Provider>

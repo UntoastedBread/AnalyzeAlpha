@@ -23,6 +23,8 @@ function AccountTab({
   onSignOut,
   defaultChartType = "line",
   onSetDefaultChartType,
+  notificationPrefs,
+  onNotificationPrefsChange,
 }) {
   const {
     useI18n,
@@ -320,6 +322,7 @@ function AccountTab({
           </Section>
         </>
       ) : (
+        <>
         <Section title={t("account.preferences")} help={{ title: t("help.accountPreferences.title"), body: t("help.accountPreferences.body") }}>
           <div style={{ display: "grid", gap: 8 }}>
             <Row label={t("account.defaultPeriod")} value={prefs?.period || "1y"} />
@@ -338,13 +341,67 @@ function AccountTab({
             </div>
           </div>
         </Section>
+        <Section title="Notifications" help={{ title: "Push Notifications", body: "Configure browser push notifications for price alerts and earnings announcements." }}>
+          <div style={{ display: "grid", gap: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0" }}>
+              <span style={{ color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>Enable Push Notifications</span>
+              <button
+                onClick={async () => {
+                  if (typeof Notification === "undefined") return;
+                  const perm = await Notification.requestPermission();
+                  if (perm === "granted") {
+                    onNotificationPrefsChange?.({ ...(notificationPrefs || {}), enabled: true });
+                  }
+                }}
+                style={{
+                  padding: "6px 12px",
+                  border: `1px solid ${notificationPrefs?.enabled ? C.up : C.rule}`,
+                  background: notificationPrefs?.enabled ? C.upBg : "transparent",
+                  color: notificationPrefs?.enabled ? C.up : C.inkMuted,
+                  fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "var(--body)",
+                }}
+              >
+                {notificationPrefs?.enabled ? "Enabled" : "Enable"}
+              </button>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0" }}>
+              <span style={{ color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>Price Alert Notifications</span>
+              <button
+                onClick={() => onNotificationPrefsChange?.({ ...(notificationPrefs || {}), priceAlerts: !notificationPrefs?.priceAlerts })}
+                style={{
+                  padding: "6px 12px",
+                  border: `1px solid ${notificationPrefs?.priceAlerts ? C.ink : C.rule}`,
+                  background: notificationPrefs?.priceAlerts ? C.ink : "transparent",
+                  color: notificationPrefs?.priceAlerts ? C.cream : C.inkMuted,
+                  fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "var(--body)",
+                }}
+              >
+                {notificationPrefs?.priceAlerts ? "ON" : "OFF"}
+              </button>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0" }}>
+              <span style={{ color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>Earnings Notifications</span>
+              <button
+                onClick={() => onNotificationPrefsChange?.({ ...(notificationPrefs || {}), earnings: !notificationPrefs?.earnings })}
+                style={{
+                  padding: "6px 12px",
+                  border: `1px solid ${notificationPrefs?.earnings ? C.ink : C.rule}`,
+                  background: notificationPrefs?.earnings ? C.ink : "transparent",
+                  color: notificationPrefs?.earnings ? C.cream : C.inkMuted,
+                  fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "var(--body)",
+                }}
+              >
+                {notificationPrefs?.earnings ? "ON" : "OFF"}
+              </button>
+            </div>
+          </div>
+        </Section>
+        </>
       )}
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════
-// ANALYSIS TAB
 // ═══════════════════════════════════════════════════════════
 
 export default AccountTab;

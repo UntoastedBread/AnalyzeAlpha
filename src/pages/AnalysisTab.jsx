@@ -4,7 +4,7 @@ import {
   Tooltip, ResponsiveContainer, ComposedChart, ReferenceLine, Customized,
   PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
-import { ControlChip } from "../components/ui/primitives";
+import { ControlChip, MetricCard, GaugeBar, DataTable, EmptyState } from "../components/ui/primitives";
 
 function AnalysisTab({
   deps,
@@ -232,13 +232,19 @@ function AnalysisTab({
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 18, borderBottom: `1px solid ${C.rule}`, paddingBottom: 8, marginBottom: 18 }}>
+      <div style={{ display: "flex", gap: 18, borderBottom: `1px solid ${C.rule}`, paddingBottom: 8, marginBottom: 18, overflowX: "auto" }}>
         <button onClick={() => setActiveSubTab("stock")} style={subTabStyle("stock")}>{t("analysis.stockTab")}</button>
         <button onClick={() => setActiveSubTab("financials")} style={subTabStyle("financials", !isPro)}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
             {t("analysis.financialsTab")}
             {!isPro && <ProTag small />}
           </span>
+        </button>
+        <button onClick={() => setActiveSubTab("options")} style={subTabStyle("options")}>
+          {t("analysis.optionsTab") === "analysis.optionsTab" ? "Options" : t("analysis.optionsTab")}
+        </button>
+        <button onClick={() => setActiveSubTab("dividends")} style={subTabStyle("dividends")}>
+          {t("analysis.dividendsTab") === "analysis.dividendsTab" ? "Dividends" : t("analysis.dividendsTab")}
         </button>
       </div>
 
@@ -908,12 +914,333 @@ function AnalysisTab({
           </div>
         </div>
       )}
+
+      {activeSubTab === "options" && <OptionsSubTab C={C} ticker={result?.ticker} price={price} t={t} Section={Section} isMobile={isMobile} />}
+      {activeSubTab === "dividends" && <DividendsSubTab C={C} ticker={result?.ticker} price={price} t={t} Section={Section} LazySection={LazySection} fmt={fmt} fmtPct={fmtPct} fmtMoney={fmtMoney} isMobile={isMobile} />}
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════
-// CHARTS TAB
+// OPTIONS SUB-TAB
+// ═══════════════════════════════════════════════════════════
+function OptionsSubTab({ C, ticker, price, t, Section, isMobile }) {
+  const [chain, setChain] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState(null);
+  const [selectedExpiry, setSelectedExpiry] = React.useState(0);
+  const [showCalls, setShowCalls] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!ticker) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetch(`/api/options/${encodeURIComponent(ticker)}`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(json => {
+        if (cancelled) return;
+        const oc = json?.optionChain?.result?.[0];
+        if (!oc) throw new Error("No options data");
+        setChain(oc);
+        setLoading(false);
+      })
+      .catch(e => { if (!cancelled) { setError(e.message); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [ticker]);
+
+  if (!ticker) return <EmptyState C={C} icon="📊" title="No Stock Selected" message="Analyze a stock first to view its options chain." />;
+  if (loading) return <div style={{ padding: 24, color: C.inkMuted, fontFamily: "var(--body)", fontSize: 12 }}>Loading options for {ticker}...</div>;
+  if (error) return <EmptyState C={C} icon="⚠️" title="Options Unavailable" message={`Could not load options data: ${error}`} />;
+  if (!chain) return null;
+
+  const expirations = (chain.expirationDates || []).map(ts => new Date(ts * 1000).toISOString().slice(0, 10));
+  const options = chain.options?.[selectedExpiry] || chain.options?.[0] || {};
+  const calls = options.calls || [];
+  const puts = options.puts || [];
+  const items = showCalls ? calls : puts;
+  const underlyingPrice = chain.quote?.regularMarketPrice || price || 0;
+
+  // Black-Scholes Greeks approximation
+  function bsGreeks(S, K, T, r, sigma, isCall) {
+    if (T <= 0 || sigma <= 0) return { delta: 0, gamma: 0, theta: 0, vega: 0 };
+    const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+    const d2 = d1 - sigma * Math.sqrt(T);
+    const nd1 = 0.5 * (1 + erf(d1 / Math.SQRT2));
+    const nd2 = 0.5 * (1 + erf(d2 / Math.SQRT2));
+    const npd1 = Math.exp(-0.5 * d1 * d1) / Math.sqrt(2 * Math.PI);
+    const delta = isCall ? nd1 : nd1 - 1;
+    const gamma = npd1 / (S * sigma * Math.sqrt(T));
+    const theta = isCall
+      ? (-(S * npd1 * sigma) / (2 * Math.sqrt(T)) - r * K * Math.exp(-r * T) * nd2) / 365
+      : (-(S * npd1 * sigma) / (2 * Math.sqrt(T)) + r * K * Math.exp(-r * T) * (1 - nd2)) / 365;
+    const vega = S * npd1 * Math.sqrt(T) / 100;
+    return { delta: +delta.toFixed(4), gamma: +gamma.toFixed(6), theta: +theta.toFixed(4), vega: +vega.toFixed(4) };
+  }
+
+  function erf(x) {
+    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x);
+    const tt = 1.0 / (1.0 + p * x);
+    return sign * (1 - (((((a5 * tt + a4) * tt) + a3) * tt + a2) * tt + a1) * tt * Math.exp(-x * x));
+  }
+
+  // Max pain calculation
+  const allStrikes = [...new Set([...calls.map(c => c.strike), ...puts.map(p => p.strike)])].sort((a, b) => a - b);
+  let maxPainStrike = 0, minPain = Infinity;
+  for (const strike of allStrikes) {
+    let pain = 0;
+    for (const c of calls) { if (strike > c.strike) pain += (strike - c.strike) * (c.openInterest || 0); }
+    for (const p of puts) { if (strike < p.strike) pain += (p.strike - strike) * (p.openInterest || 0); }
+    if (pain < minPain) { minPain = pain; maxPainStrike = strike; }
+  }
+
+  const totalCallOI = calls.reduce((s, c) => s + (c.openInterest || 0), 0);
+  const totalPutOI = puts.reduce((s, p) => s + (p.openInterest || 0), 0);
+  const pcRatio = totalCallOI > 0 ? (totalPutOI / totalCallOI).toFixed(2) : "N/A";
+
+  return (
+    <div>
+      <Section C={C} title={`Options Chain — ${ticker}`}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 10, color: C.inkMuted, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "var(--body)" }}>Expiry:</span>
+          <select
+            value={selectedExpiry}
+            onChange={e => setSelectedExpiry(Number(e.target.value))}
+            style={{ background: "transparent", border: `1px solid ${C.rule}`, color: C.ink, fontSize: 11, fontFamily: "var(--body)", padding: "6px 10px" }}
+          >
+            {expirations.map((exp, i) => <option key={i} value={i}>{exp}</option>)}
+          </select>
+          <ControlChip C={C} active={showCalls} onClick={() => setShowCalls(true)}>Calls</ControlChip>
+          <ControlChip C={C} active={!showCalls} onClick={() => setShowCalls(false)}>Puts</ControlChip>
+        </div>
+
+        <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+          <MetricCard C={C} label="Max Pain" value={`$${maxPainStrike.toFixed(2)}`} style={{ flex: 1, minWidth: 100 }} />
+          <MetricCard C={C} label="P/C Ratio" value={pcRatio} style={{ flex: 1, minWidth: 100 }} />
+          <MetricCard C={C} label="Call OI" value={totalCallOI.toLocaleString()} style={{ flex: 1, minWidth: 100 }} />
+          <MetricCard C={C} label="Put OI" value={totalPutOI.toLocaleString()} style={{ flex: 1, minWidth: 100 }} />
+        </div>
+
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--mono)", fontSize: 11 }}>
+            <thead>
+              <tr>
+                {["Strike", "Last", "Bid", "Ask", "Change", "Vol", "OI", "IV", "Delta", "Gamma", "Theta"].map(h => (
+                  <th key={h} style={{ padding: "8px 8px", textAlign: "right", color: C.inkMuted, fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "var(--body)", borderBottom: `2px solid ${C.ink}`, whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {items.slice(0, 30).map((opt, i) => {
+                const iv = opt.impliedVolatility || 0;
+                const T = Math.max(0.01, selectedExpiry < expirations.length ? ((new Date(expirations[selectedExpiry])).getTime() - Date.now()) / (365.25 * 24 * 3600 * 1000) : 0.1);
+                const greeks = bsGreeks(underlyingPrice, opt.strike, T, 0.05, iv, showCalls);
+                const itm = showCalls ? opt.strike <= underlyingPrice : opt.strike >= underlyingPrice;
+                return (
+                  <tr key={i} style={{ background: itm ? (showCalls ? `${C.upBg}` : `${C.downBg}`) : (i % 2 === 1 ? C.warmWhite : "transparent"), borderBottom: `1px solid ${C.ruleFaint}` }}>
+                    <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: opt.strike === Math.round(underlyingPrice) ? 700 : 400 }}>{opt.strike?.toFixed(2)}</td>
+                    <td style={{ padding: "6px 8px", textAlign: "right" }}>{opt.lastPrice?.toFixed(2) ?? "—"}</td>
+                    <td style={{ padding: "6px 8px", textAlign: "right" }}>{opt.bid?.toFixed(2) ?? "—"}</td>
+                    <td style={{ padding: "6px 8px", textAlign: "right" }}>{opt.ask?.toFixed(2) ?? "—"}</td>
+                    <td style={{ padding: "6px 8px", textAlign: "right", color: (opt.change || 0) >= 0 ? C.up : C.down }}>{opt.change?.toFixed(2) ?? "—"}</td>
+                    <td style={{ padding: "6px 8px", textAlign: "right" }}>{opt.volume ?? "—"}</td>
+                    <td style={{ padding: "6px 8px", textAlign: "right" }}>{opt.openInterest ?? "—"}</td>
+                    <td style={{ padding: "6px 8px", textAlign: "right" }}>{(iv * 100).toFixed(1)}%</td>
+                    <td style={{ padding: "6px 8px", textAlign: "right" }}>{greeks.delta}</td>
+                    <td style={{ padding: "6px 8px", textAlign: "right" }}>{greeks.gamma}</td>
+                    <td style={{ padding: "6px 8px", textAlign: "right" }}>{greeks.theta}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      <Section C={C} title="IV Skew" style={{ marginTop: 20 }}>
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={items.filter(o => o.impliedVolatility).map(o => ({ strike: o.strike, iv: +(o.impliedVolatility * 100).toFixed(1) }))}>
+            <CartesianGrid strokeDasharray="3 3" stroke={C.ruleFaint} />
+            <XAxis dataKey="strike" tick={{ fontSize: 10, fill: C.inkMuted }} />
+            <YAxis tick={{ fontSize: 10, fill: C.inkMuted }} />
+            <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, fontSize: 11 }} />
+            <ReferenceLine x={Math.round(underlyingPrice)} stroke={C.ink} strokeDasharray="3 3" label={{ value: "ATM", fontSize: 9, fill: C.inkMuted }} />
+            <Line type="monotone" dataKey="iv" stroke={C.accent} dot={false} strokeWidth={2} name="IV %" />
+          </LineChart>
+        </ResponsiveContainer>
+      </Section>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// DIVIDENDS SUB-TAB
+// ═══════════════════════════════════════════════════════════
+function DividendsSubTab({ C, ticker, price, t, Section, LazySection, fmt, fmtPct, fmtMoney, isMobile }) {
+  const [divData, setDivData] = React.useState(null);
+  const [fundData, setFundData] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState(null);
+  const [sharesOwned, setSharesOwned] = React.useState(100);
+
+  React.useEffect(() => {
+    if (!ticker) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    Promise.allSettled([
+      fetch(`/api/dividends/${encodeURIComponent(ticker)}`).then(r => r.ok ? r.json() : null),
+      fetch(`/api/fundamentals/${encodeURIComponent(ticker)}`).then(r => r.ok ? r.json() : null),
+    ]).then(([divRes, fundRes]) => {
+      if (cancelled) return;
+      const divJson = divRes.status === "fulfilled" ? divRes.value : null;
+      const fundJson = fundRes.status === "fulfilled" ? fundRes.value : null;
+
+      // Parse dividend events from chart response
+      const chartResult = divJson?.chart?.result?.[0];
+      const events = chartResult?.events?.dividends || {};
+      const dividends = Object.values(events)
+        .map(d => ({ date: new Date(d.date * 1000).toISOString().slice(0, 10), amount: d.amount }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      // Parse fundamentals
+      const summary = fundJson?.quoteSummary?.result?.[0] || {};
+      const summaryDetail = summary.summaryDetail || {};
+      const keyStats = summary.defaultKeyStatistics || {};
+
+      setDivData({
+        dividends,
+        yield: summaryDetail.dividendYield?.raw || summaryDetail.trailingAnnualDividendYield?.raw || 0,
+        annualDividend: summaryDetail.trailingAnnualDividendRate?.raw || 0,
+        exDate: summaryDetail.exDividendDate?.fmt || "N/A",
+        payoutRatio: summaryDetail.payoutRatio?.raw || keyStats.payoutRatio?.raw || 0,
+        fiveYearAvgYield: keyStats.fiveYearAvgDividendYield?.raw || 0,
+      });
+      setFundData(summary);
+      setLoading(false);
+    }).catch(e => { if (!cancelled) { setError(e.message); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [ticker]);
+
+  if (!ticker) return <EmptyState C={C} icon="💰" title="No Stock Selected" message="Analyze a stock first to view dividend data." />;
+  if (loading) return <div style={{ padding: 24, color: C.inkMuted, fontFamily: "var(--body)", fontSize: 12 }}>Loading dividend data for {ticker}...</div>;
+  if (error) return <EmptyState C={C} icon="⚠️" title="Data Unavailable" message={error} />;
+  if (!divData) return null;
+
+  const dividends = divData.dividends || [];
+  const annualDiv = divData.annualDividend || 0;
+  const divYield = divData.yield || 0;
+  const annualIncome = sharesOwned * annualDiv;
+
+  // Calculate growth rate from last 8 dividends
+  const recent = dividends.slice(-8);
+  let growthRate = 0;
+  if (recent.length >= 4) {
+    const oldAvg = recent.slice(0, Math.floor(recent.length / 2)).reduce((s, d) => s + d.amount, 0) / Math.floor(recent.length / 2);
+    const newAvg = recent.slice(Math.floor(recent.length / 2)).reduce((s, d) => s + d.amount, 0) / (recent.length - Math.floor(recent.length / 2));
+    if (oldAvg > 0) growthRate = (newAvg / oldAvg - 1);
+  }
+
+  // Determine frequency
+  let frequency = "Unknown";
+  if (dividends.length >= 2) {
+    const gaps = [];
+    for (let i = 1; i < Math.min(dividends.length, 10); i++) {
+      gaps.push((new Date(dividends[i].date).getTime() - new Date(dividends[i - 1].date).getTime()) / (1000 * 60 * 60 * 24));
+    }
+    const avgGap = gaps.reduce((s, g) => s + g, 0) / gaps.length;
+    if (avgGap < 45) frequency = "Monthly";
+    else if (avgGap < 120) frequency = "Quarterly";
+    else if (avgGap < 200) frequency = "Semi-Annual";
+    else frequency = "Annual";
+  }
+
+  // DRIP simulator: project 10 years of reinvested dividends
+  const dripYears = [];
+  let dripShares = sharesOwned;
+  let dripValue = dripShares * (price || 100);
+  const annualGrowth = growthRate || 0.03;
+  let currentAnnualDiv = annualDiv;
+  for (let y = 0; y <= 10; y++) {
+    dripYears.push({ year: y, shares: +dripShares.toFixed(2), value: +dripValue.toFixed(0), income: +(dripShares * currentAnnualDiv).toFixed(0) });
+    const income = dripShares * currentAnnualDiv;
+    dripShares += price > 0 ? income / price : 0;
+    currentAnnualDiv *= (1 + annualGrowth);
+    dripValue = dripShares * (price || 100);
+  }
+
+  return (
+    <div>
+      <Section C={C} title={`Dividend Analysis — ${ticker}`}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+          <MetricCard C={C} label="Dividend Yield" value={fmtPct(divYield * 100)} />
+          <MetricCard C={C} label="Annual Dividend" value={`$${annualDiv.toFixed(2)}`} />
+          <MetricCard C={C} label="Payout Ratio" value={fmtPct(divData.payoutRatio * 100)} />
+          <MetricCard C={C} label="Frequency" value={frequency} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+          <MetricCard C={C} label="Ex-Dividend Date" value={divData.exDate} />
+          <MetricCard C={C} label="Div Growth Rate" value={fmtPct(growthRate * 100)} change={growthRate * 100} />
+          <MetricCard C={C} label="5Y Avg Yield" value={fmtPct(divData.fiveYearAvgYield)} />
+          <MetricCard C={C} label="Consecutive Payments" value={dividends.length > 0 ? `${dividends.length}+` : "N/A"} />
+        </div>
+      </Section>
+
+      {dividends.length > 0 && (
+        <Section C={C} title="Dividend History" style={{ marginTop: 20 }}>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={dividends.slice(-20)}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C.ruleFaint} />
+              <XAxis dataKey="date" tick={{ fontSize: 9, fill: C.inkMuted }} angle={-45} textAnchor="end" height={50} />
+              <YAxis tick={{ fontSize: 10, fill: C.inkMuted }} />
+              <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, fontSize: 11 }} />
+              <Bar dataKey="amount" fill={C.up} name="Dividend ($)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </Section>
+      )}
+
+      <Section C={C} title="Income Calculator" style={{ marginTop: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>Shares Owned:</span>
+          <input
+            type="number"
+            value={sharesOwned}
+            onChange={e => setSharesOwned(Math.max(0, Number(e.target.value) || 0))}
+            style={{ width: 100, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", fontSize: 12, fontFamily: "var(--mono)", color: C.ink }}
+          />
+          <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--mono)", color: C.up }}>
+            Annual Income: ${annualIncome.toFixed(2)}
+          </span>
+          <span style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--mono)" }}>
+            (${(annualIncome / 12).toFixed(2)}/month)
+          </span>
+        </div>
+      </Section>
+
+      {annualDiv > 0 && (
+        <Section C={C} title="DRIP Simulator (10 Year Projection)" style={{ marginTop: 20 }}>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={dripYears}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C.ruleFaint} />
+              <XAxis dataKey="year" tick={{ fontSize: 10, fill: C.inkMuted }} label={{ value: "Years", fontSize: 10, fill: C.inkMuted, position: "bottom" }} />
+              <YAxis tick={{ fontSize: 10, fill: C.inkMuted }} />
+              <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, fontSize: 11 }} />
+              <Line type="monotone" dataKey="value" stroke={C.up} strokeWidth={2} dot={false} name="Portfolio Value ($)" />
+              <Line type="monotone" dataKey="income" stroke={C.accent} strokeWidth={1.5} dot={false} name="Annual Income ($)" strokeDasharray="4 4" />
+            </LineChart>
+          </ResponsiveContainer>
+          <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 8 }}>
+            Projection assumes {fmtPct(annualGrowth * 100)} annual dividend growth and full reinvestment at current price.
+          </div>
+        </Section>
+      )}
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════
 
 export default AnalysisTab;
