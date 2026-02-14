@@ -19,7 +19,6 @@ import BacktestTab from "./pages/BacktestTab";
 import PortfolioTab from "./pages/PortfolioTab";
 import MarketsTab from "./pages/MarketsTab";
 import CommunityTab from "./pages/CommunityTab";
-import AIChatWidget from "./components/AIChatWidget";
 import { UIButton, ControlChip } from "./components/ui/primitives";
 import "./App.css";
 
@@ -4278,14 +4277,6 @@ function App() {
     setTab("charts");
   }, []);
   const consumeChartIntent = useCallback(() => setChartIntent(null), []);
-  const handleChatNavigate = useCallback((targetTab, subTab, opts) => {
-    setTab(targetTab);
-    if (subTab) {
-      if (targetTab === "markets") setMarketsSubTab(subTab);
-      else if (targetTab === "portfolio") setPortfolioSubTab(subTab);
-      else if (targetTab === "screener") setScreenerSubTab(subTab);
-    }
-  }, []);
 
   const navHelp = useMemo(() => ({
     home: { title: t("help.nav.home.title"), body: t("help.nav.home.body") },
@@ -5007,7 +4998,6 @@ function App() {
           )}
           <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} startMode={authMode} />
           {showPerf && <PerfMonitor onClose={() => setShowPerf(false)} />}
-          <AIChatWidget C={C} onNavigate={handleChatNavigate} onAnalyze={analyze} />
         </div>
       </HelpContext.Provider>
     </I18nContext.Provider>

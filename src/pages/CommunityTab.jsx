@@ -52,8 +52,8 @@ function confidenceLabel(conf) {
 function GameOfLifeCanvas({ C }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
-  const COLS = 100, ROWS = 60, CELL = 10;
-  const TICK_MS = 300;
+  const COLS = 140, ROWS = 16, CELL = 8;
+  const TICK_MS = 260;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -63,7 +63,7 @@ function GameOfLifeCanvas({ C }) {
     canvas.height = ROWS * CELL;
 
     const grid = Array.from({ length: ROWS }, () =>
-      Array.from({ length: COLS }, () => Math.random() < 0.25 ? 1 : 0)
+      Array.from({ length: COLS }, () => Math.random() < 0.32 ? 1 : 0)
     );
     const ages = Array.from({ length: ROWS }, (_, r) =>
       Array.from({ length: COLS }, (_, c) => grid[r][c] ? 1.0 : 0.0)
@@ -146,8 +146,7 @@ function GameOfLifeCanvas({ C }) {
       ref={canvasRef}
       style={{
         width: "100%",
-        height: 400,
-        border: `1px solid ${C.ruleFaint}`,
+        height: "100%",
         display: "block",
       }}
     />
@@ -404,8 +403,13 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
     <div style={{ maxWidth: 900, margin: "0 auto", position: "relative" }}>
 
       {/* ============ Game of Life Background ============ */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 24, position: "relative", height: 50, border: `1px solid ${C.ruleFaint}`, overflow: "hidden", background: C.warmWhite }}>
         <GameOfLifeCanvas C={C} />
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <span style={{ padding: "4px 12px", background: `${C.cream}B3`, border: `1px solid ${C.rule}`, color: C.ink, fontSize: 14, fontFamily: "var(--display)", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            The Community
+          </span>
+        </div>
       </div>
 
       {/* ============ Trending + Leaderboard (moved to top) ============ */}
