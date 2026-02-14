@@ -391,7 +391,12 @@ app.get('/api/options/:ticker', (req, res) => {
   if (!/^[A-Za-z0-9=^.\-]{1,12}$/.test(ticker)) {
     return res.status(400).json({ error: 'Invalid ticker' });
   }
-  const url = `https://query2.finance.yahoo.com/v7/finance/options/${encodeURIComponent(ticker)}`;
+
+  const urls = [
+    `https://query1.finance.yahoo.com/v7/finance/options/${encodeURIComponent(ticker)}`,
+    `https://query2.finance.yahoo.com/v7/finance/options/${encodeURIComponent(ticker)}`,
+    `https://query2.finance.yahoo.com/v6/finance/options/${encodeURIComponent(ticker)}`,
+  ];
   console.log(`[Proxy] Options: ${ticker}`);
 
   let responded = false;
@@ -401,39 +406,58 @@ app.get('/api/options/:ticker', (req, res) => {
     res.status(status).json({ error: message });
   };
 
-  const apiReq = https.get(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+  function tryUrl(index) {
+    if (index >= urls.length) {
+      return fail(404, 'Options data not available');
     }
-  }, (apiRes) => {
-    let data = '';
-    let bytes = 0;
-    apiRes.on('data', chunk => {
-      bytes += chunk.length;
-      if (bytes > MAX_BYTES) {
-        apiReq.destroy(new Error('Upstream response too large'));
-        return fail(413, 'Upstream response too large');
+    const url = urls[index];
+    const apiReq = https.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
       }
-      data += chunk;
-    });
-    apiRes.on('end', () => {
-      if (responded) return;
-      try {
-        res.setHeader('Content-Type', 'application/json');
-        res.status(apiRes.statusCode).send(data);
-        console.log(`[Proxy] ✓ Options ${ticker} — ${apiRes.statusCode}`);
-      } catch (e) {
-        fail(500, e.message);
+    }, (apiRes) => {
+      let data = '';
+      let bytes = 0;
+      apiRes.on('data', chunk => {
+        bytes += chunk.length;
+        if (bytes > MAX_BYTES) {
+          apiReq.destroy(new Error('Upstream response too large'));
+          return fail(413, 'Upstream response too large');
+        }
+        data += chunk;
+      });
+      apiRes.on('end', () => {
+        if (responded) return;
+        if (apiRes.statusCode === 404 && index < urls.length - 1) {
+          console.log(`[Proxy] Options ${ticker} — 404 on ${url}, trying fallback`);
+          return tryUrl(index + 1);
+        }
+        try {
+          res.setHeader('Content-Type', 'application/json');
+          res.status(apiRes.statusCode).send(data);
+          console.log(`[Proxy] ✓ Options ${ticker} — ${apiRes.statusCode}`);
+        } catch (e) {
+          fail(500, e.message);
+        }
+      });
+    }).on('error', (e) => {
+      if (index < urls.length - 1) {
+        console.log(`[Proxy] Options ${ticker} — error on ${url}, trying fallback`);
+        return tryUrl(index + 1);
       }
+      console.error(`[Proxy] ✗ Options ${ticker} — ${e.message}`);
+      fail(502, e.message);
     });
-  }).on('error', (e) => {
-    console.error(`[Proxy] ✗ Options ${ticker} — ${e.message}`);
-    fail(502, e.message);
-  });
-  apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
-    apiReq.destroy(new Error('Upstream timeout'));
-    fail(504, 'Upstream timeout');
-  });
+    apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+      apiReq.destroy(new Error('Upstream timeout'));
+      if (index < urls.length - 1) {
+        return tryUrl(index + 1);
+      }
+      fail(504, 'Upstream timeout');
+    });
+  }
+
+  tryUrl(0);
 });
 
 // ── Fundamentals (financial statements) ─────────────────

@@ -43,8 +43,9 @@ const SECTOR_MAP = {
 
 function GameOfLifeCanvas({ C }) {
   const canvasRef = React.useRef(null);
-  const gridRef = React.useRef(null);
+  const stateRef = React.useRef(null);
   const COLS = 60, ROWS = 40, CELL = 12;
+  const TICK_MS = 180;
 
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -53,15 +54,18 @@ function GameOfLifeCanvas({ C }) {
     canvas.width = COLS * CELL;
     canvas.height = ROWS * CELL;
 
-    // Initialize grid
+    // Initialize grid with float ages (1 = alive, 0 = dead)
     const grid = Array.from({ length: ROWS }, () =>
       Array.from({ length: COLS }, () => Math.random() < 0.25 ? 1 : 0)
     );
-    gridRef.current = grid;
+    const ages = Array.from({ length: ROWS }, (_, r) =>
+      Array.from({ length: COLS }, (_, c) => grid[r][c] ? 1.0 : 0.0)
+    );
+    stateRef.current = { grid, ages, lastTick: performance.now() };
 
     function step() {
-      const g = gridRef.current;
-      const next = g.map((row, r) => row.map((cell, c) => {
+      const { grid: g, ages: a } = stateRef.current;
+      const nextGrid = g.map((row, r) => row.map((cell, c) => {
         let neighbors = 0;
         for (let dr = -1; dr <= 1; dr++) {
           for (let dc = -1; dc <= 1; dc++) {
@@ -75,32 +79,61 @@ function GameOfLifeCanvas({ C }) {
         if (!cell && neighbors === 3) return 1;
         return 0;
       }));
-      gridRef.current = next;
+      // Update ages: newly alive cells start fading in, dying cells start fading out
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (nextGrid[r][c] && !g[r][c]) a[r][c] = 0.05; // born: start near 0
+          else if (!nextGrid[r][c] && g[r][c]) a[r][c] = Math.max(a[r][c], 0.05); // will fade out
+        }
+      }
+      stateRef.current.grid = nextGrid;
+      stateRef.current.lastTick = performance.now();
     }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const g = gridRef.current;
+      const { grid: g, ages: a } = stateRef.current;
+      const baseColor = C.up || "#2E7D32";
+      ctx.shadowColor = baseColor;
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
-          if (g[r][c]) {
-            ctx.fillStyle = (C.up || "#2E7D32") + "10";
+          const age = a[r][c];
+          if (age > 0.01) {
+            // Fade in alive cells, fade out dead ones
+            if (g[r][c]) {
+              a[r][c] = Math.min(1, age + 0.08);
+            } else {
+              a[r][c] = Math.max(0, age - 0.06);
+            }
+            const alpha = Math.round(a[r][c] * 25);
+            const hex = alpha.toString(16).padStart(2, "0");
+            ctx.fillStyle = baseColor + hex;
+            ctx.shadowBlur = a[r][c] > 0.5 ? 3 : 0;
             ctx.fillRect(c * CELL, r * CELL, CELL - 1, CELL - 1);
           }
         }
       }
+      ctx.shadowBlur = 0;
     }
 
-    let timer;
-    function tick() {
-      step();
+    let rafId;
+    let tickAcc = 0;
+    let lastFrame = performance.now();
+    function loop(now) {
+      const dt = now - lastFrame;
+      lastFrame = now;
+      tickAcc += dt;
+      if (tickAcc >= TICK_MS) {
+        step();
+        tickAcc -= TICK_MS;
+      }
       draw();
-      timer = setTimeout(tick, 200);
+      rafId = requestAnimationFrame(loop);
     }
     draw();
-    timer = setTimeout(tick, 200);
+    rafId = requestAnimationFrame(loop);
 
-    return () => clearTimeout(timer);
+    return () => cancelAnimationFrame(rafId);
   }, [C]);
 
   return (
@@ -111,7 +144,7 @@ function GameOfLifeCanvas({ C }) {
         top: 0,
         left: 0,
         width: "100%",
-        height: ROWS * CELL,
+        height: "100%",
         pointerEvents: "none",
         opacity: 0.5,
         zIndex: 0,
@@ -641,7 +674,7 @@ function PortfolioTab({
 
       {/* ═══ PAPER TRADING ═══ */}
       {subTab === "paper-trading" && (
-        <div style={{ position: "relative" }}>
+        <div style={{ position: "relative", minHeight: "calc(100vh - 180px)" }}>
           <GameOfLifeCanvas C={C} />
           {/* Account Summary */}
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, ...sectionGap }}>

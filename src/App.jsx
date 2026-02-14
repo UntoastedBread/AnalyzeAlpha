@@ -2317,11 +2317,11 @@ function TickerStrip({ data, loading, onAnalyze }) {
       onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = "transparent"; }}
     >
       <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.stripMuted, letterSpacing: "0.06em", fontWeight: 600 }}>{labelFor(item.label, t)}</span>
-      <span style={{ fontSize: 12, fontFamily: "var(--mono)", color: C.stripText, fontWeight: 600 }}>
-        {item.loaded ? (item.price >= 1000 ? item.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : item.price.toFixed(2)) : "—"}
-      </span>
-      <span style={{ fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: item.changePct > 0 ? "#4ADE80" : item.changePct < 0 ? "#F87171" : C.stripMuted }}>
+      <span style={{ fontSize: 13, fontFamily: "var(--mono)", fontWeight: 700, color: item.changePct > 0 ? "#4ADE80" : item.changePct < 0 ? "#F87171" : C.stripMuted }}>
         {item.loaded ? `${item.changePct >= 0 ? "+" : ""}${item.changePct.toFixed(2)}%` : ""}
+      </span>
+      <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: C.stripMuted, fontWeight: 500 }}>
+        {item.loaded ? (item.price >= 1000 ? item.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : item.price.toFixed(2)) : "—"}
       </span>
     </button>
   );
@@ -4250,20 +4250,6 @@ function App() {
                 {loading ? t("search.running") : t("search.analyze")}
               </button>
             </HelpWrap>
-            <button
-              onClick={handleShare}
-              title={t("share.copyLink") || "Share"}
-              style={{ padding: "6px 8px", background: "transparent", border: `1px solid ${C.rule}`, color: C.inkMuted, cursor: "pointer", display: "flex", alignItems: "center", position: "relative" }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" />
-              </svg>
-              {shareToast && (
-                <span style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, padding: "4px 8px", background: C.ink, color: C.cream, fontSize: 9, fontFamily: "var(--mono)", whiteSpace: "nowrap", zIndex: 100 }}>
-                  {t("share.copied") || "Link copied!"}
-                </span>
-              )}
-            </button>
           </div>
         </div>
         <nav style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexDirection: viewport.isTablet ? "column" : "row", gap: viewport.isTablet ? 10 : 0 }}>
@@ -4639,6 +4625,22 @@ function App() {
       </header>
 
       <main style={{ flex: 1, padding: viewport.isMobile ? "16px 14px" : "20px 24px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1, minWidth: 0 }} key={tab + (result?.ticker || "")}>
+        {/* Floating share button */}
+        <button
+          onClick={handleShare}
+          title={t("share.copyLink") || "Copy link"}
+          style={{ position: "absolute", top: 16, right: 16, zIndex: 10, padding: "6px 8px", background: "transparent", border: `1px solid ${C.rule}`, color: C.inkMuted, cursor: "pointer", display: "flex", alignItems: "center" }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+          {shareToast && (
+            <span style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, padding: "4px 8px", background: C.ink, color: C.cream, fontSize: 9, fontFamily: "var(--mono)", whiteSpace: "nowrap", zIndex: 100 }}>
+              {t("share.copied") || "Link copied!"}
+            </span>
+          )}
+        </button>
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} chartType={resolvedChartType} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
         {!loading && !error && tab === "home" && (
@@ -4742,6 +4744,7 @@ function App() {
             onSubTabChange={setMarketsSubTab}
             isPro={isPro}
             onUpgradePro={openProSignup}
+            onAnalyze={handleAnalyze}
           />
         )}
         {!loading && !error && tab === "portfolio" && (

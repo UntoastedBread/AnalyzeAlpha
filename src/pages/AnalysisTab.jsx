@@ -951,7 +951,19 @@ function OptionsSubTab({ C, ticker, price, t, Section, isMobile }) {
 
   if (!ticker) return <EmptyState C={C} icon="📊" title="No Stock Selected" message="Analyze a stock first to view its options chain." />;
   if (loading) return <div style={{ padding: 24, color: C.inkMuted, fontFamily: "var(--body)", fontSize: 12 }}>Loading options for {ticker}...</div>;
-  if (error) return <EmptyState C={C} icon="⚠️" title="Options Unavailable" message={`Could not load options data: ${error}`} />;
+  if (error) return (
+    <EmptyState C={C} icon="⚠️" title="Options Unavailable"
+      message={`Options data is temporarily unavailable for ${ticker}. This may happen if the stock doesn't have listed options or the data source is rate-limited.`}
+      action={
+        <button
+          onClick={() => { setError(null); setLoading(true); fetch(`/api/options/${encodeURIComponent(ticker)}`).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).then(json => { const oc = json?.optionChain?.result?.[0]; if (!oc) throw new Error("No options data"); setChain(oc); setLoading(false); }).catch(e => { setError(e.message); setLoading(false); }); }}
+          style={{ padding: "8px 16px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" }}
+        >
+          Retry
+        </button>
+      }
+    />
+  );
   if (!chain) return null;
 
   const expirations = (chain.expirationDates || []).map(ts => new Date(ts * 1000).toISOString().slice(0, 10));
@@ -1144,7 +1156,7 @@ function DividendsSubTab({ C, ticker, price, t, Section, LazySection, fmt, fmtPc
   }
 
   // Determine frequency
-  let frequency = "Unknown";
+  let frequency = dividends.length === 0 ? "No dividends" : "Unknown";
   if (dividends.length >= 2) {
     const gaps = [];
     for (let i = 1; i < Math.min(dividends.length, 10); i++) {
@@ -1173,17 +1185,22 @@ function DividendsSubTab({ C, ticker, price, t, Section, LazySection, fmt, fmtPc
 
   return (
     <div>
+      {divData.yield === 0 && dividends.length === 0 && (
+        <div style={{ padding: "12px 16px", marginBottom: 16, background: C.warmWhite, border: `1px solid ${C.rule}`, fontSize: 12, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.5 }}>
+          This stock does not appear to pay regular dividends.
+        </div>
+      )}
       <Section C={C} title={`Dividend Analysis — ${ticker}`}>
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
-          <MetricCard C={C} label="Dividend Yield" value={fmtPct(divYield * 100)} />
-          <MetricCard C={C} label="Annual Dividend" value={`$${annualDiv.toFixed(2)}`} />
-          <MetricCard C={C} label="Payout Ratio" value={fmtPct(divData.payoutRatio * 100)} />
+          <MetricCard C={C} label="Dividend Yield" value={divYield === 0 ? "\u2014" : fmtPct(divYield * 100)} />
+          <MetricCard C={C} label="Annual Dividend" value={annualDiv === 0 ? "\u2014" : `$${annualDiv.toFixed(2)}`} />
+          <MetricCard C={C} label="Payout Ratio" value={divData.payoutRatio === 0 ? "\u2014" : fmtPct(divData.payoutRatio * 100)} />
           <MetricCard C={C} label="Frequency" value={frequency} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
           <MetricCard C={C} label="Ex-Dividend Date" value={divData.exDate} />
-          <MetricCard C={C} label="Div Growth Rate" value={fmtPct(growthRate * 100)} change={growthRate * 100} />
-          <MetricCard C={C} label="5Y Avg Yield" value={fmtPct(divData.fiveYearAvgYield)} />
+          <MetricCard C={C} label="Div Growth Rate" value={growthRate === 0 ? "\u2014" : fmtPct(growthRate * 100)} change={growthRate === 0 ? null : growthRate * 100} />
+          <MetricCard C={C} label="5Y Avg Yield" value={divData.fiveYearAvgYield === 0 ? "\u2014" : fmtPct(divData.fiveYearAvgYield)} />
           <MetricCard C={C} label="Consecutive Payments" value={dividends.length > 0 ? `${dividends.length}+` : "N/A"} />
         </div>
       </Section>

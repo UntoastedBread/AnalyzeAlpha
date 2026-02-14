@@ -313,7 +313,7 @@ function SectorsSubTab({ deps, viewport }) {
 
 // ─── Sub-tab: Crypto ─────────────────────────────────────────
 
-function CryptoSubTab({ deps, viewport }) {
+function CryptoSubTab({ deps, viewport, onAnalyze }) {
   const {
     C, useI18n, fetchStockData, fetchQuickQuote, Section, HelpWrap,
     fmt, fmtPct, fmtMoney, Sparkline,
@@ -431,8 +431,11 @@ function CryptoSubTab({ deps, viewport }) {
       align: "left",
       cellStyle: { fontWeight: 700, color: C.ink },
       render: (v, row) => (
-        <span style={{ display: "flex", flexDirection: "column" }}>
-          <span style={{ fontWeight: 700, color: C.ink, fontFamily: "var(--body)" }}>{v}</span>
+        <span
+          onClick={() => onAnalyze?.(row.ticker)}
+          style={{ display: "flex", flexDirection: "column", cursor: "pointer" }}
+        >
+          <span style={{ fontWeight: 700, color: C.ink, fontFamily: "var(--body)", textDecoration: "underline", textDecorationColor: C.ruleFaint, textUnderlineOffset: 2 }}>{v}</span>
           <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--mono)" }}>{row.ticker}</span>
         </span>
       ),
@@ -459,6 +462,11 @@ function CryptoSubTab({ deps, viewport }) {
           {v >= 0 ? "+" : ""}{Number(v).toFixed(2)}%
         </span>
       ),
+    },
+    {
+      key: "capEst",
+      label: "Mkt Cap",
+      render: (v) => <span style={{ fontFamily: "var(--mono)", fontSize: 12 }}>${v}B</span>,
     },
     {
       key: "spark",
@@ -520,7 +528,7 @@ function CryptoSubTab({ deps, viewport }) {
                     </span>
                   </div>
                   {c.spark && c.spark.length > 1 && (
-                    <Sparkline data={c.spark} color={c.change24h >= 0 ? C.up : C.down} prevClose={c.prevClose} width={isMobile ? 200 : 260} height={40} />
+                    <Sparkline data={c.spark} color={c.change24h >= 0 ? C.up : C.down} prevClose={c.prevClose} width={isMobile ? 200 : 320} height={44} />
                   )}
                 </div>
               );
@@ -570,16 +578,11 @@ function CryptoSubTab({ deps, viewport }) {
             </Section>
 
             <Section title={t("markets.fearGreed")}>
-              <div style={{ padding: "12px 0" }}>
-                <GaugeBar
-                  C={C}
-                  value={fgValue}
-                  max={100}
-                  label={t("markets.fearGreedIndex")}
-                />
+              <div style={{ padding: "16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 48, lineHeight: 1 }}>
+                  {fgValue > 70 ? "\u{1F911}" : fgValue > 55 ? "\u{1F60F}" : fgValue >= 45 ? "\u{1F610}" : fgValue >= 30 ? "\u{1F61F}" : "\u{1F631}"}
+                </span>
                 <div style={{
-                  marginTop: 12,
-                  textAlign: "center",
                   fontSize: 16,
                   fontWeight: 700,
                   fontFamily: "var(--display)",
@@ -587,9 +590,28 @@ function CryptoSubTab({ deps, viewport }) {
                 }}>
                   {fgLabel}
                 </div>
+                {/* 5-segment color bar */}
+                <div style={{ width: "100%", maxWidth: 220, position: "relative", marginTop: 4 }}>
+                  <div style={{ display: "flex", height: 8, borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ flex: 1, background: "#E53E3E" }} />
+                    <div style={{ flex: 1, background: "#ED8936" }} />
+                    <div style={{ flex: 1, background: "#A0AEC0" }} />
+                    <div style={{ flex: 1, background: "#68D391" }} />
+                    <div style={{ flex: 1, background: "#38A169" }} />
+                  </div>
+                  <div style={{
+                    position: "absolute",
+                    top: -4,
+                    left: `${Math.max(0, Math.min(100, fgValue))}%`,
+                    transform: "translateX(-50%)",
+                    width: 0,
+                    height: 0,
+                    borderLeft: "5px solid transparent",
+                    borderRight: "5px solid transparent",
+                    borderTop: `6px solid ${C.ink}`,
+                  }} />
+                </div>
                 <div style={{
-                  marginTop: 4,
-                  textAlign: "center",
                   fontSize: 10,
                   fontFamily: "var(--mono)",
                   color: C.inkMuted,
@@ -619,7 +641,7 @@ function CryptoSubTab({ deps, viewport }) {
 
 function EconomicSubTab({ deps, viewport }) {
   const {
-    C, useI18n, fetchQuickQuote, Section, HelpWrap, fmt,
+    C, useI18n, fetchQuickQuote, Section, HelpWrap, fmt, Sparkline,
   } = deps;
   const { t } = useI18n();
   const isMobile = Boolean(viewport?.isMobile);
@@ -632,11 +654,11 @@ function EconomicSubTab({ deps, viewport }) {
     setMacroError(null);
     try {
       const symbols = [
-        { key: "vix", ticker: "^VIX", label: "VIX" },
-        { key: "tnx", ticker: "^TNX", label: "10Y Yield" },
-        { key: "fvx", ticker: "^FVX", label: "5Y Yield" },
-        { key: "dxy", ticker: "DX-Y.NYB", label: "DXY" },
-        { key: "oil", ticker: "CL=F", label: "Crude Oil" },
+        { key: "vix", ticker: "^VIX", label: "Volatility Index (VIX)" },
+        { key: "tnx", ticker: "^TNX", label: "10-Year Treasury" },
+        { key: "fvx", ticker: "^FVX", label: "5-Year Treasury" },
+        { key: "dxy", ticker: "DX-Y.NYB", label: "US Dollar Index (DXY)" },
+        { key: "oil", ticker: "CL=F", label: "WTI Crude Oil" },
       ];
       const results = await Promise.allSettled(
         symbols.map(s => fetchQuickQuote(s.ticker))
@@ -645,9 +667,9 @@ function EconomicSubTab({ deps, viewport }) {
       symbols.forEach((s, i) => {
         const r = results[i];
         if (r.status === "fulfilled") {
-          data[s.key] = { price: r.value.price, change: r.value.changePct, label: s.label };
+          data[s.key] = { price: r.value.price, change: r.value.changePct, label: s.label, spark: r.value.spark || [] };
         } else {
-          data[s.key] = { price: 0, change: 0, label: s.label };
+          data[s.key] = { price: 0, change: 0, label: s.label, spark: [] };
         }
       });
       setMacroData(data);
@@ -699,31 +721,59 @@ function EconomicSubTab({ deps, viewport }) {
             gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)",
             gap: 12,
           }}>
-            <MetricCard
-              C={C}
-              label={macroData.vix.label}
-              value={fmt(macroData.vix.price)}
-              change={macroData.vix.change}
-            />
-            <MetricCard
-              C={C}
-              label={t("markets.yieldSpread")}
-              value={yieldSpread !== null ? `${yieldSpread >= 0 ? "+" : ""}${yieldSpread.toFixed(2)}` : "--"}
-              suffix="bps"
-              change={null}
-            />
-            <MetricCard
-              C={C}
-              label={macroData.dxy.label}
-              value={fmt(macroData.dxy.price)}
-              change={macroData.dxy.change}
-            />
-            <MetricCard
-              C={C}
-              label={macroData.oil.label}
-              value={`$${fmt(macroData.oil.price)}`}
-              change={macroData.oil.change}
-            />
+            <div>
+              <MetricCard
+                C={C}
+                label={macroData.vix.label}
+                value={fmt(macroData.vix.price)}
+                change={macroData.vix.change}
+              />
+              {macroData.vix.spark.length > 1 && (
+                <div style={{ padding: "4px 10px 6px" }}>
+                  <Sparkline data={macroData.vix.spark} color={macroData.vix.change >= 0 ? C.up : C.down} width={80} height={24} />
+                </div>
+              )}
+            </div>
+            <div>
+              <MetricCard
+                C={C}
+                label={t("markets.yieldSpread")}
+                value={yieldSpread !== null ? `${yieldSpread >= 0 ? "+" : ""}${yieldSpread.toFixed(2)}` : "--"}
+                suffix="bps"
+                change={null}
+              />
+              {macroData.tnx.spark.length > 1 && (
+                <div style={{ padding: "4px 10px 6px" }}>
+                  <Sparkline data={macroData.tnx.spark} color={macroData.tnx.change >= 0 ? C.up : C.down} width={80} height={24} />
+                </div>
+              )}
+            </div>
+            <div>
+              <MetricCard
+                C={C}
+                label={macroData.dxy.label}
+                value={fmt(macroData.dxy.price)}
+                change={macroData.dxy.change}
+              />
+              {macroData.dxy.spark.length > 1 && (
+                <div style={{ padding: "4px 10px 6px" }}>
+                  <Sparkline data={macroData.dxy.spark} color={macroData.dxy.change >= 0 ? C.up : C.down} width={80} height={24} />
+                </div>
+              )}
+            </div>
+            <div>
+              <MetricCard
+                C={C}
+                label={macroData.oil.label}
+                value={`$${fmt(macroData.oil.price)}`}
+                change={macroData.oil.change}
+              />
+              {macroData.oil.spark.length > 1 && (
+                <div style={{ padding: "4px 10px 6px" }}>
+                  <Sparkline data={macroData.oil.spark} color={macroData.oil.change >= 0 ? C.up : C.down} width={80} height={24} />
+                </div>
+              )}
+            </div>
           </div>
         )}
       </Section>
@@ -865,7 +915,7 @@ const SUB_TABS = [
   { key: "economic", label: "Economic" },
 ];
 
-function MarketsTab({ deps, viewport, subTab, onSubTabChange, isPro, onUpgradePro }) {
+function MarketsTab({ deps, viewport, subTab, onSubTabChange, isPro, onUpgradePro, onAnalyze }) {
   const {
     useI18n,
     C,
@@ -911,7 +961,7 @@ function MarketsTab({ deps, viewport, subTab, onSubTabChange, isPro, onUpgradePr
 
       {activeTab === "crypto" && (
         <LazySection minHeight={300}>
-          <CryptoSubTab deps={deps} viewport={viewport} />
+          <CryptoSubTab deps={deps} viewport={viewport} onAnalyze={onAnalyze} />
         </LazySection>
       )}
 

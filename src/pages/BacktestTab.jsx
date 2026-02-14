@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import {
   ComposedChart, LineChart, Line, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine,
+  Tooltip, ResponsiveContainer, ReferenceLine, Customized,
 } from "recharts";
 import { UIButton, ControlChip, DataTable, MetricCard, EmptyState } from "../components/ui/primitives";
 
@@ -344,7 +344,7 @@ function BacktestTab({ deps, viewport }) {
             </div>
           </div>
 
-          {/* Equity Curve */}
+          {/* Equity Curve with Trade Signals */}
           <Section title={t("backtest.equityCurve")}>
             <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700 }}>
@@ -355,6 +355,18 @@ function BacktestTab({ deps, viewport }) {
                 <span style={{ width: 16, height: 0, borderTop: `2px dashed ${C.inkMuted}` }} />
                 {t("backtest.buyAndHold")}
               </span>
+              {result && result.trades && result.trades.length > 0 && (
+                <>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: C.up }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.up }} />
+                    Buy
+                  </span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontFamily: "var(--mono)", fontWeight: 700, color: C.down }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.down }} />
+                    Sell
+                  </span>
+                </>
+              )}
             </div>
             <ResponsiveContainer width="100%" height={isMobile ? 220 : 300}>
               <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
@@ -376,36 +388,40 @@ function BacktestTab({ deps, viewport }) {
                   formatter={(v, name) => [`$${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, name === "value" ? t("backtest.portfolio") : t("backtest.buyAndHold")]} />
                 <Area dataKey="value" stroke={C.ink} fill="url(#equityGrad)" strokeWidth={1.8} dot={false} name="value" />
                 <Line dataKey="benchmark" stroke={C.inkMuted} dot={false} strokeWidth={1.2} strokeDasharray="6 3" name="benchmark" />
+                {result && result.trades && result.trades.length > 0 && (
+                  <Customized component={({ xAxisMap, yAxisMap }) => {
+                    const xAxis = xAxisMap && Object.values(xAxisMap)[0];
+                    const yAxis = yAxisMap && Object.values(yAxisMap)[0];
+                    if (!xAxis || !yAxis) return null;
+                    const tradeMap = {};
+                    result.trades.forEach(tr => { tradeMap[tr.date] = tr.type; });
+                    return (
+                      <g>
+                        {chartData.map((pt, i) => {
+                          const type = tradeMap[pt.date];
+                          if (!type) return null;
+                          const cx = xAxis.scale(i) + (xAxis.bandSize ? xAxis.bandSize / 2 : 0);
+                          const cy = yAxis.scale(pt.value);
+                          if (isNaN(cx) || isNaN(cy)) return null;
+                          return (
+                            <circle
+                              key={`sig-${i}`}
+                              cx={cx}
+                              cy={cy}
+                              r={4}
+                              fill={type === "BUY" ? C.up : C.down}
+                              stroke="#fff"
+                              strokeWidth={1.5}
+                            />
+                          );
+                        })}
+                      </g>
+                    );
+                  }} />
+                )}
               </ComposedChart>
             </ResponsiveContainer>
           </Section>
-
-          {/* Signal Timeline */}
-          {result && result.equity && result.equity.length > 0 && (
-            <div style={{ marginTop: 8, marginBottom: 16 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 4 }}>
-                {t("backtest.signalTimeline")}
-              </div>
-              <div style={{ display: "flex", height: 20, border: `1px solid ${C.ruleFaint}`, overflow: "hidden" }}>
-                {result.equity.map((pt, i) => {
-                  const trade = result.trades.find(tr => tr.date === pt.date);
-                  const color = trade ? (trade.type === "BUY" ? C.up : C.down) : "transparent";
-                  return (
-                    <div key={i} style={{
-                      flex: 1,
-                      minWidth: 1,
-                      background: color,
-                      borderRight: i < result.equity.length - 1 ? `0.5px solid ${C.ruleFaint}00` : "none",
-                    }} />
-                  );
-                })}
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, fontFamily: "var(--mono)", color: C.inkFaint, marginTop: 2 }}>
-                <span>{result.equity[0]?.date || ""}</span>
-                <span>{result.equity[result.equity.length - 1]?.date || ""}</span>
-              </div>
-            </div>
-          )}
 
           {/* Metrics Grid */}
           <Section title={t("backtest.performanceMetrics")}>

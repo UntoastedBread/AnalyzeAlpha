@@ -249,15 +249,6 @@ function HomeTab({
 
   return (
     <div style={{ display: "grid", gap: isMobile ? 20 : 18, minWidth: 0 }}>
-      {/* Customize toggle */}
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <button
-          onClick={() => setCustomizing(c => !c)}
-          style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: customizing ? C.ink : "transparent", color: customizing ? C.cream : C.inkMuted, fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" }}
-        >
-          {customizing ? "Done" : "Customize"}
-        </button>
-      </div>
       {customizing && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "10px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
           {[
@@ -345,6 +336,12 @@ function HomeTab({
         <div style={{ fontSize: isMobile ? 18 : 24, fontFamily: "var(--display)", color: C.ink, letterSpacing: "-0.01em", lineHeight: 1.2 }}>
           {greetingText}
         </div>
+        <button
+          onClick={() => setCustomizing(c => !c)}
+          style={{ marginLeft: "auto", padding: "4px 10px", border: `1px solid ${C.rule}`, background: customizing ? C.ink : "transparent", color: customizing ? C.cream : C.inkMuted, fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" }}
+        >
+          {customizing ? "Done" : "Customize"}
+        </button>
       </div>
 
       {/* Headlines + Indexes */}

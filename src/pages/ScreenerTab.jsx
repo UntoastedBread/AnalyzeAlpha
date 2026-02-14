@@ -5,6 +5,13 @@ import {
 } from "recharts";
 import { UIButton, ControlChip, TabGroup, DataTable, EmptyState } from "../components/ui/primitives";
 
+const PRESET_META = {
+  oversold: { icon: "📉", desc: "RSI below 30 — potential bounce candidates" },
+  momentum: { icon: "🚀", desc: "Uptrending stocks with buy signals" },
+  highSharpe: { icon: "📊", desc: "Risk-adjusted return above 1.0" },
+  lowVol: { icon: "🛡️", desc: "Low-risk, steady performers" },
+};
+
 const COMP_LINE_COLORS = ["#1A1612", "#8B2500", "#5B4A8A", "#1B6B3A", "#D4A017", "#2E86AB", "#A23B72", "#C73E1D"];
 
 const BATCH_SIZE = 10;
@@ -112,6 +119,7 @@ function ScreenerTab({ deps, viewport, onAnalyze, isPro, onUpgradePro, compariso
   const [scanProgress, setScanProgress] = useState({ done: 0, total: 0 });
   const [sortCol, setSortCol] = useState(null);
   const [sortDir, setSortDir] = useState(1);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // ─── Comparison state ─────────────────────────────────────
   const [compTickers, setCompTickers] = useState(comparisonTickers || "AAPL, MSFT, GOOGL, AMZN");
@@ -413,82 +421,119 @@ function ScreenerTab({ deps, viewport, onAnalyze, isPro, onUpgradePro, compariso
           ════════════════════════════════════════════════════════ */}
       {subTab === "screener" && (
         <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
-          {/* Universe selector */}
-          <div>
-            <div style={{ ...sectionHeader, marginBottom: 8 }}>{t("screener.universe")}</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {indexNames.map((name) => (
-                <ControlChip
-                  key={name}
-                  C={C}
-                  active={universe === name}
-                  onClick={() => { setUniverse(name); setScanResults(null); }}
-                >
-                  {name} ({HEATMAP_INDEXES[name].length})
-                </ControlChip>
-              ))}
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div>
-            <div style={{ ...sectionHeader, marginBottom: 8 }}>{t("screener.filters")}</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>RSI</span>
-                <select value={filters.rsi} onChange={(e) => setFilters((f) => ({ ...f, rsi: e.target.value }))} style={selectStyle}>
-                  {RSI_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{t("screener.sharpe")}</span>
-                <select value={filters.sharpe} onChange={(e) => setFilters((f) => ({ ...f, sharpe: e.target.value }))} style={selectStyle}>
-                  {SHARPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{t("screener.regime")}</span>
-                <select value={filters.regime} onChange={(e) => setFilters((f) => ({ ...f, regime: e.target.value }))} style={selectStyle}>
-                  {REGIME_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{t("screener.signal")}</span>
-                <select value={filters.rec} onChange={(e) => setFilters((f) => ({ ...f, rec: e.target.value }))} style={selectStyle}>
-                  {REC_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{t("screener.risk")}</span>
-                <select value={filters.risk} onChange={(e) => setFilters((f) => ({ ...f, risk: e.target.value }))} style={selectStyle}>
-                  {RISK_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </label>
-            </div>
-          </div>
-
-          {/* Quick scan presets */}
-          <div>
-            <div style={{ ...sectionHeader, marginBottom: 8 }}>{t("screener.quickScan")}</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              <ControlChip C={C} onClick={() => handlePreset("oversold")} style={{ borderRadius: 2 }}>
-                {t("screener.presetOversold")}
-              </ControlChip>
-              <ControlChip C={C} onClick={() => handlePreset("momentum")} style={{ borderRadius: 2 }}>
-                {t("screener.presetMomentum")}
-              </ControlChip>
-              <ControlChip C={C} onClick={() => handlePreset("highSharpe")} style={{ borderRadius: 2 }}>
-                {t("screener.presetHighSharpe")}
-              </ControlChip>
-              <ControlChip C={C} onClick={() => handlePreset("lowVol")} style={{ borderRadius: 2 }}>
-                {t("screener.presetLowVol")}
-              </ControlChip>
-              <div style={{ marginLeft: "auto" }}>
-                <UIButton C={C} variant="primary" onClick={() => runScan(filters)} disabled={scanning} style={{ minWidth: 100 }}>
-                  {scanning ? t("screener.scanning") : t("screener.scan")}
-                </UIButton>
+          {/* Unified search panel */}
+          <div style={{ background: C.warmWhite, border: `1px solid ${C.rule}`, padding: 20, display: "grid", gap: 16 }}>
+            {/* Universe selector */}
+            <div>
+              <div style={{ ...sectionHeader, marginBottom: 8 }}>{t("screener.universe")}</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {indexNames.map((name) => (
+                  <ControlChip
+                    key={name}
+                    C={C}
+                    active={universe === name}
+                    onClick={() => { setUniverse(name); setScanResults(null); }}
+                  >
+                    {name} ({HEATMAP_INDEXES[name].length})
+                  </ControlChip>
+                ))}
               </div>
             </div>
+
+            {/* Preset cards */}
+            <div>
+              <div style={{ ...sectionHeader, marginBottom: 8 }}>{t("screener.quickScan")}</div>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10 }}>
+                {Object.entries(PRESETS).map(([key]) => {
+                  const meta = PRESET_META[key];
+                  const labelKey = key === "oversold" ? "presetOversold" : key === "momentum" ? "presetMomentum" : key === "highSharpe" ? "presetHighSharpe" : "presetLowVol";
+                  const isActive = JSON.stringify(filters) === JSON.stringify(PRESETS[key]);
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handlePreset(key)}
+                      style={{
+                        padding: "12px 14px",
+                        border: `1px solid ${isActive ? C.ink : C.rule}`,
+                        background: isActive ? C.ink : "transparent",
+                        color: isActive ? C.cream : C.ink,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                        transition: "border-color 0.15s ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 16 }}>{meta.icon}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--body)", letterSpacing: "0.04em" }}>{t(`screener.${labelKey}`)}</span>
+                      </div>
+                      <span style={{ fontSize: 9, fontFamily: "var(--body)", color: isActive ? C.cream + "cc" : C.inkMuted, lineHeight: 1.4 }}>{meta.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Collapsible advanced filters */}
+            <div>
+              <button
+                onClick={() => setShowAdvancedFilters(f => !f)}
+                style={{
+                  background: "transparent", border: "none", cursor: "pointer", padding: 0,
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+                  color: C.inkMuted, fontFamily: "var(--body)", display: "flex", alignItems: "center", gap: 4,
+                }}
+              >
+                {t("screener.advancedFilters")} {showAdvancedFilters ? "▲" : "▼"}
+              </button>
+              {showAdvancedFilters && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>RSI</span>
+                    <select value={filters.rsi} onChange={(e) => setFilters((f) => ({ ...f, rsi: e.target.value }))} style={selectStyle}>
+                      {RSI_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{t("screener.sharpe")}</span>
+                    <select value={filters.sharpe} onChange={(e) => setFilters((f) => ({ ...f, sharpe: e.target.value }))} style={selectStyle}>
+                      {SHARPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{t("screener.regime")}</span>
+                    <select value={filters.regime} onChange={(e) => setFilters((f) => ({ ...f, regime: e.target.value }))} style={selectStyle}>
+                      {REGIME_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{t("screener.signal")}</span>
+                    <select value={filters.rec} onChange={(e) => setFilters((f) => ({ ...f, rec: e.target.value }))} style={selectStyle}>
+                      {REC_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{t("screener.risk")}</span>
+                    <select value={filters.risk} onChange={(e) => setFilters((f) => ({ ...f, risk: e.target.value }))} style={selectStyle}>
+                      {RISK_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Full-width scan button */}
+            <UIButton
+              C={C}
+              variant="primary"
+              onClick={() => runScan(filters)}
+              disabled={scanning}
+              style={{ width: "100%", padding: "12px 0", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", background: C.ink, color: C.cream }}
+            >
+              {scanning ? t("screener.scanning") : t("screener.scan")}
+            </UIButton>
           </div>
 
           {/* Progress bar */}
