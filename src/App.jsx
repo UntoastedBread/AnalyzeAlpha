@@ -3448,6 +3448,7 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
   const [alForm, setAlForm] = useState({ ticker: "", type: "above", value: "" });
   const [busy, setBusy] = useState(false);
   const ref = useRef(null);
+  const toolCount = watchlist.length + alerts.length;
 
   useEffect(() => {
     const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -3473,8 +3474,10 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <button onClick={() => setOpen(!open)} style={{ padding: "0 0 10px 0", background: "none", border: "none", borderBottom: open ? `2px solid ${C.ink}` : "2px solid transparent", color: open ? C.ink : C.inkMuted, fontSize: 12, fontWeight: open ? 700 : 500, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)" }}>
-        {t("nav.tools")} ▾ {(watchlist.length + alerts.length) > 0 && <span style={{ fontSize: 9, background: C.ink, color: C.cream, borderRadius: "50%", padding: "1px 5px", marginLeft: 4 }}>{watchlist.length + alerts.length}</span>}
+      <button onClick={() => setOpen(!open)} style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", padding: "0 0 10px 0", background: "none", border: "none", borderBottom: open ? `2px solid ${C.ink}` : "2px solid transparent", color: open ? C.ink : C.inkMuted, fontSize: 12, fontWeight: open ? 700 : 500, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)" }}>
+        <span>{t("nav.tools")}</span>
+        <span style={{ fontSize: 10, lineHeight: 1, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▾</span>
+        {toolCount > 0 && <span style={{ fontSize: 9, background: C.ink, color: C.cream, borderRadius: "50%", padding: "1px 5px", marginLeft: 2 }}>{toolCount}</span>}
       </button>
       {menuPresence.mounted && (
         <div
