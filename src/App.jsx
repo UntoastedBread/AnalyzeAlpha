@@ -337,8 +337,11 @@ function labelFor(label, t) {
 }
 
 function buildNewsPlaceholder(text) {
-  const safe = encodeURIComponent(text || "");
-  return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 500'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0%25' stop-color='%23EFE7DC'/><stop offset='100%25' stop-color='%23D7C8B4'/></linearGradient></defs><rect width='800' height='500' fill='url(%23g)'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Verdana' font-size='36' fill='%236B5E52'>${safe}</text></svg>`;
+  let hash = 0;
+  const str = text || "news";
+  for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  const seed = Math.abs(hash);
+  return `https://picsum.photos/seed/${seed}/800/500`;
 }
 
 function getFirstNameFromUser(user) {
@@ -1312,7 +1315,7 @@ const FALLBACK_NEWS = [
   { titleKey: "news.fallback.3.title", sourceKey: "news.fallback.3.source", pubDate: "", descriptionKey: "news.fallback.3.desc" },
 ];
 
-const NEWS_PLACEHOLDER_IMAGE = buildNewsPlaceholder("Market News");
+const NEWS_PLACEHOLDER_IMAGE = buildNewsPlaceholder("market-news-fallback");
 
 
 const SCORECARD_INDICATORS = [
@@ -1709,7 +1712,7 @@ function LiveBadge({ latency, source }) {
   const { t } = useI18n();
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10, fontFamily: "var(--mono)", fontWeight: 600, letterSpacing: "0.04em" }}>
-      <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.up, display: "inline-block", animation: "livePulse 2s ease infinite", boxShadow: `0 0 6px ${C.up}55` }} />
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.up, display: "inline-block", animation: "livePulse 2s ease infinite", boxShadow: "none" }} />
       <span style={{ color: C.up }}>{t("common.live")}</span>
       <span style={{ color: C.inkFaint }}>·</span>
       <span style={{ color: C.inkMuted, fontSize: 9 }}>{source}</span>
@@ -2330,7 +2333,7 @@ function TickerStrip({ data, loading, onAnalyze }) {
     <div style={{ display: "flex", alignItems: "center", background: C.stripBg, color: C.stripText, overflow: "hidden", minWidth: 0 }}>
       {/* LIVE badge — fixed, does not scroll */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRight: `1px solid ${C.stripBorder}`, flexShrink: 0 }}>
-        <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "livePulse 2s ease-in-out infinite", boxShadow: "0 0 6px rgba(74,222,128,0.4)" }} />
+        <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "livePulse 2s ease-in-out infinite", boxShadow: "none" }} />
         <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: "#4ADE80", fontWeight: 700, letterSpacing: "0.08em" }}>{t("common.live")}</span>
       </div>
       {/* Scrolling content */}
@@ -2558,11 +2561,10 @@ function NewsSection({ news, loading }) {
     );
   }
   const hero = news[0];
-  const placeholder = buildNewsPlaceholder(t("home.marketNews"));
   const heroTitle = hero.titleKey ? t(hero.titleKey) : hero.title;
   const heroDesc = hero.descriptionKey ? t(hero.descriptionKey) : hero.description;
   const heroSource = hero.sourceKey ? t(hero.sourceKey) : hero.source || t("news.sourceYahoo");
-  const heroImage = hero.image || placeholder || NEWS_PLACEHOLDER_IMAGE;
+  const heroImage = hero.image || buildNewsPlaceholder(heroTitle || "market news");
   const rest = news.slice(1);
   const cards = rest.slice(0, 6);
   const publishedText = hero.pubDate ? t("news.published", { ago: timeAgo(hero.pubDate, t) }) : t("news.publishedRecently");
@@ -2586,15 +2588,15 @@ function NewsSection({ news, loading }) {
           </div>
         </div>
         <div style={{ position: "relative", background: C.paper }}>
-          <img src={heroImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = placeholder || NEWS_PLACEHOLDER_IMAGE; }} />
+          <img src={heroImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = NEWS_PLACEHOLDER_IMAGE; }} />
         </div>
         </a>
       </HelpWrap>
       <HelpWrap help={{ title: t("help.newsList.title"), body: t("help.newsList.body") }} block>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
           {cards.map((n, i) => {
-            const cardImage = n.image || placeholder || NEWS_PLACEHOLDER_IMAGE;
             const cardTitle = n.titleKey ? t(n.titleKey) : n.title;
+            const cardImage = n.image || buildNewsPlaceholder(cardTitle || `news-${i}`);
             const cardSource = n.sourceKey ? t(n.sourceKey) : n.source || t("news.sourceYahoo");
             return (
               <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
@@ -2602,7 +2604,7 @@ function NewsSection({ news, loading }) {
                 onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}>
                 <div style={{ position: "relative", background: C.paper }}>
-                  <img src={cardImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = placeholder || NEWS_PLACEHOLDER_IMAGE; }} />
+                  <img src={cardImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = NEWS_PLACEHOLDER_IMAGE; }} />
                 </div>
                 <div style={{ padding: "12px 14px", display: "grid", gap: 8 }}>
                   <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{cardTitle}</div>
@@ -3425,7 +3427,7 @@ function App() {
   const [accountSubTab, setAccountSubTab] = useState(initialRoute.accountSubTab);
   const [routeTicker, setRouteTicker] = useState(initialRoute.ticker);
   const [chartSelection, setChartSelection] = useState(initialRoute.chart);
-  const [chartType, setChartType] = useState(() => initialRoute.chartType || initialWorkspace.prefs?.chartType || "line");
+  const [chartType, setChartType] = useState(() => initialRoute.chartType || initialWorkspace.prefs?.chartType || "candles");
   const [theme, setTheme] = useState(() => {
     if (typeof window === "undefined") return "system";
     const saved = localStorage.getItem(THEME_STORAGE_KEY);
@@ -3527,16 +3529,14 @@ function App() {
   }, []);
 
   const [shareToast, setShareToast] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
   const handleShare = useCallback(() => {
     const url = window.location.href;
-    if (navigator.share) {
-      navigator.share({ title: "AnalyzeAlpha", url }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(url).then(() => {
-        setShareToast(true);
-        setTimeout(() => setShareToast(false), 2000);
-      }).catch(() => {});
-    }
+    navigator.clipboard.writeText(url).then(() => {
+      setShareUrl(url);
+      setShareToast(true);
+      setTimeout(() => setShareToast(false), 3000);
+    }).catch(() => {});
   }, []);
 
   const toggleTheme = useCallback(() => {
@@ -4191,7 +4191,7 @@ function App() {
       <header style={{ padding: viewport.isMobile ? "12px 14px 0" : "16px 24px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 2000 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
-            <BrandMark size={22} pro={isPro} />
+            <a onClick={() => { setTab("home"); window.history.pushState({}, "", "/"); }} style={{ cursor: "pointer", textDecoration: "none" }}><BrandMark size={22} pro={isPro} /></a>
             <span style={{ width: 1, height: 14, background: C.rule, display: "inline-block", margin: "0 2px" }} />
             <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>{t("tagline.quant")}</span>
           </div>
@@ -4407,15 +4407,15 @@ function App() {
                             className={`menu-pop-side${langMenuPresence.phase === "closing" ? " menu-pop-exit" : ""}`}
                             style={{
                               position: "absolute",
-                              left: "100%",
+                              right: "100%",
                               top: 0,
-                              marginLeft: -1,
+                              marginRight: -1,
                               minWidth: 260,
                               background: C.cream,
                               borderRadius: 0,
                               border: `1px solid ${C.rule}`,
-                              borderLeft: "none",
-                              boxShadow: "4px 8px 24px rgba(0,0,0,0.08)",
+                              borderRight: "none",
+                              boxShadow: "-4px 8px 24px rgba(0,0,0,0.08)",
                               padding: "8px 6px",
                               zIndex: 2300,
                               pointerEvents: langMenuPresence.phase === "open" ? "auto" : "none",
@@ -4477,15 +4477,15 @@ function App() {
                             className={`menu-pop-side${a11yMenuPresence.phase === "closing" ? " menu-pop-exit" : ""}`}
                             style={{
                               position: "absolute",
-                              left: "100%",
+                              right: "100%",
                               top: 0,
-                              marginLeft: -1,
+                              marginRight: -1,
                               minWidth: 300,
                               background: C.cream,
                               borderRadius: 0,
                               border: `1px solid ${C.rule}`,
-                              borderLeft: "none",
-                              boxShadow: "4px 8px 24px rgba(0,0,0,0.08)",
+                              borderRight: "none",
+                              boxShadow: "-4px 8px 24px rgba(0,0,0,0.08)",
                               padding: "8px 6px",
                               zIndex: 2300,
                               pointerEvents: a11yMenuPresence.phase === "open" ? "auto" : "none",
@@ -4626,21 +4626,24 @@ function App() {
 
       <main style={{ flex: 1, padding: viewport.isMobile ? "16px 14px" : "20px 24px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1, minWidth: 0 }} key={tab + (result?.ticker || "")}>
         {/* Floating share button */}
-        <button
-          onClick={handleShare}
-          title={t("share.copyLink") || "Copy link"}
-          style={{ position: "absolute", top: 16, right: 16, zIndex: 10, padding: "6px 8px", background: "transparent", border: `1px solid ${C.rule}`, color: C.inkMuted, cursor: "pointer", display: "flex", alignItems: "center" }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-          </svg>
+        <div style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}>
+          <button
+            onClick={handleShare}
+            title={t("share.copyLink") || "Copy link"}
+            style={{ padding: "6px 8px", background: "transparent", border: `1px solid ${C.rule}`, color: C.inkMuted, cursor: "pointer", display: "flex", alignItems: "center" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+          </button>
           {shareToast && (
-            <span style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, padding: "4px 8px", background: C.ink, color: C.cream, fontSize: 9, fontFamily: "var(--mono)", whiteSpace: "nowrap", zIndex: 100 }}>
-              {t("share.copied") || "Link copied!"}
-            </span>
+            <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 6, padding: "10px 14px", background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 100, minWidth: 200 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, fontFamily: "var(--body)", marginBottom: 4 }}>Link copied!</div>
+              <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted, wordBreak: "break-all", lineHeight: 1.4 }}>{shareUrl}</div>
+            </div>
           )}
-        </button>
+        </div>
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} chartType={resolvedChartType} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
         {!loading && !error && tab === "home" && (

@@ -17,7 +17,6 @@ function HomeTab({
     REGION_MOVERS,
     HEATMAP_UNIVERSE,
     DEFAULT_TRENDING,
-    ASSET_SECTIONS,
     PORTFOLIO_TILE,
     FALLBACK_NEWS,
     fetchTickerStrip,
@@ -25,6 +24,7 @@ function HomeTab({
     fetchMarketMovers,
     fetchQuickQuote,
     fetchRSSNews,
+    fetchStockData,
     labelFor,
     HelpWrap,
     TickerStrip,
@@ -34,9 +34,7 @@ function HomeTab({
     MiniIntradayChart,
     LazySection,
     MoverColumn,
-    AssetRow,
-    MarketScorecardCard,
-    CrossAssetCard,
+    Sparkline,
     SectorPerformanceCard,
     YieldCurveCard,
     ChangelogBanner,
@@ -57,12 +55,13 @@ function HomeTab({
   const [trendingLoading, setTrendingLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [agoText, setAgoText] = useState("");
+  const [fearGreed, setFearGreed] = useState({ rsi: 50, spark: [], loading: true });
   const [customizing, setCustomizing] = useState(false);
   const [widgets, setWidgets] = useState(() => {
     try {
       const saved = localStorage.getItem("aa_home_widgets_v1");
-      return saved ? JSON.parse(saved) : { tickerStrip: true, indexes: true, movers: true, news: true, assetClasses: true, marketBrief: true, changelog: true, earningsCalendar: true, economicSnapshot: true };
-    } catch { return { tickerStrip: true, indexes: true, movers: true, news: true, assetClasses: true, marketBrief: true, changelog: true, earningsCalendar: true, economicSnapshot: true }; }
+      return saved ? JSON.parse(saved) : { tickerStrip: true, indexes: true, movers: true, news: true, fearGreed: true, marketBrief: true, changelog: true, earningsCalendar: true, economicSnapshot: true };
+    } catch { return { tickerStrip: true, indexes: true, movers: true, news: true, fearGreed: true, marketBrief: true, changelog: true, earningsCalendar: true, economicSnapshot: true }; }
   });
   const toggleWidget = (key) => {
     setWidgets(prev => {
@@ -136,6 +135,39 @@ function HomeTab({
     loadRegionData(region, cancelled, true);
     loadMovers(region, cancelled);
     loadTrending(cancelled);
+
+    const loadFearGreed = async () => {
+      try {
+        const [quoteRes, stockRes] = await Promise.allSettled([
+          fetchQuickQuote("BTC-USD"),
+          fetchStockData("BTC-USD", "3mo"),
+        ]);
+        const spark = quoteRes.status === "fulfilled" ? (quoteRes.value.spark || []) : [];
+        let rsi = 50;
+        if (stockRes.status === "fulfilled" && stockRes.value.data) {
+          const closes = stockRes.value.data.map(d => d.Close);
+          if (closes.length > 15) {
+            const period = 14;
+            let gains = 0, losses = 0;
+            for (let i = 1; i <= period; i++) {
+              const diff = closes[i] - closes[i - 1];
+              if (diff > 0) gains += diff; else losses -= diff;
+            }
+            let avgGain = gains / period, avgLoss = losses / period;
+            for (let i = period + 1; i < closes.length; i++) {
+              const diff = closes[i] - closes[i - 1];
+              avgGain = (avgGain * (period - 1) + (diff > 0 ? diff : 0)) / period;
+              avgLoss = (avgLoss * (period - 1) + (diff < 0 ? -diff : 0)) / period;
+            }
+            rsi = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+          }
+        }
+        if (!cancelled.current) setFearGreed({ rsi, spark, loading: false });
+      } catch {
+        if (!cancelled.current) setFearGreed({ rsi: 50, spark: [], loading: false });
+      }
+    };
+    loadFearGreed();
 
     const loadNews = async () => {
       try {
@@ -256,7 +288,7 @@ function HomeTab({
             { key: "indexes", label: "Indexes" },
             { key: "movers", label: "Movers" },
             { key: "news", label: "News" },
-            { key: "assetClasses", label: "Asset Classes" },
+            { key: "fearGreed", label: "Fear & Greed" },
             { key: "marketBrief", label: "Market Brief" },
             { key: "earningsCalendar", label: "Earnings Calendar" },
             { key: "economicSnapshot", label: "Economic Snapshot" },
@@ -406,16 +438,10 @@ function HomeTab({
         </HelpWrap>
       </LazySection>}
 
-      {/* Asset Class Sections */}
-      {widgets.assetClasses && <LazySection minHeight={200}>
-        <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
-          {ASSET_SECTIONS.map(section => (
-            <HelpWrap key={section.title} help={{ title: t("help.assetClasses.title"), body: t("help.assetClasses.body") }} block>
-              <AssetRow section={section} onAnalyze={onAnalyze} />
-            </HelpWrap>
-          ))}
-        </div>
-      </LazySection>}
+      {/* Fear & Greed Index */}
+      {widgets.fearGreed && (
+        <FearGreedWidget C={C} t={t} data={fearGreed} Sparkline={Sparkline} />
+      )}
 
       {/* Economic Snapshot */}
       {widgets.economicSnapshot && (
@@ -431,12 +457,6 @@ function HomeTab({
           help={{ title: t("help.marketBrief.title"), body: t("help.marketBrief.body") }}
         >
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: isMobile ? 14 : 16, alignItems: "start" }}>
-            <HelpWrap help={{ title: t("help.marketScorecard.title"), body: t("help.marketScorecard.body") }} block>
-              <MarketScorecardCard />
-            </HelpWrap>
-            <HelpWrap help={{ title: t("help.crossAsset.title"), body: t("help.crossAsset.body") }} block>
-              <CrossAssetCard />
-            </HelpWrap>
             <HelpWrap help={{ title: t("help.sectorPerformance.title"), body: t("help.sectorPerformance.body") }} block>
               <SectorPerformanceCard />
             </HelpWrap>
@@ -453,6 +473,83 @@ function HomeTab({
           <ChangelogBanner />
         </HelpWrap>
       </LazySection>}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// FEAR & GREED INDEX (Home widget)
+// ═══════════════════════════════════════════════════════════
+function FearGreedWidget({ C, t, data, Sparkline }) {
+  const { rsi, spark, loading } = data;
+  const value = Math.max(0, Math.min(100, rsi));
+  const emoji = value > 70 ? "\u{1F911}" : value > 55 ? "\u{1F60F}" : value >= 45 ? "\u{1F610}" : value >= 30 ? "\u{1F61F}" : "\u{1F631}";
+  const label = value > 70 ? "Extreme Greed" : value > 55 ? "Greed" : value >= 45 ? "Neutral" : value >= 30 ? "Fear" : "Extreme Fear";
+  const color = value > 55 ? C.up : value < 45 ? C.down : C.hold;
+  const segments = [
+    { c: "#e74c3c", l: "Extreme Fear" },
+    { c: "#e67e22", l: "Fear" },
+    { c: "#95a5a6", l: "Neutral" },
+    { c: "#27ae60", l: "Greed" },
+    { c: "#2ecc71", l: "Extreme Greed" },
+  ];
+
+  if (loading) {
+    return (
+      <div style={{ padding: 24, border: `1px solid ${C.rule}`, background: C.warmWhite, textAlign: "center" }}>
+        <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>Loading Fear & Greed Index...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "20px 24px", border: `1px solid ${C.rule}`, background: C.warmWhite }}>
+      <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--body)", color: C.inkMuted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>
+        Fear & Greed Index
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
+        {/* Emoji + label */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 100 }}>
+          <div style={{ fontSize: 48, lineHeight: 1 }}>{emoji}</div>
+          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color, marginTop: 6 }}>{Math.round(value)}</div>
+          <div style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--body)", color, marginTop: 2 }}>{label}</div>
+        </div>
+
+        {/* Bar */}
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <div style={{ display: "flex", height: 10, borderRadius: 5, overflow: "hidden", marginBottom: 6 }}>
+            {segments.map((s, i) => (
+              <div key={i} style={{ flex: 1, background: s.c }} />
+            ))}
+          </div>
+          <div style={{ position: "relative", height: 14, marginTop: -2 }}>
+            <div style={{
+              position: "absolute",
+              left: `${value}%`,
+              transform: "translateX(-50%)",
+              width: 0, height: 0,
+              borderLeft: "5px solid transparent",
+              borderRight: "5px solid transparent",
+              borderBottom: `6px solid ${C.ink}`,
+            }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+            <span style={{ fontSize: 8, fontFamily: "var(--body)", color: C.inkFaint }}>Fear</span>
+            <span style={{ fontSize: 8, fontFamily: "var(--body)", color: C.inkFaint }}>Greed</span>
+          </div>
+        </div>
+
+        {/* BTC Sparkline */}
+        {spark.length > 5 && Sparkline && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 100 }}>
+            <div style={{ fontSize: 9, fontFamily: "var(--mono)", color: C.inkFaint, marginBottom: 4 }}>BTC-USD (90d)</div>
+            <Sparkline data={spark} width={120} height={36} color={color} />
+          </div>
+        )}
+      </div>
+      <div style={{ fontSize: 9, fontFamily: "var(--body)", color: C.inkFaint, marginTop: 12 }}>
+        Based on BTC RSI (14-day) as a proxy for market sentiment
+      </div>
     </div>
   );
 }

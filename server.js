@@ -245,14 +245,18 @@ app.get('/api/rss', (req, res) => {
             const m = block.match(new RegExp(`<${tag}><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}>([\\s\\S]*?)<\\/${tag}>`));
             return m ? (m[1] || m[2] || '').trim() : '';
           };
-          const imageMatch = block.match(/<media:content[^>]+url=["']([^"']+)["']/);
+          const mediaMatch = block.match(/<media:content[^>]+url=["']([^"']+)["']/);
+          const enclosureMatch = block.match(/<enclosure[^>]+url=["']([^"']+)["']/);
+          const mediaThumbMatch = block.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/);
+          const descImgMatch = block.match(/<img[^>]+src=["']([^"']+)["']/);
+          const image = (mediaMatch && mediaMatch[1]) || (enclosureMatch && enclosureMatch[1]) || (mediaThumbMatch && mediaThumbMatch[1]) || (descImgMatch && descImgMatch[1]) || null;
           items.push({
             title: get('title'),
             link: get('link'),
             pubDate: get('pubDate'),
             description: get('description').replace(/<[^>]*>/g, '').slice(0, 200),
             source: get('source') || 'Yahoo Finance',
-            image: imageMatch ? imageMatch[1] : null,
+            image,
           });
         }
         res.json({ items: items.slice(0, 20) });
@@ -428,11 +432,20 @@ app.get('/api/options/:ticker', (req, res) => {
       });
       apiRes.on('end', () => {
         if (responded) return;
-        if (apiRes.statusCode === 404 && index < urls.length - 1) {
-          console.log(`[Proxy] Options ${ticker} — 404 on ${url}, trying fallback`);
+        if ((apiRes.statusCode >= 400 || apiRes.statusCode === 302) && index < urls.length - 1) {
+          console.log(`[Proxy] Options ${ticker} — ${apiRes.statusCode} on ${url}, trying fallback`);
           return tryUrl(index + 1);
         }
         try {
+          // Verify response is valid JSON before forwarding
+          if (apiRes.statusCode === 200) {
+            try { JSON.parse(data); } catch {
+              if (index < urls.length - 1) {
+                console.log(`[Proxy] Options ${ticker} — invalid JSON on ${url}, trying fallback`);
+                return tryUrl(index + 1);
+              }
+            }
+          }
           res.setHeader('Content-Type', 'application/json');
           res.status(apiRes.statusCode).send(data);
           console.log(`[Proxy] ✓ Options ${ticker} — ${apiRes.statusCode}`);

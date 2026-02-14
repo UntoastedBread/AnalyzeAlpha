@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { UIButton, DataTable, EmptyState, ControlChip } from "../components/ui/primitives";
 
 const SIMULATED_FEED = [
@@ -38,6 +38,219 @@ function formatTimeAgo(ts) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+function confidenceLabel(conf) {
+  if (conf >= 85) return { text: "Very confident", color: "#1B5E20" };
+  if (conf >= 70) return { text: "Confident", color: "#388E3C" };
+  if (conf >= 55) return { text: "Somewhat confident", color: "#F9A825" };
+  if (conf >= 40) return { text: "Uncertain", color: "#E65100" };
+  return { text: "Not confident", color: "#C62828" };
+}
+
+// ═══════════════════════════════════════════════════════════
+// GAME OF LIFE CANVAS
+// ═══════════════════════════════════════════════════════════
+function GameOfLifeCanvas({ C }) {
+  const canvasRef = useRef(null);
+  const stateRef = useRef(null);
+  const COLS = 100, ROWS = 60, CELL = 10;
+  const TICK_MS = 300;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    canvas.width = COLS * CELL;
+    canvas.height = ROWS * CELL;
+
+    const grid = Array.from({ length: ROWS }, () =>
+      Array.from({ length: COLS }, () => Math.random() < 0.25 ? 1 : 0)
+    );
+    const ages = Array.from({ length: ROWS }, (_, r) =>
+      Array.from({ length: COLS }, (_, c) => grid[r][c] ? 1.0 : 0.0)
+    );
+    stateRef.current = { grid, ages, lastTick: performance.now() };
+
+    function step() {
+      const { grid: g, ages: a } = stateRef.current;
+      const nextGrid = g.map((row, r) => row.map((cell, c) => {
+        let neighbors = 0;
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = (r + dr + ROWS) % ROWS;
+            const nc = (c + dc + COLS) % COLS;
+            neighbors += g[nr][nc];
+          }
+        }
+        if (cell && (neighbors === 2 || neighbors === 3)) return 1;
+        if (!cell && neighbors === 3) return 1;
+        return 0;
+      }));
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (nextGrid[r][c] && !g[r][c]) a[r][c] = 0.05;
+          else if (!nextGrid[r][c] && g[r][c]) a[r][c] = Math.max(a[r][c], 0.05);
+        }
+      }
+      stateRef.current.grid = nextGrid;
+      stateRef.current.lastTick = performance.now();
+    }
+
+    function draw() {
+      const bgColor = C.warmWhite || C.cream || "#FAF8F5";
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const { grid: g, ages: a } = stateRef.current;
+      const baseColor = C.up || "#2E7D32";
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const age = a[r][c];
+          if (age > 0.01) {
+            if (g[r][c]) {
+              a[r][c] = Math.min(1, age + 0.05);
+            } else {
+              a[r][c] = Math.max(0, age - 0.04);
+            }
+            const alpha = Math.min(1, a[r][c]);
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = baseColor;
+            ctx.fillRect(c * CELL, r * CELL, CELL - 1, CELL - 1);
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    let rafId;
+    let tickAcc = 0;
+    let lastFrame = performance.now();
+    function loop(now) {
+      const dt = now - lastFrame;
+      lastFrame = now;
+      tickAcc += dt;
+      if (tickAcc >= TICK_MS) {
+        step();
+        tickAcc -= TICK_MS;
+      }
+      draw();
+      rafId = requestAnimationFrame(loop);
+    }
+    draw();
+    rafId = requestAnimationFrame(loop);
+
+    return () => cancelAnimationFrame(rafId);
+  }, [C]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        width: "100%",
+        height: 400,
+        border: `1px solid ${C.ruleFaint}`,
+        display: "block",
+      }}
+    />
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// SENTIMENT VOTING WIDGET
+// ═══════════════════════════════════════════════════════════
+function SentimentVoting({ C }) {
+  const [userVote, setUserVote] = useState(() => {
+    try { return localStorage.getItem("aa_sentiment_vote") || null; } catch { return null; }
+  });
+  const [votes, setVotes] = useState(() => {
+    try {
+      const saved = localStorage.getItem("aa_sentiment_votes_v1");
+      return saved ? JSON.parse(saved) : { bullish: 247, neutral: 89, bearish: 64 };
+    } catch { return { bullish: 247, neutral: 89, bearish: 64 }; }
+  });
+
+  const handleVote = useCallback((sentiment) => {
+    if (userVote === sentiment) return;
+    setVotes(prev => {
+      const next = { ...prev };
+      if (userVote) next[userVote] = Math.max(0, next[userVote] - 1);
+      next[sentiment] = (next[sentiment] || 0) + 1;
+      try { localStorage.setItem("aa_sentiment_votes_v1", JSON.stringify(next)); } catch {}
+      return next;
+    });
+    setUserVote(sentiment);
+    try { localStorage.setItem("aa_sentiment_vote", sentiment); } catch {}
+  }, [userVote]);
+
+  const total = votes.bullish + votes.neutral + votes.bearish;
+  const pctBull = total > 0 ? Math.round((votes.bullish / total) * 100) : 33;
+  const pctNeutral = total > 0 ? Math.round((votes.neutral / total) * 100) : 34;
+  const pctBear = total > 0 ? Math.round((votes.bearish / total) * 100) : 33;
+  const dominant = pctBull >= pctBear && pctBull >= pctNeutral ? "Bullish" : pctBear >= pctBull && pctBear >= pctNeutral ? "Bearish" : "Neutral";
+  const dominantColor = dominant === "Bullish" ? C.up : dominant === "Bearish" ? C.down : C.hold;
+  const dominantEmoji = dominant === "Bullish" ? "\u{1F4C8}" : dominant === "Bearish" ? "\u{1F4C9}" : "\u26D6\uFE0F";
+
+  const btnStyle = (key) => ({
+    flex: 1,
+    padding: "12px 8px",
+    border: `2px solid ${userVote === key ? (key === "bullish" ? C.up : key === "bearish" ? C.down : C.hold) : C.rule}`,
+    background: userVote === key ? (key === "bullish" ? C.upBg : key === "bearish" ? C.downBg : C.holdBg) : "transparent",
+    color: key === "bullish" ? C.up : key === "bearish" ? C.down : C.hold,
+    cursor: "pointer",
+    fontFamily: "var(--body)",
+    fontSize: 12,
+    fontWeight: 700,
+    textAlign: "center",
+    transition: "all 0.15s",
+  });
+
+  return (
+    <div style={{ border: `1px solid ${C.rule}`, background: C.warmWhite, padding: "20px 24px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <span style={{ fontSize: 28 }}>{dominantEmoji}</span>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--body)", color: C.inkMuted, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Community Sentiment
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "var(--display)", color: dominantColor }}>
+            {dominant}
+          </div>
+        </div>
+        <div style={{ marginLeft: "auto", fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>
+          {total} votes
+        </div>
+      </div>
+
+      {/* Vote buttons */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <button style={btnStyle("bullish")} onClick={() => handleVote("bullish")}>
+          {userVote === "bullish" ? "\u2713 " : ""}Bullish
+        </button>
+        <button style={btnStyle("neutral")} onClick={() => handleVote("neutral")}>
+          {userVote === "neutral" ? "\u2713 " : ""}Neutral
+        </button>
+        <button style={btnStyle("bearish")} onClick={() => handleVote("bearish")}>
+          {userVote === "bearish" ? "\u2713 " : ""}Bearish
+        </button>
+      </div>
+
+      {/* Results bar */}
+      <div style={{ display: "flex", height: 8, borderRadius: 4, overflow: "hidden" }}>
+        <div style={{ width: `${pctBull}%`, background: C.up, transition: "width 0.3s" }} />
+        <div style={{ width: `${pctNeutral}%`, background: C.hold, transition: "width 0.3s" }} />
+        <div style={{ width: `${pctBear}%`, background: C.down, transition: "width 0.3s" }} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+        <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.up, fontWeight: 600 }}>{pctBull}% Bullish</span>
+        <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.hold, fontWeight: 600 }}>{pctNeutral}% Neutral</span>
+        <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.down, fontWeight: 600 }}>{pctBear}% Bearish</span>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN COMMUNITY TAB
+// ═══════════════════════════════════════════════════════════
 function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
   const {
     useI18n,
@@ -50,15 +263,15 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
     LazySection,
     ProTag,
     BrandMark,
+    Sparkline,
+    fetchQuickQuote,
   } = deps;
   const { t } = useI18n();
   const isMobile = Boolean(viewport?.isMobile);
 
-  const [selectedTicker, setSelectedTicker] = useState("");
-  const [shareLink, setShareLink] = useState("");
-  const [copied, setCopied] = useState(false);
   const [sortCol, setSortCol] = useState(null);
   const [sortDir, setSortDir] = useState(1);
+  const [trendingSparks, setTrendingSparks] = useState({});
 
   // Create post state
   const [showPostForm, setShowPostForm] = useState(false);
@@ -73,20 +286,24 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
     } catch { return []; }
   });
 
-  const handleShare = useCallback(() => {
-    if (!selectedTicker) return;
-    const url = `${window.location.origin}?tab=analysis&ticker=${encodeURIComponent(selectedTicker)}`;
-    setShareLink(url);
-    setCopied(false);
-  }, [selectedTicker]);
-
-  const handleCopy = useCallback(() => {
-    if (!shareLink) return;
-    navigator.clipboard.writeText(shareLink).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }, [shareLink]);
+  // Fetch sparklines for trending tickers
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSparks() {
+      const tickers = TRENDING.map(t => t.ticker);
+      const results = await Promise.allSettled(tickers.map(t => fetchQuickQuote(t)));
+      if (cancelled) return;
+      const sparks = {};
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled" && r.value.spark) {
+          sparks[tickers[i]] = { spark: r.value.spark, changePct: r.value.changePct };
+        }
+      });
+      setTrendingSparks(sparks);
+    }
+    loadSparks();
+    return () => { cancelled = true; };
+  }, [fetchQuickQuote]);
 
   const handleSort = useCallback((col) => {
     if (sortCol === col) setSortDir((d) => -d);
@@ -184,201 +401,38 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
   /* ------------------------------------------------------------------ */
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto" }}>
+    <div style={{ maxWidth: 900, margin: "0 auto", position: "relative" }}>
 
-      {/* ============ Share Analysis ============ */}
-      <Section title={t("community.shareTitle")}>
-        <div style={{ marginBottom: 24 }}>
-          <p style={{
-            fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)",
-            lineHeight: 1.5, margin: "0 0 12px",
-          }}>
-            {t("community.shareDesc")}
-          </p>
+      {/* ============ Game of Life Background ============ */}
+      <div style={{ marginBottom: 24 }}>
+        <GameOfLifeCanvas C={C} />
+      </div>
 
-          {recentAnalyses && recentAnalyses.length > 0 ? (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              <select
-                value={selectedTicker}
-                onChange={(e) => { setSelectedTicker(e.target.value); setShareLink(""); setCopied(false); }}
-                style={{
-                  padding: "8px 12px",
-                  fontSize: 11,
-                  fontFamily: "var(--mono)",
-                  fontWeight: 600,
-                  border: `1px solid ${C.rule}`,
-                  background: C.cream,
-                  color: C.ink,
-                  cursor: "pointer",
-                  minWidth: 160,
-                }}
-              >
-                <option value="">{t("community.selectAnalysis")}</option>
-                {recentAnalyses.map((a) => (
-                  <option key={a.ticker || a} value={a.ticker || a}>
-                    {a.ticker || a}
-                  </option>
-                ))}
-              </select>
-              <UIButton
-                C={C}
-                size="md"
-                disabled={!selectedTicker}
-                onClick={handleShare}
-              >
-                {t("community.share")}
-              </UIButton>
-            </div>
-          ) : (
-            <p style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
-              {t("community.noAnalyses")}
-            </p>
-          )}
+      {/* ============ Trending + Leaderboard (moved to top) ============ */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+        gap: 24,
+        marginBottom: 24,
+      }}>
 
-          {shareLink && (
-            <div style={{
-              display: "flex", gap: 8, alignItems: "center",
-              marginTop: 12, flexWrap: "wrap",
-            }}>
-              <input
-                readOnly
-                value={shareLink}
-                style={{
-                  flex: 1,
-                  minWidth: 200,
-                  padding: "8px 12px",
-                  fontSize: 11,
-                  fontFamily: "var(--mono)",
-                  border: `1px solid ${C.rule}`,
-                  background: C.paper,
-                  color: C.ink,
-                  outline: "none",
-                }}
-                onFocus={(e) => e.target.select()}
-              />
-              <UIButton C={C} size="sm" variant="secondary" onClick={handleCopy}>
-                {copied ? t("community.copied") : t("community.copy")}
-              </UIButton>
-              {copied && (
-                <span style={{
-                  fontSize: 10, color: C.up, fontWeight: 600,
-                  fontFamily: "var(--body)", letterSpacing: "0.04em",
-                }}>
-                  {t("community.copiedToast")}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </Section>
-
-      {/* ============ Community Feed ============ */}
-      <Section title={t("community.feedTitle")}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <UIButton C={C} size="sm" onClick={() => setShowPostForm(o => !o)}>
-            {showPostForm ? t("common.close") : t("community.newPost")}
-          </UIButton>
-        </div>
-
-        {showPostForm && (
-          <div style={{ border: `1px solid ${C.rule}`, padding: 16, marginBottom: 16, background: C.warmWhite }}>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-              <input
-                value={postTicker}
-                onChange={e => setPostTicker(e.target.value.toUpperCase())}
-                placeholder={t("community.postTicker")}
-                style={{ padding: "6px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.ink, fontSize: 12, fontFamily: "var(--mono)", outline: "none", width: 100 }}
-              />
-              <div style={{ display: "flex", gap: 0 }}>
-                {["BUY", "SELL", "HOLD"].map(a => (
-                  <ControlChip key={a} C={C} active={postAction === a} onClick={() => setPostAction(a)}>{a}</ControlChip>
-                ))}
-              </div>
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 4 }}>
-                {t("community.postConfidence")}: {postConfidence}%
-              </div>
-              <input
-                type="range" min="0" max="100" value={postConfidence}
-                onChange={e => setPostConfidence(Number(e.target.value))}
-                style={{ width: "100%" }}
-              />
-            </div>
-            <textarea
-              value={postMessage}
-              onChange={e => setPostMessage(e.target.value)}
-              placeholder={t("community.messagePlaceholder")}
-              rows={2}
-              style={{ width: "100%", padding: "8px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.ink, fontSize: 11, fontFamily: "var(--body)", outline: "none", resize: "vertical", boxSizing: "border-box" }}
-            />
-            {postTicker && (
-              <div style={{ border: `1px solid ${C.ruleFaint}`, padding: 10, marginTop: 8, fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted }}>
-                <span style={{ fontWeight: 700 }}>{t("community.postPreview")}:</span>{" "}
-                <span style={{ fontFamily: "var(--mono)", fontWeight: 700, color: C.ink }}>{postTicker}</span>{" "}
-                <span style={{ color: recColor(postAction), fontWeight: 700 }}>{postAction}</span>{" "}
-                ({postConfidence}%) {postMessage && `— "${postMessage}"`}
-              </div>
-            )}
-            <UIButton C={C} variant="primary" onClick={handlePostSubmit} style={{ marginTop: 10 }} disabled={!postTicker.trim()}>
-              {t("community.postSubmit")}
-            </UIButton>
-          </div>
-        )}
-
-        <div style={{
-          display: "grid", gridTemplateColumns: "1fr",
-          gap: 8, marginBottom: 24,
-        }}>
-          {allFeed.map((item, i) => (
-            <div
-              key={`${item.user}-${item.ticker}-${i}`}
-              style={{
-                border: `1px solid ${C.ruleFaint}`,
-                padding: 14,
-                background: C.cream,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {/* Avatar */}
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  background: C.paper, color: C.ink,
-                  fontSize: 14, fontWeight: 700,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontFamily: "var(--display)", flexShrink: 0,
-                  position: "relative",
-                }}>
-                  {item.user.charAt(0)}
-                  {item.isLocal && (
-                    <span style={{ position: "absolute", bottom: -2, right: -2, fontSize: 7, fontWeight: 700, background: C.ink, color: C.cream, padding: "1px 3px", fontFamily: "var(--mono)" }}>
-                      {t("community.you")}
-                    </span>
-                  )}
-                </div>
-
-                {/* User + time */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{
-                      fontSize: 12, fontWeight: 700,
-                      fontFamily: "var(--body)", color: C.ink,
-                    }}>
-                      {item.user}
-                    </span>
-                    <span style={{
-                      fontSize: 10, color: C.inkMuted,
-                      fontFamily: "var(--mono)",
-                    }}>
-                      {formatTimeAgo(item.time)}
-                    </span>
-                  </div>
-
-                  {/* Ticker + action */}
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    marginTop: 6, flexWrap: "wrap",
-                  }}>
+        {/* ---- Trending Tickers with sparklines ---- */}
+        <Section title={t("community.trendingTitle")}>
+          <div style={{ display: "grid", gap: 0 }}>
+            {TRENDING.map((item) => {
+              const sparkData = trendingSparks[item.ticker];
+              return (
+                <div
+                  key={item.ticker}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "10px 0",
+                    borderBottom: `1px solid ${C.ruleFaint}`,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span
                       onClick={() => onAnalyze && onAnalyze(item.ticker)}
                       style={{
@@ -387,113 +441,42 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
                         cursor: "pointer", textDecoration: "underline",
                         textDecorationColor: C.ruleFaint,
                         textUnderlineOffset: 2,
+                        minWidth: 44,
                       }}
                     >
                       {item.ticker}
                     </span>
                     <span style={{
-                      fontSize: 10, fontWeight: 700,
+                      fontSize: 10, color: C.inkMuted,
                       fontFamily: "var(--mono)",
-                      color: recColor(item.action),
-                      letterSpacing: "0.04em",
                     }}>
-                      {item.action}
+                      {item.analyses} {t("community.analyses")}
                     </span>
-
-                    {/* Confidence bar */}
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 4,
-                      marginLeft: "auto",
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {sparkData && sparkData.spark.length > 5 && Sparkline && (
+                      <Sparkline
+                        data={sparkData.spark}
+                        width={60}
+                        height={20}
+                        color={sparkData.changePct >= 0 ? C.up : C.down}
+                      />
+                    )}
+                    <span style={{
+                      fontSize: 9, fontWeight: 700,
+                      fontFamily: "var(--body)",
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: C.cream,
+                      background: sentimentColor(item.sentiment),
+                      padding: "3px 8px",
                     }}>
-                      <div style={{
-                        width: 60, height: 5,
-                        background: C.paper,
-                        position: "relative",
-                        overflow: "hidden",
-                      }}>
-                        <div style={{
-                          height: "100%",
-                          width: `${item.confidence}%`,
-                          background: recColor(item.action),
-                          transition: "width 0.3s ease",
-                        }} />
-                      </div>
-                      <span style={{
-                        fontSize: 10, fontWeight: 600,
-                        fontFamily: "var(--mono)", color: C.inkMuted,
-                      }}>
-                        {item.confidence}%
-                      </span>
-                    </div>
+                      {item.sentiment}
+                    </span>
                   </div>
                 </div>
-              </div>
-              {item.message && (
-                <div style={{ marginTop: 8, fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.5, paddingLeft: 42 }}>
-                  {item.message}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      {/* ============ Trending + Leaderboard side-by-side ============ */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-        gap: 24,
-        marginBottom: 24,
-      }}>
-
-        {/* ---- Trending Tickers ---- */}
-        <Section title={t("community.trendingTitle")}>
-          <div style={{ display: "grid", gap: 0 }}>
-            {TRENDING.map((item) => (
-              <div
-                key={item.ticker}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "10px 0",
-                  borderBottom: `1px solid ${C.ruleFaint}`,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span
-                    onClick={() => onAnalyze && onAnalyze(item.ticker)}
-                    style={{
-                      fontSize: 12, fontWeight: 700,
-                      fontFamily: "var(--mono)", color: C.ink,
-                      cursor: "pointer", textDecoration: "underline",
-                      textDecorationColor: C.ruleFaint,
-                      textUnderlineOffset: 2,
-                      minWidth: 44,
-                    }}
-                  >
-                    {item.ticker}
-                  </span>
-                  <span style={{
-                    fontSize: 10, color: C.inkMuted,
-                    fontFamily: "var(--mono)",
-                  }}>
-                    {item.analyses} {t("community.analyses")}
-                  </span>
-                </div>
-                <span style={{
-                  fontSize: 9, fontWeight: 700,
-                  fontFamily: "var(--body)",
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: C.cream,
-                  background: sentimentColor(item.sentiment),
-                  padding: "3px 8px",
-                }}>
-                  {item.sentiment}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Section>
 
@@ -510,6 +493,217 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
           />
         </Section>
       </div>
+
+      {/* ============ Sentiment Voting ============ */}
+      <div style={{ marginBottom: 24 }}>
+        <SentimentVoting C={C} />
+      </div>
+
+      {/* ============ New Post CTA ============ */}
+      <div style={{ marginBottom: 24 }}>
+        <button
+          onClick={() => setShowPostForm(o => !o)}
+          style={{
+            width: "100%",
+            padding: "18px 24px",
+            border: `2px solid ${C.ink}`,
+            background: showPostForm ? C.warmWhite : C.ink,
+            color: showPostForm ? C.ink : C.cream,
+            fontSize: 16,
+            fontWeight: 800,
+            fontFamily: "var(--display)",
+            cursor: "pointer",
+            letterSpacing: "0.02em",
+            transition: "all 0.15s",
+          }}
+        >
+          {showPostForm ? "Close" : "\u270F\uFE0F  Share Your Analysis"}
+        </button>
+      </div>
+
+      {/* ============ Post Form (expanded) ============ */}
+      {showPostForm && (
+        <div style={{ border: `1px solid ${C.rule}`, padding: 20, marginBottom: 24, background: C.warmWhite }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            <input
+              value={postTicker}
+              onChange={e => setPostTicker(e.target.value.toUpperCase())}
+              placeholder={t("community.postTicker")}
+              style={{ padding: "8px 12px", border: `1px solid ${C.rule}`, background: "transparent", color: C.ink, fontSize: 13, fontFamily: "var(--mono)", fontWeight: 600, outline: "none", width: 120 }}
+            />
+            <div style={{ display: "flex", gap: 0 }}>
+              {["BUY", "SELL", "HOLD"].map(a => (
+                <ControlChip key={a} C={C} active={postAction === a} onClick={() => setPostAction(a)}>{a}</ControlChip>
+              ))}
+            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 4 }}>
+              {t("community.postConfidence")}: {postConfidence}%
+            </div>
+            <input
+              type="range" min="0" max="100" value={postConfidence}
+              onChange={e => setPostConfidence(Number(e.target.value))}
+              style={{ width: "100%" }}
+            />
+          </div>
+          <textarea
+            value={postMessage}
+            onChange={e => setPostMessage(e.target.value)}
+            placeholder={t("community.messagePlaceholder")}
+            rows={3}
+            style={{ width: "100%", padding: "10px 12px", border: `1px solid ${C.rule}`, background: "transparent", color: C.ink, fontSize: 12, fontFamily: "var(--body)", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+          />
+          {postTicker && (
+            <div style={{ border: `1px solid ${C.ruleFaint}`, padding: 12, marginTop: 10, fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>
+              <span style={{ fontWeight: 700 }}>{t("community.postPreview")}:</span>{" "}
+              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, color: C.ink }}>{postTicker}</span>{" "}
+              <span style={{ color: recColor(postAction), fontWeight: 700 }}>{postAction}</span>{" "}
+              ({postConfidence}%) {postMessage && `\u2014 "${postMessage}"`}
+            </div>
+          )}
+          <UIButton C={C} variant="primary" onClick={handlePostSubmit} style={{ marginTop: 12, width: "100%", padding: "12px 0", fontSize: 13, fontWeight: 700 }} disabled={!postTicker.trim()}>
+            {t("community.postSubmit")}
+          </UIButton>
+        </div>
+      )}
+
+      {/* ============ Community Feed ============ */}
+      <Section title={t("community.feedTitle")}>
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr",
+          gap: 8, marginBottom: 24,
+        }}>
+          {allFeed.map((item, i) => {
+            const confInfo = confidenceLabel(item.confidence);
+            return (
+              <div
+                key={`${item.user}-${item.ticker}-${i}`}
+                style={{
+                  border: `1px solid ${C.ruleFaint}`,
+                  padding: 14,
+                  background: C.cream,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {/* Avatar */}
+                  <div style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    background: C.paper, color: C.ink,
+                    fontSize: 14, fontWeight: 700,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: "var(--display)", flexShrink: 0,
+                    position: "relative",
+                  }}>
+                    {item.user.charAt(0)}
+                    {item.isLocal && (
+                      <span style={{ position: "absolute", bottom: -2, right: -2, fontSize: 7, fontWeight: 700, background: C.ink, color: C.cream, padding: "1px 3px", fontFamily: "var(--mono)" }}>
+                        {t("community.you")}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* User + time */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{
+                        fontSize: 12, fontWeight: 700,
+                        fontFamily: "var(--body)", color: C.ink,
+                      }}>
+                        {item.user}
+                      </span>
+                      <span style={{
+                        fontSize: 10, color: C.inkMuted,
+                        fontFamily: "var(--mono)",
+                      }}>
+                        {formatTimeAgo(item.time)}
+                      </span>
+                    </div>
+
+                    {/* Ticker + action + sparkline */}
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      marginTop: 6, flexWrap: "wrap",
+                    }}>
+                      <span
+                        onClick={() => onAnalyze && onAnalyze(item.ticker)}
+                        style={{
+                          fontSize: 12, fontWeight: 700,
+                          fontFamily: "var(--mono)", color: C.ink,
+                          cursor: "pointer", textDecoration: "underline",
+                          textDecorationColor: C.ruleFaint,
+                          textUnderlineOffset: 2,
+                        }}
+                      >
+                        {item.ticker}
+                      </span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700,
+                        fontFamily: "var(--mono)",
+                        color: recColor(item.action),
+                        letterSpacing: "0.04em",
+                      }}>
+                        {item.action}
+                      </span>
+
+                      {/* Inline sparkline for feed ticker */}
+                      {trendingSparks[item.ticker] && trendingSparks[item.ticker].spark.length > 5 && Sparkline && (
+                        <Sparkline
+                          data={trendingSparks[item.ticker].spark}
+                          width={48}
+                          height={16}
+                          color={trendingSparks[item.ticker].changePct >= 0 ? C.up : C.down}
+                        />
+                      )}
+
+                      {/* Confidence with label */}
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        marginLeft: "auto",
+                      }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ fontSize: 8, fontWeight: 700, fontFamily: "var(--body)", color: C.inkFaint, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                              Confidence
+                            </span>
+                            <span style={{
+                              fontSize: 10, fontWeight: 700,
+                              fontFamily: "var(--mono)", color: confInfo.color,
+                            }}>
+                              {item.confidence}%
+                            </span>
+                          </div>
+                          <span style={{ fontSize: 8, fontFamily: "var(--body)", color: confInfo.color, fontWeight: 600 }}>
+                            {confInfo.text}
+                          </span>
+                        </div>
+                        <div style={{
+                          width: 40, height: 5,
+                          background: C.paper,
+                          position: "relative",
+                          overflow: "hidden",
+                        }}>
+                          <div style={{
+                            height: "100%",
+                            width: `${item.confidence}%`,
+                            background: confInfo.color,
+                            transition: "width 0.3s ease",
+                          }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {item.message && (
+                  <div style={{ marginTop: 8, fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.5, paddingLeft: 42 }}>
+                    {item.message}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Section>
 
       {/* ============ CTA for signed-out users ============ */}
       {!session && (

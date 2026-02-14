@@ -674,8 +674,7 @@ function PortfolioTab({
 
       {/* ═══ PAPER TRADING ═══ */}
       {subTab === "paper-trading" && (
-        <div style={{ position: "relative", minHeight: "calc(100vh - 180px)" }}>
-          <GameOfLifeCanvas C={C} />
+        <div style={{ position: "relative" }}>
           {/* Account Summary */}
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, ...sectionGap }}>
             <MetricCard C={C} label={t("portfolio.cashBalance")} value={fmtMoney(paper.cash)} />

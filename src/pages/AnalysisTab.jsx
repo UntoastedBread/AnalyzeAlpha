@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ComposedChart, ReferenceLine, Customized,
+  Tooltip, ResponsiveContainer, ComposedChart, ReferenceLine, ReferenceArea, Customized,
   PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { ControlChip, MetricCard, GaugeBar, DataTable, EmptyState } from "../components/ui/primitives";
@@ -22,7 +22,7 @@ function AnalysisTab({
   onOpenCharts,
   chartType,
   onChartTypeChange,
-  defaultChartType = "line",
+  defaultChartType = "candles",
   onUpgradePro,
   openChartsLabel,
   helpMode,
@@ -65,6 +65,9 @@ function AnalysisTab({
   const [finPeriod, setFinPeriod] = useState("LTM");
   const [assumptions, setAssumptions] = useState(null);
   const [animateMainLine, setAnimateMainLine] = useState(true);
+  const [dragStart, setDragStart] = useState(null);
+  const [dragEnd, setDragEnd] = useState(null);
+  const [rangeInfo, setRangeInfo] = useState(null);
   const peerSeed = hashCode(result?.ticker || "PEERS");
   const price = livePrice || result?.currentPrice || 0;
   const prevAnimated = usePrevious(price) ?? price;
@@ -378,44 +381,68 @@ function AnalysisTab({
           }}
         >
           <Section title={t("analysis.priceChartTitle")} actions={
-            (onReanalyze || onOpenCharts) && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                {onOpenCharts && (
-                  <HelpWrap
-                    enabled={helpMode}
-                    onShow={onShowHelp}
-                    onHide={onHideHelp}
-                    help={{ title: t("help.openCharts.title"), body: t("help.openCharts.body") }}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <ControlChip C={C} active={activeChartType === "line"} onClick={() => onChartTypeChange?.("line")}>{t("common.line")}</ControlChip>
+              <ControlChip C={C} active={activeChartType === "candles"} onClick={() => onChartTypeChange?.("candles")}>{t("common.candles")}</ControlChip>
+              {onReanalyze && (
+                <>
+                  <select value={period || "1y"} onChange={e => onReanalyze(ticker, e.target.value, interval)}
+                    style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
+                    {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"],["2y","2Y"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                  </select>
+                  <select value={interval || "1d"} onChange={e => onReanalyze(ticker, period, e.target.value)}
+                    style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
+                    {(["1d","5d"].includes(period) ? [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["60m","1h"]] : period === "1mo" ? [["15m","15m"],["30m","30m"],["60m","1h"],["1d","1d"]] : [["1d","1d"]]).map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                  </select>
+                </>
+              )}
+              {onOpenCharts && (
+                <HelpWrap
+                  enabled={helpMode}
+                  onShow={onShowHelp}
+                  onHide={onHideHelp}
+                  help={{ title: t("help.openCharts.title"), body: t("help.openCharts.body") }}
+                >
+                  <button
+                    onClick={() => onOpenCharts({ mode: "price", title: `${ticker} — Full Period` })}
+                    style={openChartsBtn}
                   >
-                    <button
-                      onClick={() => onOpenCharts({ mode: "price", title: `${ticker} — Full Period` })}
-                      style={openChartsBtn}
-                    >
-                      {openChartsLabel || t("chart.openCharts")}
-                    </button>
-                  </HelpWrap>
-                )}
-                {onReanalyze && (
-                  <>
-                    <select value={period || "1y"} onChange={e => onReanalyze(ticker, e.target.value, interval)}
-                      style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
-                      {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"],["2y","2Y"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
-                    </select>
-                    <select value={interval || "1d"} onChange={e => onReanalyze(ticker, period, e.target.value)}
-                      style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "4px 6px", color: C.inkMuted, fontSize: 10, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
-                      {(["1d","5d"].includes(period) ? [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["60m","1h"]] : period === "1mo" ? [["15m","15m"],["30m","30m"],["60m","1h"],["1d","1d"]] : [["1d","1d"]]).map(([v,l])=><option key={v} value={v}>{l}</option>)}
-                    </select>
-                  </>
-                )}
-              </div>
-            )
+                    {openChartsLabel || t("chart.openCharts")}
+                  </button>
+                </HelpWrap>
+              )}
+            </div>
           }>
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-            <ControlChip C={C} active={activeChartType === "line"} onClick={() => onChartTypeChange?.("line")}>{t("common.line")}</ControlChip>
-            <ControlChip C={C} active={activeChartType === "candles"} onClick={() => onChartTypeChange?.("candles")}>{t("common.candles")}</ControlChip>
-          </div>
+          {rangeInfo && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 10px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+              <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted }}>{rangeInfo.from} → {rangeInfo.to}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--mono)", color: rangeInfo.pct >= 0 ? C.up : C.down }}>
+                {rangeInfo.pct >= 0 ? "+" : ""}{rangeInfo.pct.toFixed(2)}%
+              </span>
+              <button onClick={() => setRangeInfo(null)} style={{ marginLeft: "auto", background: "transparent", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 11 }}>×</button>
+            </div>
+          )}
           <ResponsiveContainer width="100%" height={260}>
-            <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+              onMouseDown={(e) => { if (e && e.activeLabel) setDragStart(e.activeLabel); }}
+              onMouseMove={(e) => { if (dragStart && e && e.activeLabel) setDragEnd(e.activeLabel); }}
+              onMouseUp={() => {
+                if (dragStart && dragEnd && dragStart !== dragEnd) {
+                  const si = chartData.findIndex(d => d.n === dragStart);
+                  const ei = chartData.findIndex(d => d.n === dragEnd);
+                  if (si >= 0 && ei >= 0) {
+                    const [a, b] = si < ei ? [si, ei] : [ei, si];
+                    const startPrice = chartData[a].c;
+                    const endPrice = chartData[b].c;
+                    if (startPrice > 0) {
+                      setRangeInfo({ from: chartData[a].n, to: chartData[b].n, pct: ((endPrice - startPrice) / startPrice) * 100 });
+                    }
+                  }
+                }
+                setDragStart(null);
+                setDragEnd(null);
+              }}
+            >
               <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
               <XAxis dataKey="n" tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} interval={9} />
               <YAxis domain={["auto", "auto"]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={55} />
@@ -428,6 +455,9 @@ function AnalysisTab({
                 <Customized component={CandlestickSeries} />
               ) : (
                 <Line dataKey="c" stroke={C.ink} dot={false} strokeWidth={2} name={t("analysis.close")} isAnimationActive={animateMainLine} animationDuration={CHART_ANIM_MS} />
+              )}
+              {dragStart && dragEnd && (
+                <ReferenceArea x1={dragStart} x2={dragEnd} strokeOpacity={0.3} fill={C.ink} fillOpacity={0.08} />
               )}
             </ComposedChart>
           </ResponsiveContainer>
@@ -846,70 +876,82 @@ function AnalysisTab({
               </div>
             </Section>
             <Section title={t("analysis.valuationToolkit")} help={{ title: t("help.valuationToolkit.title"), body: t("help.valuationToolkit.body") }}>
-              <div style={{ fontSize: 11, color: C.inkMuted, lineHeight: 1.5, marginBottom: 10 }}>
-                {t("analysis.valuationDesc")}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2,1fr)" : "repeat(3,1fr)", gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.fcfPerShare")}</div>
-                  <input type="number" step="0.01" value={inputVal(assumptions?.fcfPerShare)} onChange={e => updateAssumption("fcfPerShare", parseFloat(e.target.value) || 0)} style={inputStyle} />
+              {/* Valuation verdict — hero card */}
+              <div style={{ padding: "20px 16px", background: C.warmWhite, border: `1px solid ${C.rule}`, marginBottom: 16, display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+                <div style={{ flex: "0 0 auto", width: 56, height: 56, borderRadius: "50%", background: valColor(liveModels.signal) + "18", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontSize: 24 }}>{liveModels.signal === "UNDERVALUED" ? "\u{1F4C8}" : liveModels.signal === "OVERVALUED" ? "\u{1F4C9}" : "\u{2696}\uFE0F"}</span>
                 </div>
-                <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.eps")}</div>
-                  <input type="number" step="0.01" value={inputVal(assumptions?.eps)} onChange={e => updateAssumption("eps", parseFloat(e.target.value) || 0)} style={inputStyle} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.dividendPerShare")}</div>
-                  <input type="number" step="0.01" value={inputVal(assumptions?.dividendPerShare)} onChange={e => updateAssumption("dividendPerShare", parseFloat(e.target.value) || 0)} style={inputStyle} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.growth5y")}</div>
-                  <input type="number" step="0.1" value={inputVal((assumptions?.growthRate || 0) * 100, 1)} onChange={e => updateAssumption("growthRate", (parseFloat(e.target.value) || 0) / 100)} style={inputStyle} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.discountWacc")}</div>
-                  <input type="number" step="0.1" value={inputVal((assumptions?.discountRate || 0) * 100, 1)} onChange={e => updateAssumption("discountRate", (parseFloat(e.target.value) || 0) / 100)} style={inputStyle} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.terminalGrowth")}</div>
-                  <input type="number" step="0.1" value={inputVal((assumptions?.terminalGrowth || 0) * 100, 1)} onChange={e => updateAssumption("terminalGrowth", (parseFloat(e.target.value) || 0) / 100)} style={inputStyle} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.targetPE")}</div>
-                  <input type="number" step="0.1" value={inputVal(assumptions?.targetPE, 1)} onChange={e => updateAssumption("targetPE", parseFloat(e.target.value) || 0)} style={inputStyle} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{t("analysis.projectionYears")}</div>
-                  <input type="number" step="1" min="3" max="10" value={inputVal(assumptions?.years, 0)} onChange={e => updateAssumption("years", Math.max(1, parseInt(e.target.value || "0", 10)))} style={inputStyle} />
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: 12, marginTop: 12 }}>
-                {[
-                  [t("analysis.dcf"), liveModels.dcf],
-                  [t("analysis.dividendDiscount"), liveModels.ddm],
-                  [t("analysis.multiples"), liveModels.multiples],
-                ].map(([label, value]) => (
-                  <div key={label} style={{ padding: "8px 10px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                    <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4, fontFamily: "var(--body)" }}>{label}</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: C.ink }}>{value ? `$${fmt(value)}` : "—"}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: valColor(liveModels.signal), fontFamily: "var(--display)" }}>
+                    {translateEnum(liveModels.signal, t, "valuation")}
                   </div>
-                ))}
+                  <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", marginTop: 2 }}>
+                    {t("analysis.anchor")} {liveModels.anchor ? `$${fmt(liveModels.anchor)}` : "—"} · {t("analysis.upside")} {liveModels.upside != null ? `${liveModels.upside >= 0 ? "+" : ""}${fmtPct(liveModels.upside * 100, 1)}` : "—"}
+                  </div>
+                </div>
+                {liveModels.anchor > 0 && price > 0 && (
+                  <div style={{ flex: "0 0 auto", textAlign: "center" }}>
+                    <div style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 2 }}>Fair Value vs Price</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 80, height: 6, background: C.ruleFaint, borderRadius: 3, overflow: "hidden", position: "relative" }}>
+                        <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(100, (liveModels.anchor / price) * 50)}%`, background: valColor(liveModels.signal), borderRadius: 3 }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div style={{ marginTop: 12, padding: "10px 12px", background: C.paper, borderLeft: `3px solid ${valColor(liveModels.signal)}` }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)" }}>{t("analysis.valuationAnchor")}</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: valColor(liveModels.signal), fontFamily: "var(--display)", marginTop: 4 }}>
-                  {translateEnum(liveModels.signal, t, "valuation")}
-                </div>
-                <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 4, fontFamily: "var(--mono)" }}>
-                  {t("analysis.anchor")} {liveModels.anchor ? `$${fmt(liveModels.anchor)}` : "—"} · {t("analysis.upside")} {liveModels.upside != null ? `${liveModels.upside >= 0 ? "+" : ""}${fmtPct(liveModels.upside * 100, 1)}` : "—"}
-                </div>
-                <div style={{ fontSize: 10, color: C.inkFaint, marginTop: 4, fontFamily: "var(--body)" }}>{t("analysis.usedAsContext")}</div>
+              {/* Three model cards */}
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: 12, marginBottom: 16 }}>
+                {[
+                  [t("analysis.dcf"), liveModels.dcf, "\u{1F4B0}"],
+                  [t("analysis.dividendDiscount"), liveModels.ddm, "\u{1F33F}"],
+                  [t("analysis.multiples"), liveModels.multiples, "\u{00D7}"],
+                ].map(([label, value, icon]) => {
+                  const diff = value && price > 0 ? ((value - price) / price) * 100 : null;
+                  return (
+                    <div key={label} style={{ padding: "14px 16px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                        <span style={{ fontSize: 16 }}>{icon}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, fontFamily: "var(--body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</span>
+                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--mono)", color: C.ink }}>{value ? `$${fmt(value)}` : "—"}</div>
+                      {diff != null && (
+                        <div style={{ fontSize: 11, fontFamily: "var(--mono)", color: diff >= 0 ? C.up : C.down, marginTop: 4 }}>
+                          {diff >= 0 ? "+" : ""}{diff.toFixed(1)}% vs current
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               {liveModels.issues.length > 0 && (
-                <div style={{ marginTop: 10, fontSize: 10, color: C.down, fontFamily: "var(--body)" }}>
+                <div style={{ marginBottom: 12, padding: "8px 12px", fontSize: 10, color: C.down, fontFamily: "var(--body)", background: C.downBg, border: `1px solid ${C.down}22` }}>
                   {liveModels.issues.map(k => t(k)).join(" ")}
                 </div>
               )}
+              {/* Collapsible assumptions */}
+              <details style={{ marginTop: 4 }}>
+                <summary style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)", cursor: "pointer", padding: "6px 0" }}>
+                  Adjust Assumptions
+                </summary>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 10, marginTop: 10 }}>
+                  {[
+                    [t("analysis.fcfPerShare"), "fcfPerShare", 0.01, inputVal(assumptions?.fcfPerShare), v => parseFloat(v) || 0],
+                    [t("analysis.eps"), "eps", 0.01, inputVal(assumptions?.eps), v => parseFloat(v) || 0],
+                    [t("analysis.dividendPerShare"), "dividendPerShare", 0.01, inputVal(assumptions?.dividendPerShare), v => parseFloat(v) || 0],
+                    [t("analysis.growth5y"), "growthRate", 0.1, inputVal((assumptions?.growthRate || 0) * 100, 1), v => (parseFloat(v) || 0) / 100],
+                    [t("analysis.discountWacc"), "discountRate", 0.1, inputVal((assumptions?.discountRate || 0) * 100, 1), v => (parseFloat(v) || 0) / 100],
+                    [t("analysis.terminalGrowth"), "terminalGrowth", 0.1, inputVal((assumptions?.terminalGrowth || 0) * 100, 1), v => (parseFloat(v) || 0) / 100],
+                    [t("analysis.targetPE"), "targetPE", 0.1, inputVal(assumptions?.targetPE, 1), v => parseFloat(v) || 0],
+                    [t("analysis.projectionYears"), "years", 1, inputVal(assumptions?.years, 0), v => Math.max(1, parseInt(v || "0", 10))],
+                  ].map(([label, key, step, val, parse]) => (
+                    <div key={key}>
+                      <div style={{ fontSize: 9, color: C.inkFaint, marginBottom: 3, fontFamily: "var(--body)", fontWeight: 600, letterSpacing: "0.04em" }}>{label}</div>
+                      <input type="number" step={step} value={val} onChange={e => updateAssumption(key, parse(e.target.value))} style={inputStyle} />
+                    </div>
+                  ))}
+                </div>
+              </details>
             </Section>
           </div>
         </div>
@@ -1186,8 +1228,10 @@ function DividendsSubTab({ C, ticker, price, t, Section, LazySection, fmt, fmtPc
   return (
     <div>
       {divData.yield === 0 && dividends.length === 0 && (
-        <div style={{ padding: "12px 16px", marginBottom: 16, background: C.warmWhite, border: `1px solid ${C.rule}`, fontSize: 12, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.5 }}>
-          This stock does not appear to pay regular dividends.
+        <div style={{ padding: "24px 20px", marginBottom: 20, background: C.warmWhite, border: `1px solid ${C.rule}`, textAlign: "center" }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>{"\u{1F4B8}"}</div>
+          <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--display)", color: C.ink, marginBottom: 4 }}>No Dividends Detected</div>
+          <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.5 }}>This stock does not appear to pay regular dividends.</div>
         </div>
       )}
       <Section C={C} title={`Dividend Analysis — ${ticker}`}>

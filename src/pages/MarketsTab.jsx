@@ -4,7 +4,7 @@ import {
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
 import {
-  UIButton, ControlChip, TabGroup, DataTable, MetricCard, GaugeBar, EmptyState,
+  UIButton, ControlChip, TabGroup, DataTable, MetricCard, EmptyState,
 } from "../components/ui/primitives";
 import HeatmapTab from "./HeatmapTab";
 
@@ -941,7 +941,7 @@ function MarketsTab({ deps, viewport, subTab, onSubTabChange, isPro, onUpgradePr
   const setActiveTab = onSubTabChange || (() => {});
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <TabGroup
         C={C}
         tabs={SUB_TABS.map(st => ({ key: st.key, label: t(`markets.tab.${st.key}`) || st.label }))}
@@ -950,7 +950,9 @@ function MarketsTab({ deps, viewport, subTab, onSubTabChange, isPro, onUpgradePr
       />
 
       {activeTab === "heatmap" && (
-        <HeatmapTab deps={deps} viewport={viewport} />
+        <LazySection minHeight={300}>
+          <HeatmapTab deps={deps} viewport={viewport} />
+        </LazySection>
       )}
 
       {activeTab === "sectors" && (
