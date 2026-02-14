@@ -659,7 +659,7 @@ async function fetchRSSNews() {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const json = await resp.json();
     if (json.items && json.items.length > 0) {
-      return json.items.slice(0, 20).map((item) => ({
+      return json.items.slice(0, 40).map((item) => ({
         ...item,
         image: (!item.image || isLikelyAiImageUrl(item.image))
           ? buildNewsPlaceholder(item.title || item.description || "market news")
@@ -2545,6 +2545,47 @@ function MoverPopup({ title, stocks, onAnalyze, onClose }) {
   );
 }
 
+function NewsPopup({ title, items, onClose }) {
+  const { t } = useI18n();
+  return (
+    <div className="popup-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(26,22,18,0.35)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div className="popup-card" onClick={e => e.stopPropagation()} style={{ background: C.cream, border: `1px solid ${C.rule}`, width: 480, maxHeight: "80vh", boxShadow: "8px 16px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: `1px solid ${C.rule}` }}>
+          <span style={{ fontFamily: "var(--display)", fontSize: 18, color: C.ink }}>{title}</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: C.inkMuted, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ overflowY: "auto", padding: "8px 20px 20px" }}>
+          {(!items || items.length === 0) ? (
+            <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)", padding: "12px 0" }}>{t("common.noData")}</div>
+          ) : items.map((n, i) => {
+            const itemTitle = n.titleKey ? t(n.titleKey) : n.title;
+            const itemSource = n.sourceKey ? t(n.sourceKey) : n.source || t("news.sourceYahoo");
+            const ago = n.pubDate ? timeAgo(n.pubDate, t) : t("news.publishedRecently");
+            return (
+              <a
+                key={`${n.link || itemTitle || "news"}-${i}`}
+                href={n.link || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onClose}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 4px", textDecoration: "none", color: C.ink, borderBottom: `1px solid ${C.ruleFaint}`, transition: "background 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.background = C.paper}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <div style={{ display: "grid", gap: 3, minWidth: 0 }}>
+                  <span style={{ fontFamily: "var(--body)", fontWeight: 600, fontSize: 12, color: C.ink, lineHeight: 1.35 }}>{itemTitle}</span>
+                  <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--mono)" }}>{itemSource}</span>
+                </div>
+                <span style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)", marginLeft: 12, flexShrink: 0 }}>{ago}</span>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
   const { t } = useI18n();
   const [showPopup, setShowPopup] = useState(false);
@@ -2618,6 +2659,7 @@ function timeAgo(dateStr, t) {
 
 function NewsSection({ news, loading }) {
   const { t } = useI18n();
+  const [showPopup, setShowPopup] = useState(false);
   if (loading) {
     return (
       <div style={{ display: "grid", gap: 1 }}>
@@ -2643,7 +2685,9 @@ function NewsSection({ news, loading }) {
   const heroSource = hero.sourceKey ? t(hero.sourceKey) : hero.source || t("news.sourceYahoo");
   const heroImage = hero.image || buildNewsPlaceholder(heroTitle || "market news");
   const rest = news.slice(1);
-  const cards = rest.slice(0, 6);
+  const cards = rest.slice(0, 3);
+  const overflowNews = rest.slice(3);
+  const showSeeMore = overflowNews.length > 0;
   const publishedText = hero.pubDate ? t("news.published", { ago: timeAgo(hero.pubDate, t) }) : t("news.publishedRecently");
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -2673,7 +2717,7 @@ function NewsSection({ news, loading }) {
         </a>
       </HelpWrap>
       <HelpWrap help={{ title: t("help.newsList.title"), body: t("help.newsList.body") }} block>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
           {cards.map((n, i) => {
             const cardTitle = n.titleKey ? t(n.titleKey) : n.title;
             const cardImage = n.image || buildNewsPlaceholder(cardTitle || `news-${i}`);
@@ -2702,8 +2746,40 @@ function NewsSection({ news, loading }) {
               </a>
             );
           })}
+          {showSeeMore && (
+            <button
+              type="button"
+              onClick={() => setShowPopup(true)}
+              style={{ display: "grid", gridTemplateRows: "120px auto", background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 14, color: C.ink, overflow: "hidden", cursor: "pointer", textAlign: "left", transition: "transform 0.15s" }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
+            >
+              <div style={{ position: "relative", background: C.paper }}>
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(145deg, rgba(17,24,39,0.88), rgba(36,72,94,0.82))" }}>
+                  <svg width="66" height="66" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="11" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" />
+                    <path d="M8 16L16 8" stroke="#ffffff" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M10 8H16V14" stroke="#ffffff" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              </div>
+              <div style={{ padding: "12px 14px", display: "grid", gap: 6 }}>
+                <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 700, lineHeight: 1.4 }}>See more</div>
+                <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
+                  {t("common.showAll", { count: overflowNews.length })}
+                </div>
+              </div>
+            </button>
+          )}
         </div>
       </HelpWrap>
+      {showPopup && (
+        <NewsPopup
+          title={`${t("home.marketNews")} (${overflowNews.length})`}
+          items={overflowNews}
+          onClose={() => setShowPopup(false)}
+        />
+      )}
     </div>
   );
 }

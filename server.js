@@ -364,29 +364,39 @@ app.get('/api/search', (req, res) => {
 
 app.get('/api/rss', async (req, res) => {
   try {
+    const combined = [];
     for (const source of RSS_NEWS_SOURCES) {
       try {
         console.log(`[Proxy] Fetching RSS feed: ${source.url}`);
         const xml = await fetchRssXml(source.url);
         const items = extractRssItems(xml, source.defaultSource);
         if (items.length > 0) {
-          const deduped = [];
-          const seen = new Set();
-          for (const item of items) {
-            const key = item.link || item.title;
-            if (!key || seen.has(key)) continue;
-            seen.add(key);
-            deduped.push(item);
-            if (deduped.length >= 20) break;
-          }
-          console.log(`[Proxy] ✓ RSS ${source.defaultSource} — ${deduped.length} items`);
-          return res.json({ items: deduped });
+          combined.push(...items);
+          console.log(`[Proxy] ✓ RSS ${source.defaultSource} — ${items.length} items`);
         }
       } catch (sourceErr) {
         console.warn(`[Proxy] RSS source failed (${source.defaultSource}): ${sourceErr.message}`);
       }
     }
-    return res.status(502).json({ error: 'All RSS sources failed' });
+    if (combined.length === 0) {
+      return res.status(502).json({ error: 'All RSS sources failed' });
+    }
+    const normalized = combined.map((item) => {
+      const parsedTime = Date.parse(item.pubDate || '');
+      return { ...item, _ts: Number.isFinite(parsedTime) ? parsedTime : 0 };
+    });
+    normalized.sort((a, b) => b._ts - a._ts);
+    const deduped = [];
+    const seen = new Set();
+    for (const item of normalized) {
+      const key = (item.link || item.title || '').trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      const { _ts, ...rest } = item;
+      deduped.push(rest);
+      if (deduped.length >= 40) break;
+    }
+    return res.json({ items: deduped });
   } catch (e) {
     console.error(`[Proxy] ✗ RSS — ${e.message}`);
     return res.status(502).json({ error: e.message });
