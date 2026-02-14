@@ -2679,15 +2679,49 @@ function NewsSection({ news, loading }) {
       </div>
     );
   }
-  const cards = news.slice(0, 3);
-  const overflowNews = news.slice(3);
+  const hero = news[0];
+  const heroTitle = hero.titleKey ? t(hero.titleKey) : hero.title;
+  const heroDesc = hero.descriptionKey ? t(hero.descriptionKey) : hero.description;
+  const heroSource = hero.sourceKey ? t(hero.sourceKey) : hero.source || t("news.sourceYahoo");
+  const heroImage = hero.image || buildNewsPlaceholder(heroTitle || "market news");
+  const rest = news.slice(1);
+  const cards = rest.slice(0, 2);
+  const overflowNews = rest.slice(2);
   const showSeeMore = overflowNews.length > 0;
-  const gridCols = showSeeMore ? 4 : Math.max(1, cards.length);
+  const gridCols = showSeeMore ? 3 : Math.max(1, cards.length);
+  const publishedText = hero.pubDate ? t("news.published", { ago: timeAgo(hero.pubDate, t) }) : t("news.publishedRecently");
   return (
     <div style={{ display: "grid", gap: 14 }}>
+      <HelpWrap help={{ title: t("help.newsHero.title"), body: t("help.newsHero.body") }} block>
+        <a href={hero.link || "#"} target="_blank" rel="noopener noreferrer"
+          style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.2fr) minmax(160px, 0.8fr)", minHeight: 150, background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 14, textDecoration: "none", color: C.ink, overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.16em", textTransform: "uppercase", color: C.inkFaint }}>{t("news.topStory")}</div>
+            <div style={{ fontSize: 16, fontFamily: "var(--display)", lineHeight: 1.25, color: C.inkSoft }}>{heroTitle}</div>
+            {heroDesc && (
+              <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.45 }}>
+                {heroDesc.slice(0, 140)}
+                {heroDesc.length > 140 ? "…" : ""}
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
+              <span>{publishedText}</span>
+              <span style={{ color: C.ruleFaint }}>·</span>
+              <span style={{ fontWeight: 600 }}>{heroSource}</span>
+            </div>
+          </div>
+          <div style={{ position: "relative", background: C.paper }}>
+            <img src={heroImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = buildNewsPlaceholder(heroTitle || "market news");
+            }} />
+          </div>
+        </a>
+      </HelpWrap>
       <HelpWrap help={{ title: t("help.newsList.title"), body: t("help.newsList.body") }} block>
-        <div style={{ overflowX: "auto", paddingBottom: 2 }}>
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${gridCols}, minmax(160px, 1fr))`, gap: 12, minWidth: `${gridCols * 180}px` }}>
+        {(cards.length > 0 || showSeeMore) && (
+          <div style={{ overflowX: "auto", paddingBottom: 2 }}>
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${gridCols}, minmax(160px, 1fr))`, gap: 12, minWidth: `${gridCols * 180}px` }}>
           {cards.map((n, i) => {
             const cardTitle = n.titleKey ? t(n.titleKey) : n.title;
             const cardImage = n.image || buildNewsPlaceholder(cardTitle || `news-${i}`);
@@ -2704,11 +2738,6 @@ function NewsSection({ news, loading }) {
                   }} />
                 </div>
                 <div style={{ padding: "10px 12px", display: "grid", gap: 7 }}>
-                  {i === 0 && (
-                    <div style={{ fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.16em", textTransform: "uppercase", color: C.inkFaint }}>
-                      {t("news.topStory")}
-                    </div>
-                  )}
                   <div style={{ fontSize: 12, fontFamily: "var(--body)", color: C.ink, fontWeight: 600, lineHeight: 1.35 }}>{cardTitle}</div>
                   <div style={{ display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
                     <span style={{ fontWeight: 600 }}>{cardSource}</span>
@@ -2732,8 +2761,9 @@ function NewsSection({ news, loading }) {
               <span style={{ fontFamily: "var(--display)", fontSize: 64, lineHeight: 1, color: "#4b5563" }}>{">"}</span>
             </button>
           )}
-        </div>
-        </div>
+            </div>
+          </div>
+        )}
       </HelpWrap>
       {showPopup && (
         <NewsPopup
