@@ -2688,7 +2688,14 @@ function NewsSection({ news, loading }) {
   const cards = rest.slice(0, 3);
   const overflowNews = rest.slice(3);
   const showSeeMore = overflowNews.length > 0;
-  const gridCols = showSeeMore ? 4 : Math.max(1, cards.length);
+  const articleCols = Math.max(1, cards.length);
+  const seeMoreColWidth = 120;
+  const rowGridCols = showSeeMore
+    ? `repeat(${articleCols}, minmax(176px, 1fr)) ${seeMoreColWidth}px`
+    : `repeat(${articleCols}, minmax(176px, 1fr))`;
+  const rowMinWidth = showSeeMore
+    ? `${(articleCols * 196) + seeMoreColWidth}px`
+    : `${articleCols * 196}px`;
   const publishedText = hero.pubDate ? t("news.published", { ago: timeAgo(hero.pubDate, t) }) : t("news.publishedRecently");
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -2718,7 +2725,7 @@ function NewsSection({ news, loading }) {
       <HelpWrap help={{ title: t("help.newsList.title"), body: t("help.newsList.body") }} block>
         {(cards.length > 0 || showSeeMore) && (
           <div style={{ overflowX: "auto", paddingBottom: 2 }}>
-            <div style={{ display: "grid", gridTemplateColumns: `repeat(${gridCols}, minmax(170px, 1fr))`, gap: 12, minWidth: `${gridCols * 190}px` }}>
+            <div style={{ display: "grid", gridTemplateColumns: rowGridCols, gap: 12, minWidth: rowMinWidth }}>
               {cards.map((n, i) => {
                 const cardTitle = n.titleKey ? t(n.titleKey) : n.title;
                 const cardImage = n.image || buildNewsPlaceholder(cardTitle || `news-${i}`);
@@ -2751,11 +2758,14 @@ function NewsSection({ news, loading }) {
                 <button
                   type="button"
                   onClick={() => setShowPopup(true)}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "#d2d5da", border: `1px solid ${C.rule}`, borderRadius: 14, color: C.ink, cursor: "pointer", textAlign: "center", transition: "transform 0.15s", minHeight: 214 }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
+                  style={{ display: "grid", gridTemplateRows: "1fr auto", alignItems: "center", justifyItems: "center", background: C.paper, border: `1px solid ${C.rule}`, borderRadius: 14, color: C.ink, cursor: "pointer", textAlign: "center", transition: "transform 0.15s, background 0.15s", minHeight: 214, padding: "12px 10px" }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.background = C.warmWhite; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = C.paper; }}
                 >
-                  <span style={{ fontFamily: "var(--display)", fontSize: 64, lineHeight: 1, color: "#4b5563" }}>{">"}</span>
+                  <span style={{ fontFamily: "var(--display)", fontSize: 52, lineHeight: 1, color: C.inkMuted }}>{">"}</span>
+                  <span style={{ fontSize: 10, fontFamily: "var(--body)", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.inkMuted }}>
+                    See more
+                  </span>
                 </button>
               )}
             </div>
