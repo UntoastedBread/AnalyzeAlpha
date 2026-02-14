@@ -1989,10 +1989,10 @@ function OpenActionButton({ onClick, label = "Open" }) {
         e.currentTarget.style.borderColor = C.rule;
       }}
     >
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M9 5h10v10" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
-        <path d="M19 5L7 17" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
-        <path d="M5 9v10h10" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M14 4h6v6" stroke="currentColor" strokeWidth="2.3" strokeLinecap="square" />
+        <path d="M20 4L10 14" stroke="currentColor" strokeWidth="2.3" strokeLinecap="square" />
+        <path d="M20 13v7H4V4h7" stroke="currentColor" strokeWidth="2.3" strokeLinecap="square" />
       </svg>
     </button>
   );
