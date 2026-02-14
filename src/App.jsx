@@ -2679,52 +2679,22 @@ function NewsSection({ news, loading }) {
       </div>
     );
   }
-  const hero = news[0];
-  const heroTitle = hero.titleKey ? t(hero.titleKey) : hero.title;
-  const heroDesc = hero.descriptionKey ? t(hero.descriptionKey) : hero.description;
-  const heroSource = hero.sourceKey ? t(hero.sourceKey) : hero.source || t("news.sourceYahoo");
-  const heroImage = hero.image || buildNewsPlaceholder(heroTitle || "market news");
-  const rest = news.slice(1);
-  const cards = rest.slice(0, 3);
-  const overflowNews = rest.slice(3);
+  const cards = news.slice(0, 3);
+  const overflowNews = news.slice(3);
   const showSeeMore = overflowNews.length > 0;
-  const publishedText = hero.pubDate ? t("news.published", { ago: timeAgo(hero.pubDate, t) }) : t("news.publishedRecently");
+  const gridCols = showSeeMore ? 4 : Math.max(1, cards.length);
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <HelpWrap help={{ title: t("help.newsHero.title"), body: t("help.newsHero.body") }} block>
-        <a href={hero.link || "#"} target="_blank" rel="noopener noreferrer"
-          style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", minHeight: 260, background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 16, textDecoration: "none", color: C.ink, overflow: "hidden" }}>
-        <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 14 }}>
-          <div style={{ fontSize: 10, fontFamily: "var(--mono)", letterSpacing: "0.24em", textTransform: "uppercase", color: C.inkFaint }}>{t("news.topStory")}</div>
-          <div>
-            <div style={{ fontSize: 28, fontFamily: "var(--display)", lineHeight: 1.2, color: C.inkSoft }}>{heroTitle}</div>
-            {heroDesc && (
-              <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.6, marginTop: 10 }}>{heroDesc}</div>
-            )}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
-            <span>{publishedText}</span>
-            <span style={{ color: C.ruleFaint }}>·</span>
-            <span style={{ fontWeight: 600 }}>{heroSource}</span>
-          </div>
-        </div>
-        <div style={{ position: "relative", background: C.paper }}>
-          <img src={heroImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = buildNewsPlaceholder(heroTitle || "market news");
-          }} />
-        </div>
-        </a>
-      </HelpWrap>
       <HelpWrap help={{ title: t("help.newsList.title"), body: t("help.newsList.body") }} block>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+        <div style={{ overflowX: "auto", paddingBottom: 2 }}>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${gridCols}, minmax(160px, 1fr))`, gap: 12, minWidth: `${gridCols * 180}px` }}>
           {cards.map((n, i) => {
             const cardTitle = n.titleKey ? t(n.titleKey) : n.title;
             const cardImage = n.image || buildNewsPlaceholder(cardTitle || `news-${i}`);
             const cardSource = n.sourceKey ? t(n.sourceKey) : n.source || t("news.sourceYahoo");
             return (
               <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
-                style={{ display: "grid", gridTemplateRows: "120px auto", background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 14, textDecoration: "none", color: C.ink, overflow: "hidden", transition: "transform 0.15s" }}
+                style={{ display: "grid", gridTemplateRows: "108px auto", background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 14, textDecoration: "none", color: C.ink, overflow: "hidden", transition: "transform 0.15s" }}
                 onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}>
                 <div style={{ position: "relative", background: C.paper }}>
@@ -2733,8 +2703,13 @@ function NewsSection({ news, loading }) {
                     e.currentTarget.src = buildNewsPlaceholder(cardTitle || `news-${i}`);
                   }} />
                 </div>
-                <div style={{ padding: "12px 14px", display: "grid", gap: 8 }}>
-                  <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{cardTitle}</div>
+                <div style={{ padding: "10px 12px", display: "grid", gap: 7 }}>
+                  {i === 0 && (
+                    <div style={{ fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.16em", textTransform: "uppercase", color: C.inkFaint }}>
+                      {t("news.topStory")}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 12, fontFamily: "var(--body)", color: C.ink, fontWeight: 600, lineHeight: 1.35 }}>{cardTitle}</div>
                   <div style={{ display: "flex", gap: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
                     <span style={{ fontWeight: 600 }}>{cardSource}</span>
                     {n.pubDate && <>
@@ -2750,27 +2725,14 @@ function NewsSection({ news, loading }) {
             <button
               type="button"
               onClick={() => setShowPopup(true)}
-              style={{ display: "grid", gridTemplateRows: "120px auto", background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 14, color: C.ink, overflow: "hidden", cursor: "pointer", textAlign: "left", transition: "transform 0.15s" }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "#d2d5da", border: `1px solid ${C.rule}`, borderRadius: 14, color: C.ink, cursor: "pointer", textAlign: "center", transition: "transform 0.15s", minHeight: 180 }}
               onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
               onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
             >
-              <div style={{ position: "relative", background: C.paper }}>
-                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(145deg, rgba(17,24,39,0.88), rgba(36,72,94,0.82))" }}>
-                  <svg width="66" height="66" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <circle cx="12" cy="12" r="11" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" />
-                    <path d="M8 16L16 8" stroke="#ffffff" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M10 8H16V14" stroke="#ffffff" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              </div>
-              <div style={{ padding: "12px 14px", display: "grid", gap: 6 }}>
-                <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 700, lineHeight: 1.4 }}>See more</div>
-                <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.02em" }}>
-                  {t("common.showAll", { count: overflowNews.length })}
-                </div>
-              </div>
+              <span style={{ fontFamily: "var(--display)", fontSize: 64, lineHeight: 1, color: "#4b5563" }}>{">"}</span>
             </button>
           )}
+        </div>
         </div>
       </HelpWrap>
       {showPopup && (
