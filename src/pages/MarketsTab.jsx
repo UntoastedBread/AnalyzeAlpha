@@ -114,6 +114,49 @@ function daysUntil(dateStr) {
   return Math.ceil((target - now) / (1000 * 60 * 60 * 24));
 }
 
+function compactNumber(value, opts = {}) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "--";
+  const abs = Math.abs(num);
+  const minimumFractionDigits = opts.minimumFractionDigits ?? 0;
+  const maximumFractionDigits = opts.maximumFractionDigits ?? (abs < 100 ? 1 : 0);
+  if (abs >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(maximumFractionDigits)}B`;
+  if (abs >= 1_000_000) return `${(num / 1_000_000).toFixed(maximumFractionDigits)}M`;
+  if (abs >= 1_000) return `${(num / 1_000).toFixed(maximumFractionDigits)}K`;
+  return num.toLocaleString(undefined, { minimumFractionDigits, maximumFractionDigits });
+}
+
+function formatPredictionVolume(market, field = "volume24h") {
+  const value = Number(market?.[field]);
+  if (!Number.isFinite(value)) return "--";
+  const unit = market?.source === "Polymarket" ? "$" : "M$";
+  return `${unit}${compactNumber(value, { maximumFractionDigits: value < 100 ? 1 : 0 })}`;
+}
+
+function closeTimeLabel(closeTime) {
+  const ts = Date.parse(closeTime || "");
+  if (!Number.isFinite(ts)) return "Open-ended";
+  const diffMs = ts - Date.now();
+  if (diffMs <= 0) return "Closing now";
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  if (diffHours < 24) return `Closes in ${diffHours}h`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) return `Closes in ${diffDays}d`;
+  const diffMonths = Math.floor(diffDays / 30);
+  return `Closes in ${diffMonths}mo`;
+}
+
+function safeExternalHref(url, fallback) {
+  const raw = String(url || "").trim();
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "https:") return fallback;
+    return parsed.toString();
+  } catch {
+    return fallback;
+  }
+}
+
 // ─── Sub-tab: Sectors ────────────────────────────────────────
 
 function SectorsSubTab({ deps, viewport }) {
@@ -637,6 +680,543 @@ function CryptoSubTab({ deps, viewport, onAnalyze }) {
   );
 }
 
+// ─── Sub-tab: Prediction Markets ───────────────────────────
+
+function PredictionMarketsSubTab({ deps, viewport }) {
+  const {
+    C, useI18n, fetchPredictionMarkets, Section, EmptyState,
+  } = deps;
+  const { t } = useI18n();
+  const isMobile = Boolean(viewport?.isMobile);
+  const [payload, setPayload] = useState({ items: [], stats: null, updatedAt: null });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("activity");
+  const [visibleCount, setVisibleCount] = useState(12);
+
+  const tx = useCallback((key, fallback, vars) => {
+    const translated = t(key, vars);
+    return translated && translated !== key ? translated : fallback;
+  }, [t]);
+
+  const loadPredictionMarkets = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const data = await fetchPredictionMarkets();
+      if (data && Array.isArray(data.items)) {
+        setPayload({
+          items: data.items,
+          stats: data.stats || null,
+          updatedAt: data.updatedAt || null,
+        });
+        setError(null);
+      } else {
+        throw new Error(tx("markets.predictionInvalidData", "Prediction feed returned invalid data."));
+      }
+    } catch (e) {
+      const message = e?.message || tx("markets.predictionLoadError", "Failed to load prediction markets.");
+      setError(message);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [fetchPredictionMarkets, tx]);
+
+  useEffect(() => {
+    loadPredictionMarkets();
+  }, [loadPredictionMarkets]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      loadPredictionMarkets(true);
+    }, 60000);
+    return () => clearInterval(id);
+  }, [loadPredictionMarkets]);
+
+  const items = payload.items || [];
+
+  useEffect(() => {
+    setVisibleCount(12);
+  }, [sourceFilter, categoryFilter, sortBy]);
+
+  const categories = useMemo(() => {
+    const counts = new Map();
+    items.forEach((m) => {
+      const key = m.category || "General";
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [items]);
+
+  const filtered = useMemo(() => {
+    let next = [...items];
+    if (sourceFilter !== "all") {
+      next = next.filter(m => m.source === sourceFilter);
+    }
+    if (categoryFilter !== "all") {
+      next = next.filter(m => (m.category || "General") === categoryFilter);
+    }
+
+    if (sortBy === "conviction") {
+      next.sort((a, b) => {
+        const aScore = Math.abs((Number(a.probYes) || 0.5) - 0.5);
+        const bScore = Math.abs((Number(b.probYes) || 0.5) - 0.5);
+        return bScore - aScore;
+      });
+    } else if (sortBy === "closing") {
+      next.sort((a, b) => {
+        const aTs = Date.parse(a.closeTime || "");
+        const bTs = Date.parse(b.closeTime || "");
+        if (!Number.isFinite(aTs) && !Number.isFinite(bTs)) return 0;
+        if (!Number.isFinite(aTs)) return 1;
+        if (!Number.isFinite(bTs)) return -1;
+        return aTs - bTs;
+      });
+    } else {
+      next.sort((a, b) => Number(b.rankScore || 0) - Number(a.rankScore || 0));
+    }
+
+    return next;
+  }, [items, sourceFilter, categoryFilter, sortBy]);
+
+  const featured = filtered.slice(0, 3);
+  const rest = filtered.slice(3, 3 + visibleCount);
+  const hasMore = filtered.length > (3 + visibleCount);
+  const sourceStats = Array.isArray(payload.stats?.bySource) ? payload.stats.bySource : [];
+  const polyStats = sourceStats.find(s => s.source === "Polymarket");
+  const manifoldStats = sourceStats.find(s => s.source === "Manifold");
+  const avgConviction = Number(payload.stats?.averageConviction || 0);
+  const updatedAtLabel = payload.updatedAt
+    ? new Date(payload.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "--";
+
+  const ctaBase = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textDecoration: "none",
+    padding: isMobile ? "10px 12px" : "11px 14px",
+    border: `1px solid ${C.rule}`,
+    fontFamily: "var(--body)",
+    fontSize: 12,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    fontWeight: 700,
+    minHeight: 40,
+  };
+
+  const metricCardStyle = {
+    border: `1px solid ${C.rule}`,
+    background: C.warmWhite,
+    padding: isMobile ? "14px 14px" : "16px 16px",
+    minHeight: 102,
+    display: "grid",
+    gap: 8,
+  };
+
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      <Section title={tx("markets.predictionTitle", "Prediction Markets")}>
+        <div style={{
+          border: `1px solid ${C.rule}`,
+          background: `linear-gradient(155deg, ${C.warmWhite} 0%, ${C.paper} 100%)`,
+          padding: isMobile ? "16px 14px" : "20px 20px",
+          display: "grid",
+          gap: 14,
+        }}>
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontSize: isMobile ? 21 : 26, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.2 }}>
+              {tx("markets.predictionHero", "Trade real-time probability markets")}
+            </div>
+            <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.6, maxWidth: 760 }}>
+              {tx(
+                "markets.predictionHeroBody",
+                "Monitor high-signal events from top prediction exchanges. Markets update automatically and are ranked by activity plus conviction."
+              )}
+            </div>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            <a
+              href="https://polymarket.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ ...ctaBase, background: C.ink, color: C.cream, borderColor: C.ink }}
+            >
+              {tx("markets.openPolymarket", "Open Polymarket")}
+            </a>
+            <a
+              href="https://manifold.markets"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ ...ctaBase, background: C.cream, color: C.ink }}
+            >
+              {tx("markets.openManifold", "Open Manifold")}
+            </a>
+            {featured[0] && (
+              <a
+                href={safeExternalHref(featured[0].url, "https://polymarket.com")}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ ...ctaBase, background: "transparent", color: C.inkMuted }}
+              >
+                {tx("markets.openTopMarket", "Open Top Market")}
+              </a>
+            )}
+          </div>
+          <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.04em" }}>
+            {tx("markets.liveFeed", "Live feed")} · {tx("markets.lastUpdate", "Last update")}: {updatedAtLabel}
+          </div>
+        </div>
+      </Section>
+
+      {loading && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} style={{ border: `1px solid ${C.rule}`, background: C.warmWhite, padding: "16px 16px", height: 126 }} />
+          ))}
+        </div>
+      )}
+
+      {!loading && error && items.length === 0 && (
+        <EmptyState
+          C={C}
+          title={tx("markets.predictionLoadErrorTitle", "Prediction markets unavailable")}
+          message={error}
+          action={(
+            <UIButton C={C} onClick={() => loadPredictionMarkets(false)} size="md">
+              {tx("markets.retry", "Retry")}
+            </UIButton>
+          )}
+        />
+      )}
+
+      {!loading && items.length > 0 && (
+        <>
+          {error && (
+            <div style={{
+              border: `1px solid ${C.rule}`,
+              background: C.paper,
+              padding: "10px 12px",
+              fontSize: 11,
+              color: C.inkMuted,
+              fontFamily: "var(--body)",
+            }}>
+              {tx("markets.partialDataWarning", "Showing cached data while one source is unavailable.")} {error}
+            </div>
+          )}
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
+            gap: 12,
+          }}>
+            <div style={metricCardStyle}>
+              <div style={{ fontSize: 10, color: C.inkFaint, letterSpacing: "0.09em", fontWeight: 700, textTransform: "uppercase", fontFamily: "var(--body)" }}>
+                {tx("markets.activeMarkets", "Active Markets")}
+              </div>
+              <div style={{ fontSize: 30, fontFamily: "var(--display)", color: C.ink, lineHeight: 1 }}>
+                {payload.stats?.totalMarkets || items.length}
+              </div>
+            </div>
+
+            <div style={metricCardStyle}>
+              <div style={{ fontSize: 10, color: C.inkFaint, letterSpacing: "0.09em", fontWeight: 700, textTransform: "uppercase", fontFamily: "var(--body)" }}>
+                {tx("markets.convictionIndex", "Conviction Index")}
+              </div>
+              <div style={{ fontSize: 30, fontFamily: "var(--display)", color: C.ink, lineHeight: 1 }}>
+                {avgConviction.toFixed(1)}
+              </div>
+              <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
+                {tx("markets.convictionScale", "0 to 100 scale")}
+              </div>
+            </div>
+
+            <div style={metricCardStyle}>
+              <div style={{ fontSize: 10, color: C.inkFaint, letterSpacing: "0.09em", fontWeight: 700, textTransform: "uppercase", fontFamily: "var(--body)" }}>
+                {tx("markets.polyVolume24h", "Polymarket 24h Vol")}
+              </div>
+              <div style={{ fontSize: 28, fontFamily: "var(--display)", color: C.ink, lineHeight: 1 }}>
+                ${compactNumber(polyStats?.volume24h || 0)}
+              </div>
+              <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
+                {polyStats?.count || 0} {tx("markets.markets", "markets")}
+              </div>
+            </div>
+
+            <div style={metricCardStyle}>
+              <div style={{ fontSize: 10, color: C.inkFaint, letterSpacing: "0.09em", fontWeight: 700, textTransform: "uppercase", fontFamily: "var(--body)" }}>
+                {tx("markets.manifoldVolume24h", "Manifold 24h Vol")}
+              </div>
+              <div style={{ fontSize: 28, fontFamily: "var(--display)", color: C.ink, lineHeight: 1 }}>
+                M${compactNumber(manifoldStats?.volume24h || 0)}
+              </div>
+              <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
+                {manifoldStats?.count || 0} {tx("markets.markets", "markets")}
+              </div>
+            </div>
+          </div>
+
+          <Section title={tx("markets.featuredMarkets", "Featured Markets")}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+              gap: 12,
+            }}>
+              {featured.map((market) => {
+                const yesPct = Math.round((Number(market.probYes) || 0) * 100);
+                const noPct = Math.max(0, 100 - yesPct);
+                const conviction = Math.round(Math.abs((Number(market.probYes) || 0.5) - 0.5) * 200);
+                const sourceColor = market.source === "Polymarket" ? C.up : C.hold;
+                return (
+                  <div
+                    key={market.id}
+                    style={{
+                      border: `1px solid ${C.rule}`,
+                      background: C.warmWhite,
+                      padding: isMobile ? "14px 14px" : "16px 16px",
+                      display: "grid",
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <span style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        padding: "3px 8px",
+                        border: `1px solid ${C.rule}`,
+                        background: C.paper,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: "0.07em",
+                        textTransform: "uppercase",
+                        color: sourceColor,
+                        fontFamily: "var(--body)",
+                      }}>
+                        {market.source}
+                      </span>
+                      <span style={{ fontSize: 10, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, fontFamily: "var(--body)" }}>
+                        {market.category || "General"}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: 18, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.35 }}>
+                      {market.title}
+                    </div>
+
+                    {market.subtitle && (
+                      <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>
+                        {market.subtitle}
+                      </div>
+                    )}
+
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                      <span style={{ fontSize: 30, fontFamily: "var(--display)", color: C.ink, lineHeight: 1 }}>
+                        {yesPct}%
+                      </span>
+                      <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)" }}>
+                        {market.yesLabel || "YES"}
+                      </span>
+                      <span style={{ marginLeft: "auto", fontSize: 11, color: C.inkMuted, fontFamily: "var(--mono)" }}>
+                        {market.noLabel || "NO"} {noPct}%
+                      </span>
+                    </div>
+
+                    <div style={{ height: 10, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden" }}>
+                      <div style={{ width: `${yesPct}%`, height: "100%", background: C.ink, transition: "width 0.2s ease" }} />
+                    </div>
+
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 8,
+                    }}>
+                      <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
+                        <strong style={{ color: C.ink }}>{formatPredictionVolume(market, "volume24h")}</strong><br />
+                        {tx("markets.vol24h", "24h volume")}
+                      </div>
+                      <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
+                        <strong style={{ color: C.ink }}>{formatPredictionVolume(market, "liquidity")}</strong><br />
+                        {tx("markets.liquidity", "liquidity")}
+                      </div>
+                      <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
+                        <strong style={{ color: C.ink }}>{conviction}/100</strong><br />
+                        {tx("markets.conviction", "conviction")}
+                      </div>
+                      <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
+                        <strong style={{ color: C.ink }}>{closeTimeLabel(market.closeTime)}</strong><br />
+                        {tx("markets.timeToClose", "time to close")}
+                      </div>
+                    </div>
+
+                    <a
+                      href={safeExternalHref(market.url, "https://polymarket.com")}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ ...ctaBase, background: C.ink, color: C.cream, borderColor: C.ink }}
+                    >
+                      {tx("markets.tradeMarket", "Open Market")}
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+
+          <Section title={tx("markets.exploreMarkets", "Explore Markets")}>
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {[
+                    { key: "all", label: tx("markets.allSources", "All Sources") },
+                    { key: "Polymarket", label: "Polymarket" },
+                    { key: "Manifold", label: "Manifold" },
+                  ].map(opt => (
+                    <ControlChip
+                      key={opt.key}
+                      C={C}
+                      active={sourceFilter === opt.key}
+                      onClick={() => setSourceFilter(opt.key)}
+                      style={{ fontSize: 12, padding: "7px 12px" }}
+                    >
+                      {opt.label}
+                    </ControlChip>
+                  ))}
+                </div>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  <ControlChip
+                    C={C}
+                    active={categoryFilter === "all"}
+                    onClick={() => setCategoryFilter("all")}
+                    style={{ fontSize: 12, padding: "7px 12px" }}
+                  >
+                    {tx("markets.allCategories", "All Categories")}
+                  </ControlChip>
+                  {categories.slice(0, 6).map(cat => (
+                    <ControlChip
+                      key={cat.name}
+                      C={C}
+                      active={categoryFilter === cat.name}
+                      onClick={() => setCategoryFilter(cat.name)}
+                      style={{ fontSize: 12, padding: "7px 12px" }}
+                    >
+                      {cat.name} ({cat.count})
+                    </ControlChip>
+                  ))}
+                </div>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {[
+                    { key: "activity", label: tx("markets.sortActivity", "Sort: Activity") },
+                    { key: "conviction", label: tx("markets.sortConviction", "Sort: Conviction") },
+                    { key: "closing", label: tx("markets.sortClosing", "Sort: Closing Soon") },
+                  ].map(opt => (
+                    <ControlChip
+                      key={opt.key}
+                      C={C}
+                      active={sortBy === opt.key}
+                      onClick={() => setSortBy(opt.key)}
+                      style={{ fontSize: 12, padding: "7px 12px" }}
+                    >
+                      {opt.label}
+                    </ControlChip>
+                  ))}
+                </div>
+              </div>
+
+              {filtered.length === 0 && (
+                <EmptyState
+                  C={C}
+                  title={tx("markets.noMarketsTitle", "No markets match these filters")}
+                  message={tx("markets.noMarketsBody", "Try changing source, category, or sort options.")}
+                />
+              )}
+
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+                gap: 10,
+              }}>
+                {rest.map((market) => {
+                  const yesPct = Math.round((Number(market.probYes) || 0) * 100);
+                  const sourceColor = market.source === "Polymarket" ? C.up : C.hold;
+                  return (
+                    <div
+                      key={market.id}
+                      style={{
+                        border: `1px solid ${C.rule}`,
+                        background: C.warmWhite,
+                        padding: "14px 14px",
+                        display: "grid",
+                        gap: 9,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sourceColor, fontFamily: "var(--body)" }}>
+                          {market.source}
+                        </span>
+                        <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                          {market.category || "General"}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: 15, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.35 }}>
+                        {market.title}
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 20, fontFamily: "var(--display)", color: C.ink }}>
+                          {yesPct}%
+                        </div>
+                        <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
+                          {market.yesLabel || "YES"}
+                        </div>
+                        <div style={{ marginLeft: "auto", fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>
+                          {closeTimeLabel(market.closeTime)}
+                        </div>
+                      </div>
+
+                      <div style={{ height: 8, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden" }}>
+                        <div style={{ width: `${yesPct}%`, height: "100%", background: C.ink }} />
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 11, color: C.inkMuted, fontFamily: "var(--mono)" }}>
+                        <span>{tx("markets.vol24hShort", "24h")} {formatPredictionVolume(market, "volume24h")}</span>
+                        <span>{tx("markets.totalVolumeShort", "Tot")} {formatPredictionVolume(market, "volumeTotal")}</span>
+                        <span>{tx("markets.liquidityShort", "Liq")} {formatPredictionVolume(market, "liquidity")}</span>
+                      </div>
+
+                      <a
+                        href={safeExternalHref(market.url, "https://polymarket.com")}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ ...ctaBase, background: "transparent", color: C.ink, justifySelf: "start" }}
+                      >
+                        {tx("markets.openMarket", "Open Market")}
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {hasMore && (
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <UIButton C={C} variant="secondary" size="md" onClick={() => setVisibleCount(n => n + 12)}>
+                    {tx("markets.showMore", "Show More")}
+                  </UIButton>
+                </div>
+              )}
+            </div>
+          </Section>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Sub-tab: Economic ───────────────────────────────────────
 
 function EconomicSubTab({ deps, viewport, focusKey, onFocusHandled }) {
@@ -925,6 +1505,7 @@ const SUB_TABS = [
   { key: "sectors", label: "Sectors" },
   { key: "crypto", label: "Crypto" },
   { key: "economic", label: "Economic" },
+  { key: "prediction", label: "Prediction" },
   { key: "rates", label: "Rates" },
   { key: "commodities", label: "Commodities" },
   { key: "currencies", label: "Currencies" },
@@ -1008,6 +1589,12 @@ function MarketsTab({ deps, viewport, subTab, onSubTabChange, focusKey, onFocusH
       {activeTab === "economic" && (
         <LazySection minHeight={300}>
           <EconomicSubTab deps={deps} viewport={viewport} focusKey={focusKey} onFocusHandled={onFocusHandled} />
+        </LazySection>
+      )}
+
+      {activeTab === "prediction" && (
+        <LazySection minHeight={320}>
+          <PredictionMarketsSubTab deps={deps} viewport={viewport} />
         </LazySection>
       )}
 

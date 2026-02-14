@@ -47,7 +47,7 @@ const A11Y_STORAGE_KEY = "aa_a11y_v1";
 const APP_TABS = ["home", "analysis", "charts", "screener", "markets", "portfolio", "community", "heatmap", "comparison", "account"];
 const ANALYSIS_TABS = ["stock", "financials", "options", "dividends"];
 const ACCOUNT_TABS = ["overview", "preferences"];
-const MARKETS_TABS = ["heatmap", "sectors", "crypto", "economic", "rates", "commodities", "currencies"];
+const MARKETS_TABS = ["heatmap", "sectors", "crypto", "economic", "prediction", "rates", "commodities", "currencies"];
 const PORTFOLIO_TABS = ["holdings", "paper-trading", "backtesting"];
 const SCREENER_TABS = ["screener", "comparison"];
 const CHART_MODES = ["price", "volume", "rsi", "macd", "stoch"];
@@ -867,6 +867,14 @@ async function fetchRSSNews() {
   } catch {
     return FALLBACK_NEWS;
   }
+}
+
+async function fetchPredictionMarkets() {
+  const resp = await fetchWithTimeout("/api/prediction", {}, 12000);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const json = await resp.json();
+  if (!json || !Array.isArray(json.items)) throw new Error("Invalid response");
+  return json;
 }
 
 async function fetchTickerStrip(symbols) {
@@ -4590,6 +4598,7 @@ function App() {
     fetchMarketMovers,
     fetchQuickQuote,
     fetchRSSNews,
+    fetchPredictionMarkets,
     fetchStockData,
     runAnalysis,
     applyLivePoint,

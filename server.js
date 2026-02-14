@@ -1,5 +1,6 @@
 const express = require('express');
 const https = require('https');
+const { fetchPredictionMarkets } = require('./api/_predictionCore');
 
 const app = express();
 
@@ -400,6 +401,17 @@ app.get('/api/rss', async (req, res) => {
   } catch (e) {
     console.error(`[Proxy] ✗ RSS — ${e.message}`);
     return res.status(502).json({ error: e.message });
+  }
+});
+
+app.get('/api/prediction', async (req, res) => {
+  try {
+    const payload = await fetchPredictionMarkets();
+    res.setHeader('Cache-Control', 'public, max-age=20, s-maxage=40, stale-while-revalidate=120');
+    return res.json(payload);
+  } catch (e) {
+    console.error(`[Proxy] ✗ Prediction markets — ${e.message}`);
+    return res.status(502).json({ error: e.message || 'Prediction markets unavailable' });
   }
 });
 
