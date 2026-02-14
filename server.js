@@ -16,6 +16,13 @@ const MAX_MODULES_LEN = 160;
 const MAX_BYTES = 2 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 8000;
 const rateBuckets = new Map();
+const NEWS_IMAGE_BASE_TAGS = ['finance', 'stock-market', 'business', 'wall-street'];
+const NEWS_IMAGE_STOP_WORDS = new Set([
+  'about', 'after', 'ahead', 'amid', 'analyst', 'analysts', 'and', 'are', 'as', 'at',
+  'be', 'by', 'for', 'from', 'has', 'have', 'in', 'into', 'its', 'market', 'markets',
+  'news', 'new', 'on', 'of', 'or', 'out', 'over', 'says', 'stock', 'stocks', 'the',
+  'their', 'this', 'to', 'today', 'under', 'update', 'vs', 'what', 'when', 'why', 'with',
+]);
 
 function getAllowedOrigins() {
   const extra = (process.env.ALLOWED_ORIGINS || '')
@@ -62,6 +69,39 @@ function isRateLimited(ip) {
 function normalizeParam(param) {
   if (Array.isArray(param)) return param[0];
   return param;
+}
+
+function hashText(text) {
+  let hash = 0;
+  const str = String(text || '');
+  for (let i = 0; i < str.length; i += 1) hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  return Math.abs(hash);
+}
+
+function extractNewsKeywords(title) {
+  const raw = String(title || '')
+    .toLowerCase()
+    .replace(/&amp;/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+  const unique = [];
+  for (const word of raw) {
+    if (word.length < 3) continue;
+    if (!/[a-z]/.test(word)) continue;
+    if (NEWS_IMAGE_STOP_WORDS.has(word)) continue;
+    if (unique.includes(word)) continue;
+    unique.push(word);
+    if (unique.length >= 4) break;
+  }
+  return unique;
+}
+
+function buildTitleImageUrl(title) {
+  const seed = hashText(title || 'market news');
+  const tags = [...NEWS_IMAGE_BASE_TAGS, ...extractNewsKeywords(title)].slice(0, 8);
+  const path = tags.map(tag => encodeURIComponent(tag)).join(',');
+  return `https://loremflickr.com/800/500/${path}?lock=${seed % 1000000}`;
 }
 
 app.use((req, res, next) => {
@@ -249,13 +289,17 @@ app.get('/api/rss', (req, res) => {
           const enclosureMatch = block.match(/<enclosure[^>]+url=["']([^"']+)["']/);
           const mediaThumbMatch = block.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/);
           const descImgMatch = block.match(/<img[^>]+src=["']([^"']+)["']/);
-          const image = (mediaMatch && mediaMatch[1]) || (enclosureMatch && enclosureMatch[1]) || (mediaThumbMatch && mediaThumbMatch[1]) || (descImgMatch && descImgMatch[1]) || null;
+          const title = get('title');
+          const source = get('source') || 'Yahoo Finance';
+          const description = get('description').replace(/<[^>]*>/g, '').slice(0, 200);
+          const rawImage = (mediaMatch && mediaMatch[1]) || (enclosureMatch && enclosureMatch[1]) || (mediaThumbMatch && mediaThumbMatch[1]) || (descImgMatch && descImgMatch[1]) || '';
+          const image = /^https?:\/\//i.test(rawImage) ? rawImage : buildTitleImageUrl(title || description);
           items.push({
-            title: get('title'),
+            title,
             link: get('link'),
             pubDate: get('pubDate'),
-            description: get('description').replace(/<[^>]*>/g, '').slice(0, 200),
-            source: get('source') || 'Yahoo Finance',
+            description,
+            source,
             image,
           });
         }

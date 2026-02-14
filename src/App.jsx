@@ -336,12 +336,41 @@ function labelFor(label, t) {
   return label;
 }
 
+const NEWS_IMAGE_BASE_TAGS = ["finance", "stock-market", "business", "wall-street"];
+const NEWS_IMAGE_STOP_WORDS = new Set([
+  "about", "after", "amid", "analyst", "analysts", "and", "are", "ahead", "as", "at",
+  "be", "by", "for", "from", "has", "have", "in", "into", "its", "market", "markets",
+  "news", "new", "on", "of", "or", "out", "over", "says", "stocks", "stock", "the",
+  "their", "this", "to", "today", "under", "update", "vs", "what", "when", "why", "with",
+]);
+
+function extractNewsKeywords(text) {
+  const raw = String(text || "")
+    .toLowerCase()
+    .replace(/&amp;/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  const unique = [];
+  for (const word of raw) {
+    if (word.length < 3) continue;
+    if (!/[a-z]/.test(word)) continue;
+    if (NEWS_IMAGE_STOP_WORDS.has(word)) continue;
+    if (unique.includes(word)) continue;
+    unique.push(word);
+    if (unique.length >= 4) break;
+  }
+  return unique;
+}
+
 function buildNewsPlaceholder(text) {
   let hash = 0;
   const str = text || "news";
   for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
   const seed = Math.abs(hash);
-  return `https://picsum.photos/seed/${seed}/800/500`;
+  const tags = [...NEWS_IMAGE_BASE_TAGS, ...extractNewsKeywords(str)].slice(0, 8);
+  const tagPath = tags.map((tag) => encodeURIComponent(tag)).join(",");
+  return `https://loremflickr.com/800/500/${tagPath}?lock=${seed % 1000000}`;
 }
 
 function getFirstNameFromUser(user) {
@@ -585,7 +614,12 @@ async function fetchRSSNews() {
     const resp = await fetchWithTimeout("/api/rss");
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const json = await resp.json();
-    if (json.items && json.items.length > 0) return json.items.slice(0, 20);
+    if (json.items && json.items.length > 0) {
+      return json.items.slice(0, 20).map((item) => ({
+        ...item,
+        image: item.image || buildNewsPlaceholder(item.title || item.description || "market news"),
+      }));
+    }
     return FALLBACK_NEWS;
   } catch {
     return FALLBACK_NEWS;
@@ -1314,9 +1348,6 @@ const FALLBACK_NEWS = [
   { titleKey: "news.fallback.2.title", sourceKey: "news.fallback.2.source", pubDate: "", descriptionKey: "news.fallback.2.desc" },
   { titleKey: "news.fallback.3.title", sourceKey: "news.fallback.3.source", pubDate: "", descriptionKey: "news.fallback.3.desc" },
 ];
-
-const NEWS_PLACEHOLDER_IMAGE = buildNewsPlaceholder("market-news-fallback");
-
 
 const SCORECARD_INDICATORS = [
   { symbol: "^VIX", label: "VIX" },
@@ -2588,7 +2619,10 @@ function NewsSection({ news, loading }) {
           </div>
         </div>
         <div style={{ position: "relative", background: C.paper }}>
-          <img src={heroImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = NEWS_PLACEHOLDER_IMAGE; }} />
+          <img src={heroImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = buildNewsPlaceholder(heroTitle || "market news");
+          }} />
         </div>
         </a>
       </HelpWrap>
@@ -2604,7 +2638,10 @@ function NewsSection({ news, loading }) {
                 onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}>
                 <div style={{ position: "relative", background: C.paper }}>
-                  <img src={cardImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.src = NEWS_PLACEHOLDER_IMAGE; }} />
+                  <img src={cardImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = buildNewsPlaceholder(cardTitle || `news-${i}`);
+                  }} />
                 </div>
                 <div style={{ padding: "12px 14px", display: "grid", gap: 8 }}>
                   <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.ink, fontWeight: 500, lineHeight: 1.4 }}>{cardTitle}</div>
