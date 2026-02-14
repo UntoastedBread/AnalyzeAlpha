@@ -355,6 +355,202 @@ const NEWS_IMAGE_AI_MARKERS = [
   /ai[-_ ]?(generated|art|image|render)/i,
   /(generated|synthetic)[-_ ]?(image|art)/i,
 ];
+const NEWS_SOURCE_QUALITY_RULES = [
+  { pattern: /\b(reuters|associated press|\bap\b|bloomberg|financial times|wall street journal|\bwsj\b|economist)\b/i, score: 3.6 },
+  { pattern: /\b(cnbc|marketwatch|barron'?s|ft|nikkei)\b/i, score: 3.0 },
+  { pattern: /\b(yahoo finance|investing\.com|seeking alpha|benzinga|the motley fool|the street|marketbeat)\b/i, score: 1.9 },
+];
+const NEWS_IMPACT_RULES = [
+  { pattern: /\b(fed|federal reserve|fomc|interest rates?|rate cuts?|rate hikes?|treasury yields?)\b/i, score: 2.7 },
+  { pattern: /\b(cpi|pce|inflation|nonfarm payrolls?|jobs report|unemployment|gdp|recession)\b/i, score: 2.6 },
+  { pattern: /\b(earnings|guidance|outlook|forecast|eps|revenue|margin|profit warning)\b/i, score: 1.8 },
+  { pattern: /\b(merger|acquisition|buyout|takeover|antitrust|regulator|sec)\b/i, score: 1.8 },
+  { pattern: /\b(bankruptcy|default|downgrade|credit rating|liquidity)\b/i, score: 2.1 },
+  { pattern: /\b(opec|oil supply|sanctions?|tariffs?|geopolitical|war)\b/i, score: 1.6 },
+];
+const NEWS_CLICKBAIT_RULES = [
+  { pattern: /\b(you need to know|what to know|what to watch|should you buy|is it time to buy|buy now|sell now)\b/i, penalty: 2.2 },
+  { pattern: /\b(\d+\s+(reasons|things|stocks|ways|charts?|lessons)|top\s+\d+)\b/i, penalty: 1.4 },
+  { pattern: /\b(soars?|plunges?|skyrockets?|slams?|crashes?|explodes?|surges?)\b/i, penalty: 1.0 },
+  { pattern: /\b(opinion|video|podcast|watch live)\b/i, penalty: 1.0 },
+  { pattern: /!+/, penalty: 1.1 },
+];
+
+function parseNewsTimestamp(pubDate) {
+  const ts = Date.parse(pubDate || "");
+  return Number.isFinite(ts) ? ts : 0;
+}
+
+function normalizeNewsLink(link) {
+  const raw = String(link || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    const path = url.pathname.replace(/\/+$/, "");
+    return `${url.hostname}${path}`.toLowerCase();
+  } catch {
+    return raw.toLowerCase();
+  }
+}
+
+function tokenizeNewsHeadline(title) {
+  return String(title || "")
+    .toLowerCase()
+    .replace(/&amp;/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((word) => word.length >= 3 && !NEWS_IMAGE_STOP_WORDS.has(word));
+}
+
+function newsTokenSimilarity(tokensA, tokensB) {
+  if (!tokensA?.length || !tokensB?.length) return 0;
+  const setA = new Set(tokensA);
+  const setB = new Set(tokensB);
+  let intersection = 0;
+  for (const token of setA) {
+    if (setB.has(token)) intersection += 1;
+  }
+  const union = setA.size + setB.size - intersection;
+  return union > 0 ? intersection / union : 0;
+}
+
+function newsSourceBucket(source) {
+  const text = String(source || "").toLowerCase();
+  if (!text) return "unknown";
+  if (/reuters/.test(text)) return "reuters";
+  if (/bloomberg/.test(text)) return "bloomberg";
+  if (/associated press|\bap\b/.test(text)) return "ap";
+  if (/yahoo/.test(text)) return "yahoo";
+  if (/investing/.test(text)) return "investing";
+  if (/marketwatch/.test(text)) return "marketwatch";
+  if (/cnbc/.test(text)) return "cnbc";
+  return text.replace(/[^a-z0-9]+/g, " ").trim().slice(0, 30) || "unknown";
+}
+
+function newsSourceQualityScore(source) {
+  const text = String(source || "").toLowerCase();
+  if (!text) return 0.8;
+  for (const rule of NEWS_SOURCE_QUALITY_RULES) {
+    if (rule.pattern.test(text)) return rule.score;
+  }
+  return /\b(blog|opinion|podcast|video)\b/i.test(text) ? 0.7 : 1.2;
+}
+
+function newsImpactScore(title, description) {
+  const text = `${title || ""} ${description || ""}`;
+  let score = 0;
+  for (const rule of NEWS_IMPACT_RULES) {
+    if (rule.pattern.test(text)) score += rule.score;
+  }
+  if (/\b(s&p 500|sp 500|nasdaq|dow jones|dollar index|treasury|bitcoin|ethereum|gold|oil)\b/i.test(text)) {
+    score += 0.8;
+  }
+  return Math.min(score, 7.5);
+}
+
+function newsClickbaitPenalty(title) {
+  const text = String(title || "");
+  if (!text) return 0;
+  let penalty = 0;
+  for (const rule of NEWS_CLICKBAIT_RULES) {
+    if (rule.pattern.test(text)) penalty += rule.penalty;
+  }
+  if (text.trim().endsWith("?")) penalty += 0.7;
+  if (text.length < 40) penalty += 0.5;
+  return Math.min(penalty, 5);
+}
+
+function newsFreshnessScore(pubDate) {
+  const ts = parseNewsTimestamp(pubDate);
+  if (!ts) return 0.2;
+  const ageHours = Math.max(0, (Date.now() - ts) / (1000 * 60 * 60));
+  if (ageHours <= 1) return 2.2;
+  if (ageHours <= 6) return 1.8;
+  if (ageHours <= 12) return 1.4;
+  if (ageHours <= 24) return 1.0;
+  if (ageHours <= 48) return 0.7;
+  if (ageHours <= 72) return 0.4;
+  if (ageHours <= 120) return 0.1;
+  return -0.1;
+}
+
+function isNearDuplicateNews(a, b) {
+  if (!a || !b) return false;
+  if (a._newsLinkKey && b._newsLinkKey && a._newsLinkKey === b._newsLinkKey) return true;
+  const titleA = String(a.title || "").trim().toLowerCase();
+  const titleB = String(b.title || "").trim().toLowerCase();
+  if (titleA && titleA === titleB) return true;
+  const sim = newsTokenSimilarity(a._newsTokens, b._newsTokens);
+  if (sim >= 0.84) return true;
+  if (a._newsSourceBucket === b._newsSourceBucket && sim >= 0.72) return true;
+  return false;
+}
+
+function rankAndFilterNewsItems(items, limit = 40) {
+  if (!Array.isArray(items)) return [];
+  const prepared = items
+    .map((item, idx) => {
+      const title = String(item?.title || "").trim();
+      const description = String(item?.description || "").trim();
+      const source = String(item?.source || "").trim();
+      const ts = parseNewsTimestamp(item?.pubDate);
+      const sourceScore = newsSourceQualityScore(source);
+      const impactScore = newsImpactScore(title, description);
+      const freshnessScore = newsFreshnessScore(item?.pubDate);
+      const clickbaitPenalty = newsClickbaitPenalty(title);
+      const detailBonus = description.length >= 80 ? 0.25 : 0;
+      return {
+        ...item,
+        source,
+        _newsTs: ts,
+        _newsScore: sourceScore + impactScore + freshnessScore + detailBonus - clickbaitPenalty,
+        _newsSourceBucket: newsSourceBucket(source),
+        _newsTokens: tokenizeNewsHeadline(title),
+        _newsLinkKey: normalizeNewsLink(item?.link),
+        _newsIdx: idx,
+      };
+    })
+    .filter((item) => item.title || item.link);
+
+  prepared.sort((a, b) => (
+    b._newsScore - a._newsScore
+    || b._newsTs - a._newsTs
+    || a._newsIdx - b._newsIdx
+  ));
+
+  const selected = [];
+  const sourceCounts = new Map();
+  for (const item of prepared) {
+    if (selected.length >= limit) break;
+    const sourceCap = selected.length < 8 ? 2 : 5;
+    const count = sourceCounts.get(item._newsSourceBucket) || 0;
+    if (count >= sourceCap) continue;
+    if (selected.some((existing) => isNearDuplicateNews(existing, item))) continue;
+    selected.push(item);
+    sourceCounts.set(item._newsSourceBucket, count + 1);
+  }
+
+  for (const item of prepared) {
+    if (selected.length >= limit) break;
+    if (selected.includes(item)) continue;
+    if (selected.some((existing) => isNearDuplicateNews(existing, item))) continue;
+    selected.push(item);
+  }
+
+  return selected.map((item) => {
+    const {
+      _newsTs,
+      _newsScore,
+      _newsSourceBucket,
+      _newsTokens,
+      _newsLinkKey,
+      _newsIdx,
+      ...rest
+    } = item;
+    return rest;
+  });
+}
 
 function extractNewsKeywords(text) {
   const raw = String(text || "")
@@ -658,7 +854,9 @@ async function fetchRSSNews() {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const json = await resp.json();
     if (json.items && json.items.length > 0) {
-      return json.items.slice(0, 40).map((item) => ({
+      const rankedItems = rankAndFilterNewsItems(json.items, 40);
+      if (rankedItems.length === 0) return FALLBACK_NEWS;
+      return rankedItems.map((item) => ({
         ...item,
         image: (!item.image || isLikelyAiImageUrl(item.image))
           ? buildNewsPlaceholder(item.title || item.description || "market news")
