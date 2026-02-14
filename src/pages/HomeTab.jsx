@@ -16,6 +16,7 @@ function HomeTab({
     MARKET_REGIONS,
     REGION_MOVERS,
     HEATMAP_UNIVERSE,
+    ASSET_SECTIONS,
     DEFAULT_TRENDING,
     PORTFOLIO_TILE,
     FALLBACK_NEWS,
@@ -34,6 +35,7 @@ function HomeTab({
     MiniIntradayChart,
     LazySection,
     MoverColumn,
+    AssetRow,
     Sparkline,
     SectorPerformanceCard,
     YieldCurveCard,
@@ -456,13 +458,20 @@ function HomeTab({
           title={t("home.marketBriefSection")}
           help={{ title: t("help.marketBrief.title"), body: t("help.marketBrief.body") }}
         >
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: isMobile ? 14 : 16, alignItems: "start" }}>
-            <HelpWrap help={{ title: t("help.sectorPerformance.title"), body: t("help.sectorPerformance.body") }} block>
-              <SectorPerformanceCard />
-            </HelpWrap>
-            <HelpWrap help={{ title: t("help.yieldCurve.title"), body: t("help.yieldCurve.body") }} block>
-              <YieldCurveCard />
-            </HelpWrap>
+          <div style={{ display: "grid", gap: isMobile ? 14 : 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: isMobile ? 14 : 16, alignItems: "start" }}>
+              <HelpWrap help={{ title: t("help.sectorPerformance.title"), body: t("help.sectorPerformance.body") }} block>
+                <SectorPerformanceCard />
+              </HelpWrap>
+              <HelpWrap help={{ title: t("help.yieldCurve.title"), body: t("help.yieldCurve.body") }} block>
+                <YieldCurveCard />
+              </HelpWrap>
+            </div>
+            <div style={{ display: "grid", gap: 0 }}>
+              {ASSET_SECTIONS.map((section) => (
+                <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
+              ))}
+            </div>
           </div>
         </Section>
       </LazySection>}
