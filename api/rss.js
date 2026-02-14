@@ -15,6 +15,19 @@ const NEWS_IMAGE_STOP_WORDS = new Set([
   'news', 'new', 'on', 'of', 'or', 'out', 'over', 'says', 'stock', 'stocks', 'the',
   'their', 'this', 'to', 'today', 'under', 'update', 'vs', 'what', 'when', 'why', 'with',
 ]);
+const NEWS_IMAGE_AI_MARKERS = [
+  /midjourney/i,
+  /stability\.ai/i,
+  /stable[-_ ]?diffusion/i,
+  /dall[-_ ]?e/i,
+  /openai/i,
+  /sora/i,
+  /ideogram/i,
+  /leonardo/i,
+  /dreamstudio/i,
+  /ai[-_ ]?(generated|art|image|render)/i,
+  /(generated|synthetic)[-_ ]?(image|art)/i,
+];
 const rateBuckets = new Map();
 
 function getAllowedOrigins() {
@@ -87,9 +100,40 @@ function extractNewsKeywords(title) {
 
 function buildTitleImageUrl(title) {
   const seed = hashText(title || 'market news');
-  const tags = [...NEWS_IMAGE_BASE_TAGS, ...extractNewsKeywords(title)].slice(0, 8);
-  const path = tags.map((tag) => encodeURIComponent(tag)).join(',');
-  return `https://loremflickr.com/800/500/${path}?lock=${seed % 1000000}`;
+  const hueA = seed % 360;
+  const hueB = (hueA + 32) % 360;
+  const keywords = extractNewsKeywords(title);
+  const titleText = (keywords.length ? keywords : NEWS_IMAGE_BASE_TAGS.slice(0, 3))
+    .join(' · ')
+    .toUpperCase()
+    .slice(0, 48);
+  const bars = Array.from({ length: 8 }, (_, i) => {
+    const h = 30 + ((seed >> (i % 12)) % 70);
+    const x = 64 + i * 78;
+    const y = 412 - h;
+    return `<rect x="${x}" y="${y}" width="44" height="${h}" fill="rgba(255,255,255,0.24)" />`;
+  }).join('');
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" role="img" aria-label="Market news placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="hsl(${hueA}, 42%, 22%)"/>
+      <stop offset="100%" stop-color="hsl(${hueB}, 48%, 14%)"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#bg)"/>
+  <path d="M40 360 L160 312 L260 332 L360 250 L470 274 L570 206 L670 228 L760 164" fill="none" stroke="rgba(255,255,255,0.76)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  ${bars}
+  <rect x="36" y="34" width="728" height="64" fill="rgba(0,0,0,0.26)"/>
+  <text x="56" y="75" fill="rgba(255,255,255,0.95)" font-size="28" font-family="Arial, Helvetica, sans-serif" font-weight="700">${titleText || 'MARKET UPDATE'}</text>
+</svg>
+`.trim();
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function isLikelyAiImageUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  return NEWS_IMAGE_AI_MARKERS.some((pattern) => pattern.test(url));
 }
 
 module.exports = (req, res) => {
@@ -156,7 +200,10 @@ module.exports = (req, res) => {
           const title = get('title');
           const description = get('description').replace(/<[^>]*>/g, '').slice(0, 200);
           const rawImage = (mediaMatch && mediaMatch[1]) || (enclosureMatch && enclosureMatch[1]) || (mediaThumbMatch && mediaThumbMatch[1]) || (descImgMatch && descImgMatch[1]) || '';
-          const image = /^https?:\/\//i.test(rawImage) ? rawImage : buildTitleImageUrl(title || description);
+          const hasHttpImage = /^https?:\/\//i.test(rawImage);
+          const image = hasHttpImage && !isLikelyAiImageUrl(rawImage)
+            ? rawImage
+            : buildTitleImageUrl(title || description);
           items.push({
             title,
             link: get('link'),
