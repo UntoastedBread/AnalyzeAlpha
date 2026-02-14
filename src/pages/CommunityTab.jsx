@@ -1,15 +1,15 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { UIButton, DataTable, EmptyState } from "../components/ui/primitives";
+import { UIButton, DataTable, EmptyState, ControlChip } from "../components/ui/primitives";
 
 const SIMULATED_FEED = [
-  { user: "QuantTrader42", ticker: "NVDA", action: "STRONG BUY", confidence: 87, time: Date.now() - 300000 },
-  { user: "AlphaSeeker", ticker: "AAPL", action: "BUY", confidence: 72, time: Date.now() - 900000 },
-  { user: "MarketOwl", ticker: "TSLA", action: "HOLD", confidence: 65, time: Date.now() - 1800000 },
-  { user: "DeepValue99", ticker: "MSFT", action: "BUY", confidence: 81, time: Date.now() - 3600000 },
-  { user: "TechBull", ticker: "META", action: "STRONG BUY", confidence: 90, time: Date.now() - 7200000 },
-  { user: "RiskManager", ticker: "JPM", action: "HOLD", confidence: 58, time: Date.now() - 10800000 },
-  { user: "SwingKing", ticker: "AMD", action: "BUY", confidence: 76, time: Date.now() - 14400000 },
-  { user: "DividendHunter", ticker: "KO", action: "BUY", confidence: 69, time: Date.now() - 21600000 },
+  { user: "QuantTrader42", ticker: "NVDA", action: "STRONG BUY", confidence: 87, time: Date.now() - 300000, message: "AI infrastructure spending accelerating. Data center revenue could double by next quarter." },
+  { user: "AlphaSeeker", ticker: "AAPL", action: "BUY", confidence: 72, time: Date.now() - 900000, message: "Services segment growing faster than hardware. Ecosystem moat widening." },
+  { user: "MarketOwl", ticker: "TSLA", action: "HOLD", confidence: 65, time: Date.now() - 1800000, message: "Valuation is stretched but autonomous driving progress is real. Wait for pullback." },
+  { user: "DeepValue99", ticker: "MSFT", action: "BUY", confidence: 81, time: Date.now() - 3600000, message: "Azure growth re-accelerating. Copilot monetization starting to show in enterprise." },
+  { user: "TechBull", ticker: "META", action: "STRONG BUY", confidence: 90, time: Date.now() - 7200000, message: "Ad revenue inflection point. Reels monetization gap closing fast with TikTok." },
+  { user: "RiskManager", ticker: "JPM", action: "HOLD", confidence: 58, time: Date.now() - 10800000, message: "Strong balance sheet but net interest income peaking. Watch for credit quality." },
+  { user: "SwingKing", ticker: "AMD", action: "BUY", confidence: 76, time: Date.now() - 14400000, message: "MI300 ramp on track. Server CPU market share gains continuing." },
+  { user: "DividendHunter", ticker: "KO", action: "BUY", confidence: 69, time: Date.now() - 21600000, message: "61 years of dividend growth. Pricing power intact despite volume headwinds." },
 ];
 
 const TRENDING = [
@@ -60,6 +60,19 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
   const [sortCol, setSortCol] = useState(null);
   const [sortDir, setSortDir] = useState(1);
 
+  // Create post state
+  const [showPostForm, setShowPostForm] = useState(false);
+  const [postTicker, setPostTicker] = useState("");
+  const [postAction, setPostAction] = useState("BUY");
+  const [postConfidence, setPostConfidence] = useState(75);
+  const [postMessage, setPostMessage] = useState("");
+  const [localFeed, setLocalFeed] = useState(() => {
+    try {
+      const saved = localStorage.getItem("aa_community_posts_v1");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
   const handleShare = useCallback(() => {
     if (!selectedTicker) return;
     const url = `${window.location.origin}?tab=analysis&ticker=${encodeURIComponent(selectedTicker)}`;
@@ -79,6 +92,32 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
     if (sortCol === col) setSortDir((d) => -d);
     else { setSortCol(col); setSortDir(1); }
   }, [sortCol]);
+
+  const handlePostSubmit = useCallback(() => {
+    if (!postTicker.trim()) return;
+    const post = {
+      user: "You",
+      ticker: postTicker.trim().toUpperCase(),
+      action: postAction,
+      confidence: postConfidence,
+      time: Date.now(),
+      message: postMessage.trim(),
+      isLocal: true,
+    };
+    const next = [post, ...localFeed];
+    setLocalFeed(next);
+    try { localStorage.setItem("aa_community_posts_v1", JSON.stringify(next)); } catch {}
+    setPostTicker("");
+    setPostAction("BUY");
+    setPostConfidence(75);
+    setPostMessage("");
+    setShowPostForm(false);
+  }, [postTicker, postAction, postConfidence, postMessage, localFeed]);
+
+  const allFeed = useMemo(() => {
+    const combined = [...localFeed, ...SIMULATED_FEED];
+    return combined.sort((a, b) => b.time - a.time);
+  }, [localFeed]);
 
   const sentimentColor = useCallback((s) => {
     if (s === "BULLISH") return C.up;
@@ -235,11 +274,63 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
 
       {/* ============ Community Feed ============ */}
       <Section title={t("community.feedTitle")}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <UIButton C={C} size="sm" onClick={() => setShowPostForm(o => !o)}>
+            {showPostForm ? t("common.close") : t("community.newPost")}
+          </UIButton>
+        </div>
+
+        {showPostForm && (
+          <div style={{ border: `1px solid ${C.rule}`, padding: 16, marginBottom: 16, background: C.warmWhite }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              <input
+                value={postTicker}
+                onChange={e => setPostTicker(e.target.value.toUpperCase())}
+                placeholder={t("community.postTicker")}
+                style={{ padding: "6px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.ink, fontSize: 12, fontFamily: "var(--mono)", outline: "none", width: 100 }}
+              />
+              <div style={{ display: "flex", gap: 0 }}>
+                {["BUY", "SELL", "HOLD"].map(a => (
+                  <ControlChip key={a} C={C} active={postAction === a} onClick={() => setPostAction(a)}>{a}</ControlChip>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 4 }}>
+                {t("community.postConfidence")}: {postConfidence}%
+              </div>
+              <input
+                type="range" min="0" max="100" value={postConfidence}
+                onChange={e => setPostConfidence(Number(e.target.value))}
+                style={{ width: "100%" }}
+              />
+            </div>
+            <textarea
+              value={postMessage}
+              onChange={e => setPostMessage(e.target.value)}
+              placeholder={t("community.messagePlaceholder")}
+              rows={2}
+              style={{ width: "100%", padding: "8px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.ink, fontSize: 11, fontFamily: "var(--body)", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+            />
+            {postTicker && (
+              <div style={{ border: `1px solid ${C.ruleFaint}`, padding: 10, marginTop: 8, fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted }}>
+                <span style={{ fontWeight: 700 }}>{t("community.postPreview")}:</span>{" "}
+                <span style={{ fontFamily: "var(--mono)", fontWeight: 700, color: C.ink }}>{postTicker}</span>{" "}
+                <span style={{ color: recColor(postAction), fontWeight: 700 }}>{postAction}</span>{" "}
+                ({postConfidence}%) {postMessage && `— "${postMessage}"`}
+              </div>
+            )}
+            <UIButton C={C} variant="primary" onClick={handlePostSubmit} style={{ marginTop: 10 }} disabled={!postTicker.trim()}>
+              {t("community.postSubmit")}
+            </UIButton>
+          </div>
+        )}
+
         <div style={{
           display: "grid", gridTemplateColumns: "1fr",
           gap: 8, marginBottom: 24,
         }}>
-          {SIMULATED_FEED.map((item, i) => (
+          {allFeed.map((item, i) => (
             <div
               key={`${item.user}-${item.ticker}-${i}`}
               style={{
@@ -256,8 +347,14 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
                   fontSize: 14, fontWeight: 700,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontFamily: "var(--display)", flexShrink: 0,
+                  position: "relative",
                 }}>
                   {item.user.charAt(0)}
+                  {item.isLocal && (
+                    <span style={{ position: "absolute", bottom: -2, right: -2, fontSize: 7, fontWeight: 700, background: C.ink, color: C.cream, padding: "1px 3px", fontFamily: "var(--mono)" }}>
+                      {t("community.you")}
+                    </span>
+                  )}
                 </div>
 
                 {/* User + time */}
@@ -331,6 +428,11 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
                   </div>
                 </div>
               </div>
+              {item.message && (
+                <div style={{ marginTop: 8, fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.5, paddingLeft: 42 }}>
+                  {item.message}
+                </div>
+              )}
             </div>
           ))}
         </div>

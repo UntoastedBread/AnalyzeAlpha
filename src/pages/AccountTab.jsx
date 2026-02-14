@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { UIButton } from "../components/ui/primitives";
+import { UIButton, ControlChip } from "../components/ui/primitives";
 
 function AccountTab({
   deps,
@@ -25,6 +25,8 @@ function AccountTab({
   onSetDefaultChartType,
   notificationPrefs,
   onNotificationPrefsChange,
+  theme,
+  onThemeChange,
 }) {
   const {
     useI18n,
@@ -38,6 +40,7 @@ function AccountTab({
     fmt,
     fmtPct,
     Row,
+    labelFor,
   } = deps;
   const { t } = useI18n();
   const isMobile = Boolean(viewport?.isMobile);
@@ -53,29 +56,6 @@ function AccountTab({
   useEffect(() => {
     setNameInput(profileName || "");
   }, [profileName]);
-
-  if (!session) {
-    return (
-      <div style={{ display: "grid", placeItems: "center", minHeight: 320 }}>
-        <div style={{ display: "grid", gap: 12, width: "min(360px, 92vw)" }}>
-          <UIButton
-            C={C}
-            variant="primary"
-            onClick={() => onOpenAuth?.("signin")}
-          >
-            {t("auth.signIn")}
-          </UIButton>
-          <UIButton
-            C={C}
-            variant="secondary"
-            onClick={() => onOpenAuth?.("signup")}
-          >
-            {t("auth.createAccount")}
-          </UIButton>
-        </div>
-      </div>
-    );
-  }
 
   const syncLabel = !session
     ? t("account.syncLocal")
@@ -118,6 +98,15 @@ function AccountTab({
 
   return (
     <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
+      {!session && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: "14px 16px", border: `1px solid ${C.rule}`, background: C.warmWhite }}>
+          <span style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>{t("account.signInToSync")}</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <UIButton C={C} variant="primary" size="sm" onClick={() => onOpenAuth?.("signin")}>{t("auth.signIn")}</UIButton>
+            <UIButton C={C} variant="secondary" size="sm" onClick={() => onOpenAuth?.("signup")}>{t("auth.createAccount")}</UIButton>
+          </div>
+        </div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
         <HelpWrap help={{ title: t("help.accountSync.title"), body: t("help.accountSync.body") }} block>
           <div style={{ border: `1px solid ${C.rule}`, background: C.warmWhite, padding: 16, display: "flex", gap: 16, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
@@ -325,6 +314,20 @@ function AccountTab({
         <>
         <Section title={t("account.preferences")} help={{ title: t("help.accountPreferences.title"), body: t("help.accountPreferences.body") }}>
           <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0" }}>
+              <span style={{ color: C.inkMuted, fontSize: 12, fontFamily: "var(--body)" }}>{t("account.appearance") || "Appearance"}</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                {[
+                  { key: "light", label: t("account.themeLight") || "Light" },
+                  { key: "dark", label: t("account.themeDark") || "Dark" },
+                  { key: "system", label: t("account.themeSystem") || "System" },
+                ].map(opt => (
+                  <ControlChip key={opt.key} C={C} active={theme === opt.key} onClick={() => onThemeChange?.(opt.key)}>
+                    {opt.label}
+                  </ControlChip>
+                ))}
+              </div>
+            </div>
             <Row label={t("account.defaultPeriod")} value={prefs?.period || "1y"} />
             <Row label={t("account.defaultInterval")} value={prefs?.interval || "1d"} />
             <Row label={t("account.homeRegion")} value={labelFor(prefs?.region || "Global", t)} />

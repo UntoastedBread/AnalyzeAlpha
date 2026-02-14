@@ -6,6 +6,7 @@ import {
 import {
   UIButton, ControlChip, TabGroup, DataTable, MetricCard, GaugeBar, EmptyState,
 } from "../components/ui/primitives";
+import HeatmapTab from "./HeatmapTab";
 
 // ─── Constants ───────────────────────────────────────────────
 
@@ -24,7 +25,6 @@ const SECTOR_ETFS = [
 ];
 
 const PERIOD_OPTIONS = [
-  { key: "5d", label: "1W" },
   { key: "1mo", label: "1M" },
   { key: "3mo", label: "3M" },
   { key: "6mo", label: "6M" },
@@ -74,34 +74,6 @@ const LOW_CORRELATION_MAP = {
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-function heatmapColor(changePct, C) {
-  const clamped = Math.max(-5, Math.min(5, changePct));
-  const ratio = (clamped + 5) / 10;
-  if (ratio < 0.5) {
-    const t = ratio / 0.5;
-    return lerpColor(C.down, C.warmWhite || "#F5F0EB", t);
-  }
-  const t = (ratio - 0.5) / 0.5;
-  return lerpColor(C.warmWhite || "#F5F0EB", C.up, t);
-}
-
-function lerpColor(a, b, t) {
-  const pa = parseHex(a);
-  const pb = parseHex(b);
-  const r = Math.round(pa[0] + (pb[0] - pa[0]) * t);
-  const g = Math.round(pa[1] + (pb[1] - pa[1]) * t);
-  const bl = Math.round(pa[2] + (pb[2] - pa[2]) * t);
-  return `rgb(${r},${g},${bl})`;
-}
-
-function parseHex(hex) {
-  const h = hex.replace("#", "");
-  if (h.length === 3) {
-    return [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)];
-  }
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
-}
-
 function computeRSI(closes, period = 14) {
   if (closes.length < period + 1) return 50;
   let gains = 0;
@@ -140,155 +112,6 @@ function daysUntil(dateStr) {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   return Math.ceil((target - now) / (1000 * 60 * 60 * 24));
-}
-
-// ─── Sub-tab: Heatmap ────────────────────────────────────────
-
-function HeatmapSubTab({ deps, viewport }) {
-  const {
-    C, useI18n, HEATMAP_INDEXES, fetchQuickQuote, Section, HelpWrap, labelFor,
-  } = deps;
-  const { t } = useI18n();
-  const isMobile = Boolean(viewport?.isMobile);
-  const indexNames = Object.keys(HEATMAP_INDEXES);
-  const [selectedIndex, setSelectedIndex] = useState(indexNames[0] || "S&P 500");
-  const [changes, setChanges] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const stocks = HEATMAP_INDEXES[selectedIndex] || [];
-  const totalCap = stocks.reduce((s, st) => s + st.cap, 0);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const results = await Promise.allSettled(
-        stocks.map(s => fetchQuickQuote(s.ticker))
-      );
-      const map = {};
-      results.forEach((r, i) => {
-        if (r.status === "fulfilled") {
-          map[stocks[i].ticker] = r.value.changePct || 0;
-        } else {
-          map[stocks[i].ticker] = 0;
-        }
-      });
-      setChanges(map);
-    } catch (e) {
-      setError(t("markets.heatmapError"));
-    } finally {
-      setLoading(false);
-    }
-  }, [stocks, fetchQuickQuote, t]);
-
-  useEffect(() => {
-    load();
-  }, [selectedIndex]);
-
-  const cells = useMemo(() =>
-    stocks.map(s => ({
-      ...s,
-      change: changes[s.ticker] || 0,
-      relSize: s.cap / totalCap,
-    })),
-    [stocks, changes, totalCap]
-  );
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <HelpWrap help={{ title: t("markets.heatmapHelp"), body: t("markets.heatmapHelpBody") }} block>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-          {indexNames.map(name => (
-            <ControlChip
-              key={name}
-              C={C}
-              active={selectedIndex === name}
-              onClick={() => setSelectedIndex(name)}
-            >
-              {name}
-            </ControlChip>
-          ))}
-        </div>
-      </HelpWrap>
-
-      {loading && (
-        <div style={{ padding: 48, textAlign: "center", color: C.inkMuted, fontFamily: "var(--body)", fontSize: 12 }}>
-          {t("markets.loading")}
-        </div>
-      )}
-
-      {error && !loading && (
-        <EmptyState C={C} title={t("markets.error")} message={error} />
-      )}
-
-      {!loading && !error && (
-        <div style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 0,
-          width: "100%",
-        }}>
-          {cells.map(s => {
-            const widthPct = Math.max(isMobile ? 20 : 8, s.relSize * 100);
-            const bg = heatmapColor(s.change, C);
-            const textColor = Math.abs(s.change) > 2 ? "#fff" : C.ink;
-            return (
-              <div
-                key={s.ticker}
-                style={{
-                  width: `${widthPct}%`,
-                  minHeight: 60,
-                  padding: 8,
-                  borderRadius: 0,
-                  border: `1px solid ${C.ruleFaint}`,
-                  background: bg,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                  boxSizing: "border-box",
-                  cursor: "default",
-                }}
-              >
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  fontFamily: "var(--mono)",
-                  color: textColor,
-                  lineHeight: 1.2,
-                }}>
-                  {s.ticker}
-                </span>
-                <span style={{
-                  fontSize: 10,
-                  fontFamily: "var(--mono)",
-                  color: textColor,
-                  opacity: 0.85,
-                  marginTop: 2,
-                }}>
-                  {s.change >= 0 ? "+" : ""}{s.change.toFixed(2)}%
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {!loading && !error && (
-        <div style={{ display: "flex", gap: 12, fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted, alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ fontWeight: 600 }}>{t("markets.legend")}:</span>
-          {[[-4, "-4%"], [-2, "-2%"], [0, "0%"], [2, "+2%"], [4, "+4%"]].map(([v, l]) => (
-            <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-              <span style={{ width: 12, height: 12, background: heatmapColor(v, C), border: `1px solid ${C.ruleFaint}` }} />
-              {l}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ─── Sub-tab: Sectors ────────────────────────────────────────
@@ -333,7 +156,7 @@ function SectorsSubTab({ deps, viewport }) {
 
   const loadAllPeriods = useCallback(async () => {
     try {
-      const periods = ["5d", "1mo", "3mo", "6mo", "1y"];
+      const periods = ["1mo", "3mo", "6mo", "1y"];
       const allResults = {};
       for (const p of periods) {
         const results = await Promise.allSettled(
@@ -586,7 +409,22 @@ function CryptoSubTab({ deps, viewport }) {
   const fgValue = fearGreedValue(btcRSI);
 
   const cryptoColumns = [
-    { key: "rank", label: "#", align: "left", cellStyle: { fontWeight: 700, color: C.inkMuted, fontSize: 11 } },
+    {
+      key: "rank", label: "#", align: "left",
+      render: (v) => {
+        const badgeColor = v === 1 ? "#D4A017" : v === 2 ? "#B6B6B6" : v === 3 ? "#CD7F32" : null;
+        return badgeColor ? (
+          <span style={{
+            width: 22, height: 22, borderRadius: "50%",
+            background: badgeColor, color: "#fff",
+            fontWeight: 700, fontSize: 10, fontFamily: "var(--mono)",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+          }}>{v}</span>
+        ) : (
+          <span style={{ fontWeight: 700, color: C.inkMuted, fontSize: 11 }}>{v}</span>
+        );
+      },
+    },
     {
       key: "name",
       label: t("markets.name"),
@@ -626,7 +464,7 @@ function CryptoSubTab({ deps, viewport }) {
       key: "spark",
       label: t("markets.sparkline"),
       render: (v, row) => v && v.length > 1
-        ? <Sparkline data={v} color={row.change7d >= 0 ? C.up : C.down} prevClose={row.prevClose} width={80} height={28} />
+        ? <Sparkline data={v} color={row.change7d >= 0 ? C.up : C.down} prevClose={row.prevClose} width={120} height={36} />
         : <span style={{ color: C.inkFaint }}>--</span>,
     },
   ];
@@ -645,15 +483,51 @@ function CryptoSubTab({ deps, viewport }) {
 
       {!loading && cryptos && (
         <>
-          <Section title={t("markets.topCrypto")}>
-            <DataTable
-              C={C}
-              columns={cryptoColumns}
-              rows={cryptos}
-              striped
-            />
-          </Section>
+          {/* Pulse animation */}
+          <style>{`
+            @keyframes pulseDot {
+              0%, 100% { opacity: 1; transform: scale(1); }
+              50% { opacity: 0.5; transform: scale(1.5); }
+            }
+          `}</style>
 
+          {/* Hero cards for BTC and ETH */}
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 8 }}>
+            {cryptos.filter(c => c.ticker === "BTC-USD" || c.ticker === "ETH-USD").map(c => {
+              const totalCap = cryptos.reduce((s, cr) => s + cr.capEst, 0);
+              const domPct = totalCap > 0 ? ((c.capEst / totalCap) * 100).toFixed(1) : "0";
+              return (
+                <div key={c.ticker} style={{ border: `1px solid ${C.rule}`, background: C.warmWhite, padding: isMobile ? 16 : 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--display)", color: C.ink }}>{c.name}</span>
+                    <span style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>{c.ticker}</span>
+                  </div>
+                  <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "var(--mono)", color: C.ink, marginBottom: 4 }}>
+                    ${c.price > 0 ? Number(c.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "--"}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <span style={{
+                      width: 8, height: 8, borderRadius: "50%",
+                      background: c.change24h >= 0 ? C.up : C.down,
+                      animation: "pulseDot 2s ease-in-out infinite",
+                      display: "inline-block",
+                    }} />
+                    <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--mono)", color: c.change24h >= 0 ? C.up : C.down }}>
+                      {c.change24h >= 0 ? "+" : ""}{Number(c.change24h).toFixed(2)}%
+                    </span>
+                    <span style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)", marginLeft: "auto" }}>
+                      {domPct}% {t("markets.dominance")}
+                    </span>
+                  </div>
+                  {c.spark && c.spark.length > 1 && (
+                    <Sparkline data={c.spark} color={c.change24h >= 0 ? C.up : C.down} prevClose={c.prevClose} width={isMobile ? 200 : 260} height={40} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Charts: Dominance + Fear & Greed BEFORE table */}
           <div style={{
             display: "grid",
             gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
@@ -725,6 +599,16 @@ function CryptoSubTab({ deps, viewport }) {
               </div>
             </Section>
           </div>
+
+          {/* Data table AFTER charts */}
+          <Section title={t("markets.topCrypto")}>
+            <DataTable
+              C={C}
+              columns={cryptoColumns}
+              rows={cryptos}
+              striped
+            />
+          </Section>
         </>
       )}
     </div>
@@ -799,71 +683,6 @@ function EconomicSubTab({ deps, viewport }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Upcoming Events */}
-      <Section title={t("markets.upcomingEvents")}>
-        {upcomingEvents.length === 0 && (
-          <div style={{ padding: 16, color: C.inkMuted, fontFamily: "var(--body)", fontSize: 12 }}>
-            {t("markets.noUpcoming")}
-          </div>
-        )}
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          {upcomingEvents.map((ev, i) => {
-            const days = daysUntil(ev.date);
-            return (
-              <div
-                key={`${ev.date}-${ev.event}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "10px 12px",
-                  borderBottom: `1px solid ${C.ruleFaint}`,
-                  background: i % 2 === 0 ? "transparent" : C.warmWhite,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{
-                    fontSize: 9,
-                    fontWeight: 700,
-                    fontFamily: "var(--mono)",
-                    padding: "2px 6px",
-                    background: ev.impact === "HIGH" ? C.down : C.hold,
-                    color: "#fff",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                  }}>
-                    {ev.impact}
-                  </span>
-                  <span style={{ fontSize: 12, fontWeight: 600, fontFamily: "var(--body)", color: C.ink }}>
-                    {ev.event}
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: C.inkMuted }}>
-                    {ev.date}
-                  </span>
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    fontFamily: "var(--mono)",
-                    color: days <= 7 ? C.down : days <= 30 ? C.hold : C.inkMuted,
-                    minWidth: 60,
-                    textAlign: "right",
-                  }}>
-                    {days === 0 ? t("markets.today") : days === 1 ? t("markets.tomorrow") : `${days}d`}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {pastEvents.length > 0 && (
-          <div style={{ marginTop: 8, padding: "8px 12px", fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>
-            {t("markets.pastEventsNote", { count: pastEvents.length })}
-          </div>
-        )}
-      </Section>
-
       {/* Macro Indicators */}
       <Section title={t("markets.macroIndicators")}>
         {macroLoading && (
@@ -968,6 +787,71 @@ function EconomicSubTab({ deps, viewport }) {
           </div>
         </Section>
       )}
+
+      {/* Upcoming Events */}
+      <Section title={t("markets.upcomingEvents")}>
+        {upcomingEvents.length === 0 && (
+          <div style={{ padding: 16, color: C.inkMuted, fontFamily: "var(--body)", fontSize: 12 }}>
+            {t("markets.noUpcoming")}
+          </div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {upcomingEvents.map((ev, i) => {
+            const days = daysUntil(ev.date);
+            return (
+              <div
+                key={`${ev.date}-${ev.event}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 12px",
+                  borderBottom: `1px solid ${C.ruleFaint}`,
+                  background: i % 2 === 0 ? "transparent" : C.warmWhite,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    fontFamily: "var(--mono)",
+                    padding: "2px 6px",
+                    background: ev.impact === "HIGH" ? C.down : C.hold,
+                    color: "#fff",
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                  }}>
+                    {ev.impact}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 600, fontFamily: "var(--body)", color: C.ink }}>
+                    {ev.event}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: C.inkMuted }}>
+                    {ev.date}
+                  </span>
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    fontFamily: "var(--mono)",
+                    color: days <= 7 ? C.down : days <= 30 ? C.hold : C.inkMuted,
+                    minWidth: 60,
+                    textAlign: "right",
+                  }}>
+                    {days === 0 ? t("markets.today") : days === 1 ? t("markets.tomorrow") : `${days}d`}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {pastEvents.length > 0 && (
+          <div style={{ marginTop: 8, padding: "8px 12px", fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>
+            {t("markets.pastEventsNote", { count: pastEvents.length })}
+          </div>
+        )}
+      </Section>
     </div>
   );
 }
@@ -1016,9 +900,7 @@ function MarketsTab({ deps, viewport, subTab, onSubTabChange, isPro, onUpgradePr
       />
 
       {activeTab === "heatmap" && (
-        <LazySection minHeight={300}>
-          <HeatmapSubTab deps={deps} viewport={viewport} />
-        </LazySection>
+        <HeatmapTab deps={deps} viewport={viewport} />
       )}
 
       {activeTab === "sectors" && (

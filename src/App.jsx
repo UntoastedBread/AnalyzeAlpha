@@ -1865,6 +1865,9 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
   const { t } = useI18n();
   const [window, setWindow] = useState({ start: 0, end: Math.max(0, (data?.length || 1) - 1) });
   const [chartType, setChartType] = useState(mode === "price" ? "candles" : "line");
+  const [measureMode, setMeasureMode] = useState(false);
+  const [measure, setMeasure] = useState(null); // { startIdx, endIdx, startPrice, endPrice }
+  const measureRef = useRef(null);
   const containerRef = useRef(null);
   const dragRef = useRef(null);
   const initRef = useRef({ key: null, mode: null });
@@ -1986,10 +1989,36 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
     }
   };
 
+  const getDataIndexFromX = (clientX) => {
+    if (!containerRef.current || !data) return null;
+    const rect = containerRef.current.getBoundingClientRect();
+    const chartLeft = rect.left + 55; // approx YAxis width
+    const chartRight = rect.right - 12; // approx right margin
+    const pct = (clientX - chartLeft) / (chartRight - chartLeft);
+    const w = windowRef.current;
+    const idx = Math.round(w.start + pct * (w.end - w.start));
+    return Math.max(w.start, Math.min(w.end, idx));
+  };
+
   const onMouseDown = (e) => {
+    if (measureMode) {
+      const idx = getDataIndexFromX(e.clientX);
+      if (idx != null && data[idx]) {
+        measureRef.current = { startIdx: idx, startPrice: data[idx].c };
+        setMeasure({ startIdx: idx, endIdx: idx, startPrice: data[idx].c, endPrice: data[idx].c });
+      }
+      return;
+    }
     dragRef.current = { x: e.clientX, start: windowRef.current.start, end: windowRef.current.end };
   };
   const onMouseMove = (e) => {
+    if (measureMode && measureRef.current) {
+      const idx = getDataIndexFromX(e.clientX);
+      if (idx != null && data[idx]) {
+        setMeasure(prev => prev ? { ...prev, endIdx: idx, endPrice: data[idx].c } : prev);
+      }
+      return;
+    }
     if (!dragRef.current || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const dx = e.clientX - dragRef.current.x;
@@ -1998,7 +2027,10 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
     const next = clampWindow(dragRef.current.start + shift, dragRef.current.end + shift);
     commitWindow(next);
   };
-  const onMouseUp = () => { dragRef.current = null; };
+  const onMouseUp = () => {
+    dragRef.current = null;
+    measureRef.current = null;
+  };
 
   const windowData = useMemo(() => data?.slice(window.start, window.end + 1) || [], [data, window.start, window.end]);
   const controlBtn = (on) => ({
@@ -2038,6 +2070,11 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
                 </select>
               </>
             )}
+            <button onClick={() => { setMeasureMode(m => !m); setMeasure(null); measureRef.current = null; }} style={controlBtn(measureMode)} title={t("chart.measure") || "Measure"}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle" }}>
+                <path d="M2 12h4l3-9 4 18 3-9h6" />
+              </svg>
+            </button>
             <button onClick={() => zoomWindow(0.85)} style={controlBtn(false)}>{t("common.zoomIn")}</button>
             <button onClick={() => zoomWindow(1.15)} style={controlBtn(false)}>{t("common.zoomOut")}</button>
             <button onClick={() => commitWindow(clampWindow(0, (data?.length || 1) - 1))} style={controlBtn(false)}>{t("common.reset")}</button>
@@ -2046,7 +2083,7 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
         </div>
         <div style={{ flex: 1, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
           <div ref={containerRef} onWheel={onWheel} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
-            style={{ flex: 1, background: C.warmWhite, border: `1px solid ${C.rule}`, position: "relative", cursor: dragRef.current ? "grabbing" : "grab", userSelect: "none" }}>
+            style={{ flex: 1, background: C.warmWhite, border: `1px solid ${C.rule}`, position: "relative", cursor: measureMode ? "crosshair" : dragRef.current ? "grabbing" : "grab", userSelect: "none" }}>
             <ResponsiveContainer width="100%" height="100%">
               {mode === "volume" ? (
                 <BarChart data={windowData} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
@@ -2107,6 +2144,23 @@ function ExpandedChartModal({ title, mode, data, onClose, dataKey, period, inter
                 </ComposedChart>
               )}
             </ResponsiveContainer>
+            {measureMode && measure && measure.startIdx !== measure.endIdx && (() => {
+              const w = windowRef.current;
+              const wSize = w.end - w.start;
+              if (wSize <= 0) return null;
+              const leftPct = ((Math.min(measure.startIdx, measure.endIdx) - w.start) / wSize) * 100;
+              const rightPct = ((Math.max(measure.startIdx, measure.endIdx) - w.start) / wSize) * 100;
+              const dollarChange = measure.endPrice - measure.startPrice;
+              const pctChange = measure.startPrice ? (dollarChange / measure.startPrice) * 100 : 0;
+              const isUp = dollarChange >= 0;
+              return (
+                <div style={{ position: "absolute", left: `calc(55px + ${leftPct}% * (100% - 67px) / 100)`, width: `calc(${rightPct - leftPct}% * (100% - 67px) / 100)`, top: 12, bottom: 0, background: isUp ? C.up + "15" : C.down + "15", borderLeft: `1px dashed ${isUp ? C.up : C.down}`, borderRight: `1px dashed ${isUp ? C.up : C.down}`, pointerEvents: "none", display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 8 }}>
+                  <div style={{ background: C.cream, border: `1px solid ${isUp ? C.up : C.down}`, padding: "4px 8px", fontSize: 11, fontFamily: "var(--mono)", fontWeight: 700, color: isUp ? C.up : C.down, whiteSpace: "nowrap" }}>
+                    {isUp ? "+" : ""}{dollarChange.toFixed(2)} ({isUp ? "+" : ""}{pctChange.toFixed(2)}%)
+                  </div>
+                </div>
+              );
+            })()}
           </div>
           <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--mono)" }}>
             {t("charts.windowHint", { count: window.end - window.start + 1, total: data?.length || 0 })}
@@ -3373,10 +3427,10 @@ function App() {
   const [chartSelection, setChartSelection] = useState(initialRoute.chart);
   const [chartType, setChartType] = useState(() => initialRoute.chartType || initialWorkspace.prefs?.chartType || "line");
   const [theme, setTheme] = useState(() => {
-    if (typeof window === "undefined") return "light";
+    if (typeof window === "undefined") return "system";
     const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    if (saved === "light" || saved === "dark") return saved;
-    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    if (saved === "light" || saved === "dark" || saved === "system") return saved;
+    return "system";
   });
   const [locale, setLocale] = useState(() => {
     if (typeof window === "undefined") return "en-US";
@@ -3442,7 +3496,17 @@ function App() {
   const prevSessionRef = useRef(null);
   const authHydratedRef = useRef(false);
 
-  const isDark = theme === "dark";
+  const [systemDark, setSystemDark] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e) => setSystemDark(e.matches);
+    mq.addEventListener?.("change", handler) || mq.addListener?.(handler);
+    return () => { mq.removeEventListener?.("change", handler) || mq.removeListener?.(handler); };
+  }, []);
+  const isDark = theme === "system" ? systemDark : theme === "dark";
   C = isDark ? DARK_THEME : LIGHT_THEME;
 
   const t = useCallback((key, vars) => {
@@ -3462,8 +3526,21 @@ function App() {
     authToastTimerRef.current = setTimeout(() => setAuthToast(null), 2000);
   }, []);
 
+  const [shareToast, setShareToast] = useState(false);
+  const handleShare = useCallback(() => {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({ title: "AnalyzeAlpha", url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        setShareToast(true);
+        setTimeout(() => setShareToast(false), 2000);
+      }).catch(() => {});
+    }
+  }, []);
+
   const toggleTheme = useCallback(() => {
-    setTheme(prev => (prev === "dark" ? "light" : "dark"));
+    setTheme(prev => prev === "light" ? "dark" : prev === "dark" ? "system" : "light");
   }, []);
 
   const showHelp = useCallback((e, help) => {
@@ -4173,6 +4250,20 @@ function App() {
                 {loading ? t("search.running") : t("search.analyze")}
               </button>
             </HelpWrap>
+            <button
+              onClick={handleShare}
+              title={t("share.copyLink") || "Share"}
+              style={{ padding: "6px 8px", background: "transparent", border: `1px solid ${C.rule}`, color: C.inkMuted, cursor: "pointer", display: "flex", alignItems: "center", position: "relative" }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" />
+              </svg>
+              {shareToast && (
+                <span style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, padding: "4px 8px", background: C.ink, color: C.cream, fontSize: 9, fontFamily: "var(--mono)", whiteSpace: "nowrap", zIndex: 100 }}>
+                  {t("share.copied") || "Link copied!"}
+                </span>
+              )}
+            </button>
           </div>
         </div>
         <nav style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexDirection: viewport.isTablet ? "column" : "row", gap: viewport.isTablet ? 10 : 0 }}>
@@ -4587,6 +4678,8 @@ function App() {
             onSetDefaultChartType={setDefaultChartType}
             notificationPrefs={notificationPrefs}
             onNotificationPrefsChange={setNotificationPrefs}
+            theme={theme}
+            onThemeChange={setTheme}
           />
         )}
         {!loading && !error && tab === "analysis" && (
@@ -4671,13 +4764,7 @@ function App() {
             onAnalyze={analyze}
           />
         )}
-        {!loading && !error && tab === "heatmap" && (isPro ? <HeatmapTab deps={pageDeps} viewport={viewport} /> : (
-          <ProGate
-            title={t("pro.heatmap.title")}
-            description={t("pro.heatmap.desc")}
-            features={[t("pro.heatmap.f0"), t("pro.heatmap.f1"), t("pro.heatmap.f2")]}
-          />
-        ))}
+        {/* Heatmap is now accessible under Markets tab */}
         {!loading && !error && tab === "comparison" && (isPro ? <ComparisonTab deps={pageDeps} viewport={viewport} /> : (
           <ProGate
             title={t("pro.comparison.title")}
@@ -4699,7 +4786,7 @@ function App() {
           <button onClick={() => setShowPerf(p => !p)} style={{ padding: "4px 10px", border: `1px solid ${C.rule}`, background: showPerf ? C.ink : "transparent", color: showPerf ? C.cream : C.inkMuted, fontSize: 9, fontFamily: "var(--mono)", letterSpacing: "0.08em", cursor: "pointer" }}>
             DEV: PERF
           </button>
-          <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v0.4.0</span>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 9 }}>v0.4.1</span>
         </div>
       </footer>
 

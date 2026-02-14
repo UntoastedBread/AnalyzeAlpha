@@ -246,6 +246,35 @@ export function EmptyState({ C, icon, title, message, action, style }) {
   );
 }
 
+export function Skeleton({ C, width = "100%", height = 16, style }) {
+  return (
+    <div style={{
+      width,
+      height,
+      background: C.paper,
+      position: "relative",
+      overflow: "hidden",
+      ...style,
+    }}>
+      <style>{`
+        @keyframes skeletonPulse {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
+      <div style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: `linear-gradient(90deg, transparent 0%, ${C.warmWhite} 50%, transparent 100%)`,
+        animation: "skeletonPulse 1.5s ease-in-out infinite",
+      }} />
+    </div>
+  );
+}
+
 export function FloatingPanel({ C, open, onClose, title, children, style }) {
   if (!open) return null;
   return (

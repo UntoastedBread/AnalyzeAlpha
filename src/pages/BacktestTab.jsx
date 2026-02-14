@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  ComposedChart, LineChart, Line, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 import { UIButton, ControlChip, DataTable, MetricCard, EmptyState } from "../components/ui/primitives";
@@ -27,6 +27,22 @@ const PARAM_LABELS = {
   bollinger: { period: "Period", stdDev: "Std Dev" },
   sma: { shortPeriod: "Short Period", longPeriod: "Long Period" },
   meanrev: { zThreshold: "Z-Score Threshold", lookback: "Lookback" },
+};
+
+const STRATEGY_DESCS = {
+  rsi: "Buy when RSI drops below oversold, sell when it rises above overbought.",
+  macd: "Buy on MACD bullish crossover, sell on bearish crossover.",
+  bollinger: "Buy when price touches lower band, sell at upper band.",
+  sma: "Buy when short SMA crosses above long SMA, sell on cross below.",
+  meanrev: "Buy when Z-score is deeply negative, sell when deeply positive.",
+};
+
+const STRATEGY_ICONS = {
+  rsi: "📊",
+  macd: "📈",
+  bollinger: "📉",
+  sma: "〰️",
+  meanrev: "↩️",
 };
 
 const PERIODS = [
@@ -200,7 +216,18 @@ function BacktestTab({ deps, viewport }) {
   const tradeColumns = useMemo(() => [
     { key: "date", label: t("backtest.date"), align: "left" },
     { key: "type", label: t("backtest.type"), align: "center",
-      render: (v) => <span style={{ color: v === "BUY" ? C.up : C.down, fontWeight: 700, fontSize: 10, letterSpacing: "0.06em" }}>{v}</span> },
+      render: (v) => (
+        <span style={{
+          display: "inline-block",
+          padding: "2px 8px",
+          background: v === "BUY" ? C.up + "20" : C.down + "20",
+          color: v === "BUY" ? C.up : C.down,
+          fontWeight: 700,
+          fontSize: 10,
+          letterSpacing: "0.06em",
+          fontFamily: "var(--mono)",
+        }}>{v}</span>
+      ) },
     { key: "price", label: t("backtest.price"), render: (v) => `$${fmt(v)}` },
     { key: "shares", label: t("backtest.shares") },
     { key: "pnl", label: t("backtest.pnl"),
@@ -220,16 +247,38 @@ function BacktestTab({ deps, viewport }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Strategy Selection */}
-      <Section title={t("backtest.strategy")}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-          {STRATEGIES.map(s => (
-            <ControlChip key={s.key} C={C} active={strategy === s.key} onClick={() => handleStrategyChange(s.key)}>{s.label}</ControlChip>
-          ))}
-        </div>
-      </Section>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(180px, 1fr))", gap: 10, marginBottom: 16 }}>
+        {STRATEGIES.map(s => (
+          <button
+            key={s.key}
+            onClick={() => handleStrategyChange(s.key)}
+            style={{
+              padding: "14px 16px",
+              border: `2px solid ${strategy === s.key ? C.ink : C.ruleFaint}`,
+              background: strategy === s.key ? C.warmWhite : "transparent",
+              cursor: "pointer",
+              textAlign: "left",
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 16 }}>{STRATEGY_ICONS[s.key] || "📊"}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--body)", color: C.ink }}>{s.label}</span>
+            </div>
+            <span style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.4 }}>
+              {STRATEGY_DESCS[s.key] || ""}
+            </span>
+          </button>
+        ))}
+      </div>
 
       {/* Parameters */}
-      <Section title={t("backtest.parameters")}>
+      <div style={{ background: C.warmWhite, border: `1px solid ${C.rule}`, padding: 16, marginBottom: 16 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 10 }}>
+          {t("backtest.parameters")}
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
           {Object.entries(PARAM_LABELS[strategy] || {}).map(([key, label]) => (
             <div key={key}>
@@ -249,7 +298,7 @@ function BacktestTab({ deps, viewport }) {
               style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
           </div>
         </div>
-      </Section>
+      </div>
 
       {/* Ticker & Period & Run */}
       <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -265,7 +314,8 @@ function BacktestTab({ deps, viewport }) {
             {PERIODS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
           </select>
         </div>
-        <UIButton C={C} variant="primary" onClick={handleRun} disabled={loading || !ticker.trim()} style={{ minWidth: 130, alignSelf: "flex-end" }}>
+        <UIButton C={C} variant="primary" onClick={handleRun} disabled={loading || !ticker.trim()}
+          style={{ width: "100%", padding: "12px 24px", fontSize: 13, background: C.ink, marginTop: 8 }}>
           {loading ? t("backtest.running") : t("backtest.runBacktest")}
         </UIButton>
       </div>
@@ -288,6 +338,12 @@ function BacktestTab({ deps, viewport }) {
       {/* Results */}
       {result && m && (
         <>
+          <div style={{ borderTop: `3px solid ${C.ink}`, marginTop: 8, paddingTop: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 16 }}>
+              {t("backtest.results")}
+            </div>
+          </div>
+
           {/* Equity Curve */}
           <Section title={t("backtest.equityCurve")}>
             <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
@@ -301,7 +357,13 @@ function BacktestTab({ deps, viewport }) {
               </span>
             </div>
             <ResponsiveContainer width="100%" height={isMobile ? 220 : 300}>
-              <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="equityGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={C.ink} stopOpacity={0.15} />
+                    <stop offset="100%" stopColor={C.ink} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                 <XAxis dataKey="date" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }}
                   axisLine={{ stroke: C.rule }} tickLine={false}
@@ -312,11 +374,38 @@ function BacktestTab({ deps, viewport }) {
                 <ReferenceLine y={capital} stroke={C.rule} strokeDasharray="3 3" />
                 <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 11 }}
                   formatter={(v, name) => [`$${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, name === "value" ? t("backtest.portfolio") : t("backtest.buyAndHold")]} />
-                <Line dataKey="value" stroke={C.ink} dot={false} strokeWidth={1.8} name="value" />
+                <Area dataKey="value" stroke={C.ink} fill="url(#equityGrad)" strokeWidth={1.8} dot={false} name="value" />
                 <Line dataKey="benchmark" stroke={C.inkMuted} dot={false} strokeWidth={1.2} strokeDasharray="6 3" name="benchmark" />
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </Section>
+
+          {/* Signal Timeline */}
+          {result && result.equity && result.equity.length > 0 && (
+            <div style={{ marginTop: 8, marginBottom: 16 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 4 }}>
+                {t("backtest.signalTimeline")}
+              </div>
+              <div style={{ display: "flex", height: 20, border: `1px solid ${C.ruleFaint}`, overflow: "hidden" }}>
+                {result.equity.map((pt, i) => {
+                  const trade = result.trades.find(tr => tr.date === pt.date);
+                  const color = trade ? (trade.type === "BUY" ? C.up : C.down) : "transparent";
+                  return (
+                    <div key={i} style={{
+                      flex: 1,
+                      minWidth: 1,
+                      background: color,
+                      borderRight: i < result.equity.length - 1 ? `0.5px solid ${C.ruleFaint}00` : "none",
+                    }} />
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, fontFamily: "var(--mono)", color: C.inkFaint, marginTop: 2 }}>
+                <span>{result.equity[0]?.date || ""}</span>
+                <span>{result.equity[result.equity.length - 1]?.date || ""}</span>
+              </div>
+            </div>
+          )}
 
           {/* Metrics Grid */}
           <Section title={t("backtest.performanceMetrics")}>

@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { FloatingPanel } from "./ui/primitives";
 
 const EDUCATIONAL = {
   rsi: "RSI (Relative Strength Index) measures the speed and magnitude of recent price changes to evaluate overbought or oversold conditions. Values above 70 suggest overbought, below 30 suggest oversold.",
@@ -81,7 +80,7 @@ function parseIntent(input) {
 function AIChatWidget({ C, onNavigate, onAnalyze }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "Hi! I'm your AI assistant. Try commands like:\n• \"analyze AAPL\" — run stock analysis\n• \"compare AAPL, MSFT\" — compare stocks\n• \"oversold stocks\" — find oversold stocks\n• \"what is RSI\" — learn about indicators\n• \"portfolio\" — view your portfolio\n• \"markets\" — market overview" },
+    { role: "assistant", text: "AnalyzeAlpha Terminal v0.4.1\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nAvailable commands:\n  analyze [TICKER]  \u2014 stock analysis\n  compare [TICKERS] \u2014 side-by-side\n  oversold stocks   \u2014 find oversold\n  what is [TERM]    \u2014 learn indicators\n  portfolio         \u2014 your portfolio\n  markets           \u2014 market overview\n\nType a ticker symbol to analyze it." },
   ]);
   const [input, setInput] = useState("");
   const scrollRef = useRef(null);
@@ -90,6 +89,23 @@ function AIChatWidget({ C, onNavigate, onAnalyze }) {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
+  }, [messages]);
+
+  // Type-in effect for responses
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (!last || !last._typing || last.text === last._typing) return;
+    const timer = setTimeout(() => {
+      setMessages(prev => {
+        const msgs = [...prev];
+        const lastMsg = { ...msgs[msgs.length - 1] };
+        lastMsg.text = lastMsg._typing.slice(0, lastMsg.text.length + 1);
+        if (lastMsg.text === lastMsg._typing) delete lastMsg._typing;
+        msgs[msgs.length - 1] = lastMsg;
+        return msgs;
+      });
+    }, 15);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   const handleSend = useCallback(() => {
@@ -182,17 +198,17 @@ function AIChatWidget({ C, onNavigate, onAnalyze }) {
           response = "I'm not sure how to help with that. Try \"analyze AAPL\", \"compare AAPL MSFT\", \"oversold stocks\", or \"what is RSI\".";
       }
     } else {
-      response = "I understand natural language commands like:\n• \"analyze [ticker]\" — full stock analysis\n• \"compare [tickers]\" — side-by-side comparison\n• \"oversold stocks\" — find opportunities\n• \"what is [term]\" — learn about indicators\n• \"portfolio\" — your portfolio\n• \"markets\" — market overview\n\nOr just type a ticker symbol like \"AAPL\" to analyze it.";
+      response = "Available commands:\n  analyze [TICKER]  \u2014 full stock analysis\n  compare [TICKERS] \u2014 side-by-side comparison\n  oversold stocks   \u2014 find opportunities\n  what is [TERM]    \u2014 learn about indicators\n  portfolio         \u2014 your portfolio\n  markets           \u2014 market overview\n\nOr just type a ticker symbol like \"AAPL\" to analyze it.";
     }
 
     setTimeout(() => {
-      setMessages(prev => [...prev, { role: "assistant", text: response }]);
+      setMessages(prev => [...prev, { role: "assistant", text: "", _typing: response }]);
     }, 200);
   }, [input, onAnalyze, onNavigate]);
 
   return (
     <>
-      {/* Floating chat button */}
+      {/* Floating terminal button */}
       <button
         onClick={() => setOpen(o => !o)}
         style={{
@@ -202,90 +218,132 @@ function AIChatWidget({ C, onNavigate, onAnalyze }) {
           width: 48,
           height: 48,
           borderRadius: "50%",
-          background: C.ink,
-          color: C.cream,
-          border: "none",
+          background: "#1a1a2e",
+          color: "#00ff41",
+          border: "1px solid #00ff4133",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
           zIndex: 8999,
-          fontSize: 20,
+          fontSize: 16,
+          fontFamily: "monospace",
+          fontWeight: 700,
           transition: "transform 0.2s ease",
-          transform: open ? "rotate(45deg)" : "none",
         }}
-        aria-label="AI Chat"
+        aria-label="AI Terminal"
       >
-        {open ? "+" : "💬"}
+        {open ? "\u00D7" : ">_"}
       </button>
 
-      {/* Chat panel */}
-      <FloatingPanel C={C} open={open} onClose={() => setOpen(false)} title="AI Assistant">
-        <div ref={scrollRef} style={{ maxHeight: "40vh", overflowY: "auto", marginBottom: 12 }}>
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              style={{
-                marginBottom: 10,
-                display: "flex",
-                justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-              }}
-            >
-              <div
-                style={{
-                  maxWidth: "85%",
-                  padding: "8px 12px",
-                  background: msg.role === "user" ? C.ink : C.warmWhite,
-                  color: msg.role === "user" ? C.cream : C.ink,
-                  fontSize: 12,
-                  fontFamily: "var(--body)",
-                  lineHeight: 1.5,
-                  whiteSpace: "pre-wrap",
-                  border: msg.role === "assistant" ? `1px solid ${C.ruleFaint}` : "none",
-                }}
-              >
-                {msg.text}
+      {/* Terminal panel */}
+      {open && (
+        <div style={{
+          position: "fixed",
+          bottom: 80,
+          right: 20,
+          width: 380,
+          maxHeight: "60vh",
+          background: "#1a1a2e",
+          border: "1px solid #00ff4133",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+          display: "flex",
+          flexDirection: "column",
+          zIndex: 9000,
+          fontFamily: "monospace",
+        }}>
+          {/* Terminal header */}
+          <div style={{
+            padding: "10px 16px",
+            borderBottom: "1px solid #00ff4122",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#00ff41", letterSpacing: "0.08em" }}>
+                AnalyzeAlpha Terminal v0.4.1
+              </div>
+              <div style={{ fontSize: 9, color: "#00ff4166" }}>
+                Quick navigation & analysis terminal
               </div>
             </div>
-          ))}
+            <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "#00ff4166", cursor: "pointer", fontSize: 16, fontFamily: "monospace" }}>{"\u00D7"}</button>
+          </div>
+
+          {/* Messages area */}
+          <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px", maxHeight: "40vh" }}>
+            {messages.map((msg, i) => (
+              <div key={i} style={{ marginBottom: 8 }}>
+                <span style={{ color: "#00ff4166", fontSize: 10, fontFamily: "monospace" }}>
+                  {msg.role === "user" ? "aa>" : ">"}
+                </span>{" "}
+                <span style={{
+                  color: msg.role === "user" ? "#e0e0e0" : "#00ff41",
+                  fontSize: 12,
+                  fontFamily: "monospace",
+                  lineHeight: 1.5,
+                  whiteSpace: "pre-wrap",
+                }}>
+                  {msg.text}
+                </span>
+              </div>
+            ))}
+            <style>{`
+              @keyframes terminalBlink {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0; }
+              }
+            `}</style>
+            <span style={{
+              display: "inline-block",
+              width: 8,
+              height: 14,
+              background: "#00ff41",
+              animation: "terminalBlink 1s step-end infinite",
+              verticalAlign: "middle",
+            }} />
+          </div>
+
+          {/* Input area */}
+          <div style={{ display: "flex", gap: 0, borderTop: "1px solid #00ff4122" }}>
+            <span style={{ padding: "10px 0 10px 16px", color: "#00ff4166", fontSize: 12, fontFamily: "monospace" }}>aa&gt;</span>
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
+              placeholder="type a command..."
+              style={{
+                flex: 1,
+                padding: "10px 12px",
+                border: "none",
+                background: "transparent",
+                color: "#e0e0e0",
+                fontSize: 12,
+                fontFamily: "monospace",
+                outline: "none",
+              }}
+            />
+            <button
+              onClick={handleSend}
+              style={{
+                padding: "10px 14px",
+                background: "transparent",
+                color: "#00ff41",
+                border: "none",
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "monospace",
+                letterSpacing: "0.06em",
+              }}
+            >
+              RUN
+            </button>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
-            placeholder="Type a command..."
-            style={{
-              flex: 1,
-              padding: "8px 12px",
-              border: `1px solid ${C.rule}`,
-              background: "transparent",
-              color: C.ink,
-              fontSize: 12,
-              fontFamily: "var(--body)",
-              outline: "none",
-            }}
-          />
-          <button
-            onClick={handleSend}
-            style={{
-              padding: "8px 14px",
-              background: C.ink,
-              color: C.cream,
-              border: "none",
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: "var(--body)",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            Send
-          </button>
-        </div>
-      </FloatingPanel>
+      )}
     </>
   );
 }
