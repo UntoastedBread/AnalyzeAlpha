@@ -9,6 +9,8 @@ function HomeTab({
   greetingName,
   isDark = false,
   onToggleTheme,
+  portfolio,
+  onOpenDestination,
 }) {
   const {
     useI18n,
@@ -30,6 +32,7 @@ function HomeTab({
     HelpWrap,
     TickerStrip,
     Section,
+    OpenActionButton,
     NewsSection,
     PortfolioTileCard,
     MiniIntradayChart,
@@ -53,6 +56,7 @@ function HomeTab({
   const [moversLoading, setMoversLoading] = useState(true);
   const [news, setNews] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
+  const [portfolioTileData, setPortfolioTileData] = useState(PORTFOLIO_TILE);
   const [trending, setTrending] = useState([]);
   const [trendingLoading, setTrendingLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(null);
@@ -131,6 +135,54 @@ function HomeTab({
     } catch { if (!cancelled.current) setTrendingLoading(false); }
   }, []);
 
+  const loadPortfolioTile = useCallback(async (cancelled) => {
+    const holdings = (portfolio?.holdings || [])
+      .filter((h) => h && h.ticker && Number(h.shares) > 0);
+    if (!holdings.length) {
+      if (!cancelled.current) {
+        setPortfolioTileData({ value: 0, dayChangePct: 0, ytdPct: 0, cash: 0, risk: "LOW", top: [] });
+      }
+      return;
+    }
+    try {
+      const quoteResults = await Promise.allSettled(
+        holdings.map((h) => fetchQuickQuote(h.ticker))
+      );
+      if (cancelled.current) return;
+      const rows = holdings.map((h, i) => {
+        const quote = quoteResults[i].status === "fulfilled" ? quoteResults[i].value : null;
+        const shares = Number(h.shares) || 0;
+        const costBasis = Number(h.costBasis) || 0;
+        const currentPrice = quote?.price > 0 ? quote.price : costBasis;
+        const changePct = Number.isFinite(quote?.changePct) ? quote.changePct : 0;
+        const marketValue = currentPrice * shares;
+        const cost = costBasis * shares;
+        return { ticker: h.ticker, marketValue, cost, changePct };
+      });
+      const totalValue = rows.reduce((sum, r) => sum + r.marketValue, 0);
+      const totalCost = rows.reduce((sum, r) => sum + r.cost, 0);
+      const weightedDay = rows.reduce((sum, r) => sum + (r.changePct || 0) * r.marketValue, 0);
+      const dayChangePct = totalValue > 0 ? weightedDay / totalValue : 0;
+      const ytdPct = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
+      const sorted = [...rows].sort((a, b) => b.marketValue - a.marketValue);
+      const top = sorted.slice(0, 5).map((r) => r.ticker);
+      const topWeight = totalValue > 0 && sorted[0] ? sorted[0].marketValue / totalValue : 0;
+      const risk = topWeight > 0.45 ? "HIGH" : topWeight > 0.25 ? "MEDIUM" : "LOW";
+      setPortfolioTileData({
+        value: totalValue,
+        dayChangePct,
+        ytdPct,
+        cash: 0,
+        risk,
+        top,
+      });
+    } catch {
+      if (!cancelled.current) {
+        setPortfolioTileData(PORTFOLIO_TILE);
+      }
+    }
+  }, [portfolio, fetchQuickQuote, PORTFOLIO_TILE]);
+
   useEffect(() => {
     const cancelled = { current: false };
 
@@ -181,6 +233,13 @@ function HomeTab({
 
     return () => { cancelled.current = true; };
   }, [region, loadRegionData, loadMovers, loadTrending]);
+
+  useEffect(() => {
+    const cancelled = { current: false };
+    loadPortfolioTile(cancelled);
+    const id = setInterval(() => loadPortfolioTile(cancelled), 60000);
+    return () => { cancelled.current = true; clearInterval(id); };
+  }, [loadPortfolioTile]);
 
   // Live tickers polling — refreshes only strip + charts every 30s (lightweight)
   useEffect(() => {
@@ -280,6 +339,15 @@ function HomeTab({
   ];
   const greetingBase = greetingPhrases[greetingVariantRef.current % greetingPhrases.length];
   const greetingText = greetingName ? `${greetingBase}, ${greetingName}` : greetingBase;
+  const renderOpenAction = (onClick, label) => onClick
+    ? <OpenActionButton onClick={onClick} label={label} />
+    : null;
+  const marketBriefTabBySection = {
+    Cryptocurrencies: "crypto",
+    Rates: "rates",
+    Commodities: "commodities",
+    Currencies: "currencies",
+  };
 
   return (
     <div style={{ display: "grid", gap: isMobile ? 20 : 18, minWidth: 0 }}>
@@ -388,7 +456,10 @@ function HomeTab({
             <NewsSection news={news} loading={newsLoading} />
           </Section>}
           <HelpWrap help={{ title: t("help.portfolioSnapshot.title"), body: t("help.portfolioSnapshot.body") }} block>
-            <PortfolioTileCard data={PORTFOLIO_TILE} />
+            <PortfolioTileCard
+              data={portfolioTileData}
+              onOpen={() => onOpenDestination?.({ tab: "portfolio" })}
+            />
           </HelpWrap>
         </div>
         {widgets.indexes && <Section
@@ -448,7 +519,16 @@ function HomeTab({
       {/* Economic Snapshot */}
       {widgets.economicSnapshot && (
         <LazySection minHeight={120}>
-          <EconomicSnapshot C={C} t={t} isMobile={isMobile} Section={Section} />
+          <EconomicSnapshot
+            C={C}
+            t={t}
+            isMobile={isMobile}
+            Section={Section}
+            openAction={renderOpenAction(
+              () => onOpenDestination?.({ tab: "markets", subTab: "economic", focusKey: "upcoming-events" }),
+              "Open economic calendar"
+            )}
+          />
         </LazySection>
       )}
 
@@ -461,16 +541,24 @@ function HomeTab({
           <div style={{ display: "grid", gap: isMobile ? 14 : 16 }}>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: isMobile ? 14 : 16, alignItems: "start" }}>
               <HelpWrap help={{ title: t("help.sectorPerformance.title"), body: t("help.sectorPerformance.body") }} block>
-                <SectorPerformanceCard />
+                <SectorPerformanceCard onOpen={() => onOpenDestination?.({ tab: "markets", subTab: "sectors" })} />
               </HelpWrap>
               <HelpWrap help={{ title: t("help.yieldCurve.title"), body: t("help.yieldCurve.body") }} block>
-                <YieldCurveCard />
+                <YieldCurveCard onOpen={() => onOpenDestination?.({ tab: "markets", subTab: "economic" })} />
               </HelpWrap>
             </div>
             <div style={{ display: "grid", gap: 0 }}>
-              {ASSET_SECTIONS.map((section) => (
-                <AssetRow key={section.title} section={section} onAnalyze={onAnalyze} />
-              ))}
+              {ASSET_SECTIONS.map((section) => {
+                const marketTab = marketBriefTabBySection[section.title];
+                return (
+                  <AssetRow
+                    key={section.title}
+                    section={section}
+                    onAnalyze={onAnalyze}
+                    onOpen={marketTab ? () => onOpenDestination?.({ tab: "markets", subTab: marketTab }) : undefined}
+                  />
+                );
+              })}
             </div>
           </div>
         </Section>
@@ -628,13 +716,13 @@ const UPCOMING_EVENTS = [
   { date: "2026-07-01", event: "Non-Farm Payrolls", impact: "MEDIUM" },
 ];
 
-function EconomicSnapshot({ C, t, isMobile, Section }) {
+function EconomicSnapshot({ C, t, isMobile, Section, openAction }) {
   const now = new Date().toISOString().slice(0, 10);
   const upcoming = UPCOMING_EVENTS.filter(e => e.date >= now).slice(0, 4);
   const impactColor = (imp) => imp === "HIGH" ? C.down : imp === "MEDIUM" ? C.hold : C.inkMuted;
 
   return (
-    <Section C={C} title="Economic Calendar">
+    <Section C={C} title="Economic Calendar" actions={openAction}>
       <div style={{ display: "grid", gap: 6 }}>
         {upcoming.map((e, i) => {
           const daysUntil = Math.ceil((new Date(e.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
@@ -639,7 +639,7 @@ function CryptoSubTab({ deps, viewport, onAnalyze }) {
 
 // ─── Sub-tab: Economic ───────────────────────────────────────
 
-function EconomicSubTab({ deps, viewport }) {
+function EconomicSubTab({ deps, viewport, focusKey, onFocusHandled }) {
   const {
     C, useI18n, fetchQuickQuote, Section, HelpWrap, fmt, Sparkline,
   } = deps;
@@ -648,6 +648,7 @@ function EconomicSubTab({ deps, viewport }) {
   const [macroData, setMacroData] = useState(null);
   const [macroLoading, setMacroLoading] = useState(false);
   const [macroError, setMacroError] = useState(null);
+  const upcomingEventsRef = useRef(null);
 
   const loadMacro = useCallback(async () => {
     setMacroLoading(true);
@@ -683,6 +684,15 @@ function EconomicSubTab({ deps, viewport }) {
   useEffect(() => {
     loadMacro();
   }, []);
+
+  useEffect(() => {
+    if (focusKey !== "upcoming-events") return;
+    const id = setTimeout(() => {
+      upcomingEventsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      onFocusHandled?.();
+    }, 80);
+    return () => clearTimeout(id);
+  }, [focusKey, onFocusHandled]);
 
   const today = new Date().toISOString().slice(0, 10);
   const upcomingEvents = ECONOMIC_EVENTS.filter(e => e.date >= today)
@@ -839,69 +849,71 @@ function EconomicSubTab({ deps, viewport }) {
       )}
 
       {/* Upcoming Events */}
-      <Section title={t("markets.upcomingEvents")}>
-        {upcomingEvents.length === 0 && (
-          <div style={{ padding: 16, color: C.inkMuted, fontFamily: "var(--body)", fontSize: 12 }}>
-            {t("markets.noUpcoming")}
-          </div>
-        )}
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          {upcomingEvents.map((ev, i) => {
-            const days = daysUntil(ev.date);
-            return (
-              <div
-                key={`${ev.date}-${ev.event}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "10px 12px",
-                  borderBottom: `1px solid ${C.ruleFaint}`,
-                  background: i % 2 === 0 ? "transparent" : C.warmWhite,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{
-                    fontSize: 9,
-                    fontWeight: 700,
-                    fontFamily: "var(--mono)",
-                    padding: "2px 6px",
-                    background: ev.impact === "HIGH" ? C.down : C.hold,
-                    color: "#fff",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                  }}>
-                    {ev.impact}
-                  </span>
-                  <span style={{ fontSize: 12, fontWeight: 600, fontFamily: "var(--body)", color: C.ink }}>
-                    {ev.event}
-                  </span>
+      <div ref={upcomingEventsRef} id="markets-upcoming-events">
+        <Section title={t("markets.upcomingEvents")}>
+          {upcomingEvents.length === 0 && (
+            <div style={{ padding: 16, color: C.inkMuted, fontFamily: "var(--body)", fontSize: 12 }}>
+              {t("markets.noUpcoming")}
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            {upcomingEvents.map((ev, i) => {
+              const days = daysUntil(ev.date);
+              return (
+                <div
+                  key={`${ev.date}-${ev.event}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "10px 12px",
+                    borderBottom: `1px solid ${C.ruleFaint}`,
+                    background: i % 2 === 0 ? "transparent" : C.warmWhite,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      fontFamily: "var(--mono)",
+                      padding: "2px 6px",
+                      background: ev.impact === "HIGH" ? C.down : C.hold,
+                      color: "#fff",
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                    }}>
+                      {ev.impact}
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 600, fontFamily: "var(--body)", color: C.ink }}>
+                      {ev.event}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: C.inkMuted }}>
+                      {ev.date}
+                    </span>
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      fontFamily: "var(--mono)",
+                      color: days <= 7 ? C.down : days <= 30 ? C.hold : C.inkMuted,
+                      minWidth: 60,
+                      textAlign: "right",
+                    }}>
+                      {days === 0 ? t("markets.today") : days === 1 ? t("markets.tomorrow") : `${days}d`}
+                    </span>
+                  </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 11, fontFamily: "var(--mono)", color: C.inkMuted }}>
-                    {ev.date}
-                  </span>
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    fontFamily: "var(--mono)",
-                    color: days <= 7 ? C.down : days <= 30 ? C.hold : C.inkMuted,
-                    minWidth: 60,
-                    textAlign: "right",
-                  }}>
-                    {days === 0 ? t("markets.today") : days === 1 ? t("markets.tomorrow") : `${days}d`}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {pastEvents.length > 0 && (
-          <div style={{ marginTop: 8, padding: "8px 12px", fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>
-            {t("markets.pastEventsNote", { count: pastEvents.length })}
+              );
+            })}
           </div>
-        )}
-      </Section>
+          {pastEvents.length > 0 && (
+            <div style={{ marginTop: 8, padding: "8px 12px", fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)" }}>
+              {t("markets.pastEventsNote", { count: pastEvents.length })}
+            </div>
+          )}
+        </Section>
+      </div>
     </div>
   );
 }
@@ -913,9 +925,30 @@ const SUB_TABS = [
   { key: "sectors", label: "Sectors" },
   { key: "crypto", label: "Crypto" },
   { key: "economic", label: "Economic" },
+  { key: "rates", label: "Rates" },
+  { key: "commodities", label: "Commodities" },
+  { key: "currencies", label: "Currencies" },
 ];
 
-function MarketsTab({ deps, viewport, subTab, onSubTabChange, isPro, onUpgradePro, onAnalyze }) {
+function EmptyMarketsSubTab({ deps, title }) {
+  const { C, Section } = deps;
+  return (
+    <Section title={title}>
+      <div style={{
+        padding: "20px 14px",
+        border: `1px solid ${C.rule}`,
+        background: C.warmWhite,
+        color: C.inkMuted,
+        fontFamily: "var(--body)",
+        fontSize: 12,
+      }}>
+        Coming soon.
+      </div>
+    </Section>
+  );
+}
+
+function MarketsTab({ deps, viewport, subTab, onSubTabChange, focusKey, onFocusHandled, isPro, onUpgradePro, onAnalyze }) {
   const {
     useI18n,
     C,
@@ -939,12 +972,17 @@ function MarketsTab({ deps, viewport, subTab, onSubTabChange, isPro, onUpgradePr
   const { t } = useI18n();
   const activeTab = subTab || "heatmap";
   const setActiveTab = onSubTabChange || (() => {});
+  const tabLabel = (key, fallback) => {
+    const trKey = `markets.tab.${key}`;
+    const tr = t(trKey);
+    return tr && tr !== trKey ? tr : fallback;
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <TabGroup
         C={C}
-        tabs={SUB_TABS.map(st => ({ key: st.key, label: t(`markets.tab.${st.key}`) || st.label }))}
+        tabs={SUB_TABS.map(st => ({ key: st.key, label: tabLabel(st.key, st.label) }))}
         active={activeTab}
         onChange={setActiveTab}
       />
@@ -969,7 +1007,25 @@ function MarketsTab({ deps, viewport, subTab, onSubTabChange, isPro, onUpgradePr
 
       {activeTab === "economic" && (
         <LazySection minHeight={300}>
-          <EconomicSubTab deps={deps} viewport={viewport} />
+          <EconomicSubTab deps={deps} viewport={viewport} focusKey={focusKey} onFocusHandled={onFocusHandled} />
+        </LazySection>
+      )}
+
+      {activeTab === "rates" && (
+        <LazySection minHeight={180}>
+          <EmptyMarketsSubTab deps={deps} title="Rates" />
+        </LazySection>
+      )}
+
+      {activeTab === "commodities" && (
+        <LazySection minHeight={180}>
+          <EmptyMarketsSubTab deps={deps} title="Commodities" />
+        </LazySection>
+      )}
+
+      {activeTab === "currencies" && (
+        <LazySection minHeight={180}>
+          <EmptyMarketsSubTab deps={deps} title="Currencies" />
         </LazySection>
       )}
     </div>

@@ -47,7 +47,7 @@ const A11Y_STORAGE_KEY = "aa_a11y_v1";
 const APP_TABS = ["home", "analysis", "charts", "screener", "markets", "portfolio", "community", "heatmap", "comparison", "account"];
 const ANALYSIS_TABS = ["stock", "financials", "options", "dividends"];
 const ACCOUNT_TABS = ["overview", "preferences"];
-const MARKETS_TABS = ["heatmap", "sectors", "crypto", "economic"];
+const MARKETS_TABS = ["heatmap", "sectors", "crypto", "economic", "rates", "commodities", "currencies"];
 const PORTFOLIO_TABS = ["holdings", "paper-trading", "backtesting"];
 const SCREENER_TABS = ["screener", "comparison"];
 const CHART_MODES = ["price", "volume", "rsi", "macd", "stoch"];
@@ -1957,6 +1957,47 @@ function Section({ title, children, style, actions, help }) {
   );
 }
 
+function OpenActionButton({ onClick, label = "Open" }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      style={{
+        width: 22,
+        height: 22,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "transparent",
+        border: `1px solid ${C.rule}`,
+        color: C.inkMuted,
+        cursor: "pointer",
+        padding: 0,
+        lineHeight: 1,
+        transition: "background 0.15s, color 0.15s, border-color 0.15s",
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.background = C.paper;
+        e.currentTarget.style.color = C.ink;
+        e.currentTarget.style.borderColor = C.inkFaint;
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.color = C.inkMuted;
+        e.currentTarget.style.borderColor = C.rule;
+      }}
+    >
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M9 5h10v10" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+        <path d="M19 5L7 17" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+        <path d="M5 9v10h10" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+      </svg>
+    </button>
+  );
+}
+
 function Sparkline({ data, color = C.ink, prevClose, width = 120, height = 36 }) {
   if (!data || data.length < 2) return null;
   const pad = 3;
@@ -2999,12 +3040,15 @@ function NewsSection({ news, loading }) {
   );
 }
 
-function MiniCard({ title, children, style }) {
+function MiniCard({ title, children, style, actions }) {
   return (
     <div style={{ background: C.warmWhite, border: `1px solid ${C.rule}`, padding: "14px 16px", display: "grid", gap: 10, ...style }}>
       {title && (
-        <div style={{ fontSize: 10, fontFamily: "var(--body)", letterSpacing: "0.14em", textTransform: "uppercase", color: C.inkFaint, fontWeight: 700 }}>
-          {title}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div style={{ fontSize: 10, fontFamily: "var(--body)", letterSpacing: "0.14em", textTransform: "uppercase", color: C.inkFaint, fontWeight: 700 }}>
+            {title}
+          </div>
+          {actions && <div style={{ display: "inline-flex", alignItems: "center" }}>{actions}</div>}
         </div>
       )}
       {children}
@@ -3174,7 +3218,7 @@ function CrossAssetCard() {
   );
 }
 
-function SectorPerformanceCard() {
+function SectorPerformanceCard({ onOpen }) {
   const { t } = useI18n();
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -3198,7 +3242,10 @@ function SectorPerformanceCard() {
   const barCap = Math.max(maxAbs, 0.5);
 
   return (
-    <MiniCard title={t("home.sectorPerformance")}>
+    <MiniCard
+      title={t("home.sectorPerformance")}
+      actions={onOpen ? <OpenActionButton onClick={onOpen} label="Open sectors" /> : null}
+    >
       <div style={{ display: "grid", gap: 0 }}>
         {!loaded ? (
           SECTOR_ETFS.slice(0, 6).map((_, i) => (
@@ -3232,7 +3279,7 @@ function SectorPerformanceCard() {
   );
 }
 
-function YieldCurveCard() {
+function YieldCurveCard({ onOpen }) {
   const { t } = useI18n();
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -3256,7 +3303,10 @@ function YieldCurveCard() {
   const lineColor = isNormal ? C.up : C.down;
 
   return (
-    <MiniCard title={t("home.yieldCurve")}>
+    <MiniCard
+      title={t("home.yieldCurve")}
+      actions={onOpen ? <OpenActionButton onClick={onOpen} label="Open economic" /> : null}
+    >
       {!loaded ? (
         <SkeletonBlock height={140} />
       ) : data.length < 2 ? (
@@ -3277,12 +3327,15 @@ function YieldCurveCard() {
   );
 }
 
-function PortfolioTileCard({ data }) {
+function PortfolioTileCard({ data, onOpen }) {
   const { t } = useI18n();
   const changeColor = data.dayChangePct >= 0 ? C.up : C.down;
   const changeText = t("home.todayChange", { pct: `${data.dayChangePct >= 0 ? "+" : ""}${data.dayChangePct.toFixed(2)}%` });
   return (
-    <MiniCard title={t("home.portfolioSnapshot")}>
+    <MiniCard
+      title={t("home.portfolioSnapshot")}
+      actions={onOpen ? <OpenActionButton onClick={onOpen} label="Open portfolio" /> : null}
+    >
       <div style={{ display: "grid", gap: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <div style={{ fontSize: 30, fontFamily: "var(--display)", color: C.ink }}>{fmtMoney(data.value)}</div>
@@ -3362,7 +3415,7 @@ function ChangelogBanner() {
   );
 }
 
-function AssetRow({ section, onAnalyze }) {
+function AssetRow({ section, onAnalyze, onOpen }) {
   const { t } = useI18n();
   const [data, setData] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -3384,8 +3437,11 @@ function AssetRow({ section, onAnalyze }) {
 
   return (
     <div style={{ padding: "14px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
-      <div style={{ fontSize: 9, fontWeight: 700, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.16em", fontFamily: "var(--mono)", marginBottom: 10 }}>
-        {labelFor(section.title, t)}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.16em", fontFamily: "var(--mono)" }}>
+          {labelFor(section.title, t)}
+        </div>
+        {onOpen && <OpenActionButton onClick={onOpen} label={`Open ${section.title}`} />}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 2 }}>
         {!loaded ? (
@@ -3834,6 +3890,7 @@ function App() {
   const [paperPortfolio, setPaperPortfolio] = useState(initialWorkspace.paperPortfolio || { cash: 100000, positions: [], history: [], equityCurve: [{ date: new Date().toISOString().slice(0, 10), value: 100000 }] });
   const [notificationPrefs, setNotificationPrefs] = useState(initialWorkspace.notificationPrefs || { enabled: false, priceAlerts: true, earnings: false });
   const [marketsSubTab, setMarketsSubTab] = useState("heatmap");
+  const [marketsFocusKey, setMarketsFocusKey] = useState(null);
   const [portfolioSubTab, setPortfolioSubTab] = useState("holdings");
   const [screenerSubTab, setScreenerSubTab] = useState("screener");
   const [prefs, setPrefs] = useState(initialWorkspace.prefs);
@@ -4478,6 +4535,18 @@ function App() {
     setTab("charts");
   }, []);
   const consumeChartIntent = useCallback(() => setChartIntent(null), []);
+  const openFromHome = useCallback((dest) => {
+    const targetTab = dest?.tab;
+    if (targetTab === "portfolio") {
+      setTab("portfolio");
+      return;
+    }
+    if (targetTab === "markets") {
+      setMarketsSubTab(normalizeMarketsTab(dest?.subTab));
+      setMarketsFocusKey(dest?.focusKey || null);
+      setTab("markets");
+    }
+  }, []);
 
   const navHelp = useMemo(() => ({
     home: { title: t("help.nav.home.title"), body: t("help.nav.home.body") },
@@ -4535,6 +4604,7 @@ function App() {
     Row,
     HelpWrap,
     Section,
+    OpenActionButton,
     Sparkline,
     LazySection,
     AnimatedPrice,
@@ -5025,6 +5095,8 @@ function App() {
             greetingName={profileName}
             isDark={isDark}
             onToggleTheme={toggleTheme}
+            portfolio={portfolio}
+            onOpenDestination={openFromHome}
           />
         )}
         {!loading && !error && tab === "account" && (
@@ -5113,7 +5185,12 @@ function App() {
             deps={pageDeps}
             viewport={viewport}
             subTab={marketsSubTab}
-            onSubTabChange={setMarketsSubTab}
+            onSubTabChange={(next) => {
+              setMarketsSubTab(next);
+              if (marketsFocusKey) setMarketsFocusKey(null);
+            }}
+            focusKey={marketsFocusKey}
+            onFocusHandled={() => setMarketsFocusKey(null)}
             isPro={isPro}
             onUpgradePro={openProSignup}
             onAnalyze={analyze}
