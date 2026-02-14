@@ -28,6 +28,10 @@ const NEWS_IMAGE_AI_MARKERS = [
   /ai[-_ ]?(generated|art|image|render)/i,
   /(generated|synthetic)[-_ ]?(image|art)/i,
 ];
+const RSS_NEWS_SOURCES = [
+  { url: 'https://www.investing.com/rss/news_25.rss', defaultSource: 'Investing.com' },
+  { url: 'https://finance.yahoo.com/news/rssindex', defaultSource: 'Yahoo Finance' },
+];
 const rateBuckets = new Map();
 
 function getAllowedOrigins() {
@@ -136,6 +140,78 @@ function isLikelyAiImageUrl(url) {
   return NEWS_IMAGE_AI_MARKERS.some((pattern) => pattern.test(url));
 }
 
+function getTagValue(block, tag) {
+  const m = block.match(new RegExp(`<${tag}(?:\\s[^>]*)?><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+  return m ? (m[1] || m[2] || '').trim() : '';
+}
+
+function extractRssItems(xml, defaultSource) {
+  const items = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+  let match;
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const block = match[1];
+    const mediaMatch = block.match(/<media:content[^>]+url=["']([^"']+)["']/i);
+    const enclosureMatch = block.match(/<enclosure[^>]+url=["']([^"']+)["']/i);
+    const mediaThumbMatch = block.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/i);
+    const descImgMatch = block.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const title = getTagValue(block, 'title');
+    const description = getTagValue(block, 'description').replace(/<[^>]*>/g, '').slice(0, 200);
+    const link = getTagValue(block, 'link');
+    const source = getTagValue(block, 'source') || getTagValue(block, 'author') || defaultSource || 'Market News';
+    const rawImage = (mediaMatch && mediaMatch[1]) || (enclosureMatch && enclosureMatch[1]) || (mediaThumbMatch && mediaThumbMatch[1]) || (descImgMatch && descImgMatch[1]) || '';
+    const hasHttpImage = /^https?:\/\//i.test(rawImage);
+    const image = hasHttpImage && !isLikelyAiImageUrl(rawImage)
+      ? rawImage
+      : buildTitleImageUrl(title || description || source);
+    if (!title && !link) continue;
+    items.push({
+      title,
+      link,
+      pubDate: getTagValue(block, 'pubDate'),
+      description,
+      source,
+      image,
+    });
+  }
+  return items;
+}
+
+function fetchRssXml(url) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    if (!['investing.com', 'yahoo.com'].some((domain) => parsed.hostname.endsWith(domain))) {
+      reject(new Error('Blocked hostname'));
+      return;
+    }
+    const req = https.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      },
+    }, (apiRes) => {
+      let data = '';
+      let bytes = 0;
+      apiRes.on('data', (chunk) => {
+        bytes += chunk.length;
+        if (bytes > MAX_BYTES) {
+          req.destroy(new Error('Upstream response too large'));
+          return;
+        }
+        data += chunk;
+      });
+      apiRes.on('end', () => {
+        if (apiRes.statusCode && apiRes.statusCode >= 400) {
+          reject(new Error(`Upstream HTTP ${apiRes.statusCode}`));
+          return;
+        }
+        resolve(data);
+      });
+    });
+    req.setTimeout(UPSTREAM_TIMEOUT_MS, () => req.destroy(new Error('Upstream timeout')));
+    req.on('error', reject);
+  });
+}
+
 module.exports = (req, res) => {
   setCors(req, res);
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -153,80 +229,33 @@ module.exports = (req, res) => {
     return res.status(429).json({ error: 'Rate limit exceeded' });
   }
 
-  const rssUrl = 'https://finance.yahoo.com/news/rssindex';
-  const parsed = new URL(rssUrl);
-  if (!parsed.hostname.endsWith('yahoo.com')) {
-    return res.status(403).json({ error: 'Blocked hostname' });
-  }
-
-  let responded = false;
-  const fail = (status, message) => {
-    if (responded) return;
-    responded = true;
-    res.status(status).json({ error: message });
-  };
-
-  const apiReq = https.get(rssUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-    },
-  }, (apiRes) => {
-    let data = '';
-    let bytes = 0;
-    apiRes.on('data', (chunk) => {
-      bytes += chunk.length;
-      if (bytes > MAX_BYTES) {
-        apiReq.destroy(new Error('Upstream response too large'));
-        return fail(413, 'Upstream response too large');
-      }
-      data += chunk;
-    });
-    apiRes.on('end', () => {
-      if (responded) return;
-      try {
-        const items = [];
-        const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-        let match;
-        while ((match = itemRegex.exec(data)) !== null) {
-          const block = match[1];
-          const get = (tag) => {
-            const m = block.match(new RegExp(`<${tag}><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}>([\\s\\S]*?)<\\/${tag}>`));
-            return m ? (m[1] || m[2] || '').trim() : '';
-          };
-          const mediaMatch = block.match(/<media:content[^>]+url=["']([^"']+)["']/);
-          const enclosureMatch = block.match(/<enclosure[^>]+url=["']([^"']+)["']/);
-          const mediaThumbMatch = block.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/);
-          const descImgMatch = block.match(/<img[^>]+src=["']([^"']+)["']/);
-          const title = get('title');
-          const description = get('description').replace(/<[^>]*>/g, '').slice(0, 200);
-          const rawImage = (mediaMatch && mediaMatch[1]) || (enclosureMatch && enclosureMatch[1]) || (mediaThumbMatch && mediaThumbMatch[1]) || (descImgMatch && descImgMatch[1]) || '';
-          const hasHttpImage = /^https?:\/\//i.test(rawImage);
-          const image = hasHttpImage && !isLikelyAiImageUrl(rawImage)
-            ? rawImage
-            : buildTitleImageUrl(title || description);
-          items.push({
-            title,
-            link: get('link'),
-            pubDate: get('pubDate'),
-            description,
-            source: get('source') || 'Yahoo Finance',
-            image,
-          });
+  (async () => {
+    try {
+      for (const source of RSS_NEWS_SOURCES) {
+        try {
+          const xml = await fetchRssXml(source.url);
+          const items = extractRssItems(xml, source.defaultSource);
+          if (items.length > 0) {
+            const deduped = [];
+            const seen = new Set();
+            for (const item of items) {
+              const key = item.link || item.title;
+              if (!key || seen.has(key)) continue;
+              seen.add(key);
+              deduped.push(item);
+              if (deduped.length >= 20) break;
+            }
+            return res.status(200).json({ items: deduped });
+          }
+        } catch {
+          // Try next source
         }
-        return res.status(200).json({ items: items.slice(0, 20) });
-      } catch (e) {
-        return fail(500, e.message);
       }
-    });
-  });
+      return res.status(502).json({ error: 'All RSS sources failed' });
+    } catch (e) {
+      return res.status(502).json({ error: e.message });
+    }
+  })();
 
-  apiReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
-    apiReq.destroy(new Error('Upstream timeout'));
-    fail(504, 'Upstream timeout');
-  });
-  apiReq.on('error', (e) => {
-    fail(502, e.message);
-  });
-
-  return null;
+  return undefined;
 };
