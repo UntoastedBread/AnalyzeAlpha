@@ -4747,7 +4747,7 @@ function App() {
             onSubTabChange={setMarketsSubTab}
             isPro={isPro}
             onUpgradePro={openProSignup}
-            onAnalyze={handleAnalyze}
+            onAnalyze={analyze}
           />
         )}
         {!loading && !error && tab === "portfolio" && (
