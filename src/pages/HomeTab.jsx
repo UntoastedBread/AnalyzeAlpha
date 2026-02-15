@@ -91,6 +91,7 @@ function HomeTab({
   const [fearGreed, setFearGreed] = useState({ rsi: 50, spark: [], loading: true });
   const [predictionMarkets, setPredictionMarkets] = useState([]);
   const [predictionLoading, setPredictionLoading] = useState(true);
+  const [predictionUpdatedAt, setPredictionUpdatedAt] = useState(null);
   const [customizing, setCustomizing] = useState(false);
   const [widgets, setWidgets] = useState(() => {
     try {
@@ -265,7 +266,8 @@ function HomeTab({
         const data = await fetchPredictionMarkets();
         if (!cancelled.current && data?.items) {
           const sorted = [...data.items].sort((a, b) => supportScore(b) - supportScore(a));
-          setPredictionMarkets(sorted.slice(0, 6));
+          setPredictionMarkets(sorted.slice(0, 3));
+          setPredictionUpdatedAt(data.updatedAt || null);
           setPredictionLoading(false);
         }
       } catch { if (!cancelled.current) setPredictionLoading(false); }
@@ -530,6 +532,24 @@ function HomeTab({
         </Section>}
       </div>
 
+      {/* Prediction Markets */}
+      {widgets.predictionMarkets !== false && (
+        <LazySection minHeight={280}>
+          <PredictionMarketsWidget
+            C={C}
+            t={t}
+            isMobile={isMobile}
+            markets={predictionMarkets}
+            loading={predictionLoading}
+            updatedAt={predictionUpdatedAt}
+            openAction={renderOpenAction(
+              () => onOpenDestination?.({ tab: "markets", subTab: "prediction" }),
+              "Open Polymarket"
+            )}
+          />
+        </LazySection>
+      )}
+
       {/* Earnings Calendar */}
       {widgets.earningsCalendar && (
         <LazySection minHeight={120}>
@@ -557,24 +577,6 @@ function HomeTab({
       {/* Fear & Greed Index */}
       {widgets.fearGreed && (
         <FearGreedWidget C={C} t={t} data={fearGreed} Sparkline={Sparkline} />
-      )}
-
-      {/* Prediction Markets */}
-      {widgets.predictionMarkets !== false && (
-        <LazySection minHeight={160}>
-          <PredictionMarketsWidget
-            C={C}
-            t={t}
-            isMobile={isMobile}
-            Section={Section}
-            markets={predictionMarkets}
-            loading={predictionLoading}
-            openAction={renderOpenAction(
-              () => onOpenDestination?.({ tab: "markets", subTab: "prediction" }),
-              "Open Polymarket"
-            )}
-          />
-        </LazySection>
       )}
 
       {/* Economic Snapshot */}
@@ -806,6 +808,7 @@ function EconomicSnapshot({ C, t, isMobile, Section, openAction }) {
 // PREDICTION MARKETS (Home widget)
 // ═══════════════════════════════════════════════════════════
 const POLY_BLUE = "#2E5CFF";
+const POLY_NAVY = "#0A1026";
 
 const HOME_CAT_STYLES = {
   Politics: { bg: "rgba(59,130,246,0.12)", color: "#3B82F6", icon: "⚖" },
@@ -816,18 +819,42 @@ const HOME_CAT_STYLES = {
 };
 const HOME_DEFAULT_CAT = { bg: "rgba(156,163,175,0.10)", color: "#9CA3AF", icon: "◈" };
 
-function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, openAction }) {
+function homeCloseTimeLabel(closeTime) {
+  const ts = Date.parse(closeTime || "");
+  if (!Number.isFinite(ts)) return "Open-ended";
+  const diffMs = ts - Date.now();
+  if (diffMs <= 0) return "Closing now";
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  if (diffHours < 24) return `Closes in ${diffHours}h`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) return `Closes in ${diffDays}d`;
+  const diffMonths = Math.floor(diffDays / 30);
+  return `Closes in ${diffMonths}mo`;
+}
+
+function PredictionMarketsWidget({ C, t, isMobile, markets, loading, updatedAt, openAction }) {
   if (loading) {
     return (
-      <Section C={C} title="Polymarket" actions={openAction}>
-        <div style={{ padding: 24, textAlign: "center", color: C.inkMuted, fontFamily: "var(--body)", fontSize: 11 }}>
-          Loading markets...
+      <div style={{ display: "grid", gap: 12 }}>
+        <div style={{
+          border: `1px solid ${POLY_BLUE}`,
+          background: `linear-gradient(140deg, ${POLY_NAVY} 0%, ${POLY_BLUE} 58%, #4A72FF 100%)`,
+          padding: "14px 20px", display: "flex", alignItems: "center", gap: 16,
+        }}>
+          <div style={{ fontSize: 22, fontFamily: "var(--display)", color: "#fff", fontWeight: 700, letterSpacing: "-0.02em" }}>
+            <span style={{ opacity: 0.7, marginRight: 6 }}>◈</span>Polymarket
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontFamily: "var(--body)" }}>Loading...</div>
         </div>
-      </Section>
+      </div>
     );
   }
 
   if (!markets || markets.length === 0) return null;
+
+  const updatedAtLabel = updatedAt
+    ? new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "—";
 
   const pctColor = (probYes) => {
     const conv = Math.abs((probYes || 0.5) - 0.5) * 2;
@@ -853,7 +880,7 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
     if (!enter) el.style.boxShadow = "none";
   };
 
-  const ConvictionDial = ({ value, size = 12 }) => {
+  const ConvictionDial = ({ value, size = 14 }) => {
     const r = (size - 2) / 2;
     const circ = 2 * Math.PI * r;
     const pct = Math.min(100, Math.max(0, value)) / 100;
@@ -870,7 +897,7 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
   };
 
   return (
-    <Section C={C} title="Polymarket" actions={openAction}>
+    <div style={{ display: "grid", gap: 12 }}>
       <style>{`
         @keyframes polyCardGlow {
           0%   { box-shadow: 0 -8px 24px -2px rgba(46,92,255,0.45),  8px 0 24px -2px rgba(34,197,94,0.30),  0 8px 24px -2px rgba(168,85,247,0.15), -8px 0 24px -2px rgba(249,115,22,0.08); }
@@ -880,14 +907,38 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
           100% { box-shadow: 0 -8px 24px -2px rgba(46,92,255,0.45),  8px 0 24px -2px rgba(34,197,94,0.30),  0 8px 24px -2px rgba(168,85,247,0.15), -8px 0 24px -2px rgba(249,115,22,0.08); }
         }
       `}</style>
+
+      {/* Hero banner */}
+      <div style={{
+        border: `1px solid ${POLY_BLUE}`,
+        background: `linear-gradient(140deg, ${POLY_NAVY} 0%, ${POLY_BLUE} 58%, #4A72FF 100%)`,
+        padding: isMobile ? "14px 14px" : "14px 20px",
+        display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
+      }}>
+        <div style={{ fontSize: 22, fontFamily: "var(--display)", color: "#fff", fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1 }}>
+          <span style={{ opacity: 0.7, marginRight: 6 }}>◈</span>Polymarket
+        </div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontSize: isMobile ? 16 : 18, fontFamily: "var(--display)", color: "#fff", lineHeight: 1.2, marginBottom: 4 }}>
+            Real-time probability markets
+          </div>
+          <div style={{ fontSize: 11, fontFamily: "var(--body)", color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
+            Live feed · Last update: {updatedAtLabel}
+          </div>
+        </div>
+        {openAction}
+      </div>
+
+      {/* Featured cards */}
       <div style={{
         display: "grid",
         gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
-        gap: 10,
+        gap: 12,
       }}>
         {markets.map((market) => {
           const yesPct = Math.round((Number(market.probYes) || 0) * 100);
-          const conv = Math.round(Math.abs((Number(market.probYes) || 0.5) - 0.5) * 200);
+          const noPct = Math.max(0, 100 - yesPct);
+          const conviction = Math.round(Math.abs((Number(market.probYes) || 0.5) - 0.5) * 200);
           const vol = Number(market.volume24h) || 0;
           const liq = Number(market.liquidity) || 0;
           const cs = HOME_CAT_STYLES[market.category] || HOME_DEFAULT_CAT;
@@ -901,11 +952,11 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
                 borderTop: `1px solid ${C.rule}`,
                 borderRight: `1px solid ${C.rule}`,
                 borderBottom: `1px solid ${C.rule}`,
-                borderLeft: `3px solid ${POLY_BLUE}`,
+                borderLeft: `4px solid ${POLY_BLUE}`,
                 background: C.warmWhite,
-                padding: "14px 14px",
+                padding: isMobile ? "14px 14px" : "16px 16px",
                 display: "grid",
-                gap: 8,
+                gap: 10,
                 textDecoration: "none",
                 color: "inherit",
                 transition: "border-color 0.15s, transform 0.15s, box-shadow 0.15s",
@@ -915,44 +966,62 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 8 }}>
                 <span style={{
-                  fontSize: 8, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
                   fontFamily: "var(--body)", color: cs.color, background: cs.bg,
-                  padding: "2px 6px", borderRadius: 3, lineHeight: 1.4,
+                  padding: "3px 8px", borderRadius: 3, lineHeight: 1.4,
                 }}>
                   {cs.icon} {market.category || "General"}
                 </span>
               </div>
 
-              <div style={{ fontSize: 14, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.3, fontWeight: 800 }}>
+              <div style={{ fontSize: isMobile ? 20 : 23, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.25, fontWeight: 800, letterSpacing: "-0.01em" }}>
                 {market.title}
               </div>
 
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <span style={{ fontSize: 22, fontFamily: "var(--display)", color: pctColor(market.probYes), lineHeight: 1 }}>
+              {market.subtitle && (
+                <div style={{ fontSize: 11, fontFamily: "var(--body)", color: C.inkMuted }}>
+                  {market.subtitle}
+                </div>
+              )}
+
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                <span style={{ fontSize: 30, fontFamily: "var(--display)", color: pctColor(market.probYes), lineHeight: 1 }}>
                   {yesPct}%
                 </span>
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)" }}>
-                  YES
+                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)" }}>
+                  {market.yesLabel || "YES"}
+                </span>
+                <span style={{ marginLeft: "auto", fontSize: 11, color: C.inkMuted, fontFamily: "var(--mono)" }}>
+                  {market.noLabel || "NO"} {noPct}%
                 </span>
               </div>
 
-              <div style={{ height: 6, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden", borderRadius: 2 }}>
-                <div style={{ width: `${yesPct}%`, height: "100%", background: barGrad(yesPct) }} />
+              <div style={{ height: 10, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden", borderRadius: 2 }}>
+                <div style={{ width: `${yesPct}%`, height: "100%", background: barGrad(yesPct), transition: "width 0.2s ease" }} />
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>
-                {vol > 0 && <span>${compactNumber(vol)} vol</span>}
-                {liq > 0 && <span>${compactNumber(liq)} liq</span>}
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                  <ConvictionDial value={conv} size={11} />
-                  <span style={{ fontSize: 9 }}>{conv} conv</span>
-                </span>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
+                  <strong style={{ color: C.ink }}>${compactNumber(vol)}</strong><br />
+                  24h volume
+                </div>
+                <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
+                  <strong style={{ color: C.ink }}>${compactNumber(liq)}</strong><br />
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                    <ConvictionDial value={conviction} size={14} />
+                    <span style={{ fontSize: 10, color: C.inkFaint }}>{conviction} conviction</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
+                <strong style={{ color: C.ink }}>{homeCloseTimeLabel(market.closeTime)}</strong> · time to close
               </div>
             </a>
           );
         })}
       </div>
-    </Section>
+    </div>
   );
 }
 
