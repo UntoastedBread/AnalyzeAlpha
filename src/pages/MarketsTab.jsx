@@ -692,7 +692,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("activity");
+  const [sortBy, setSortBy] = useState("support");
   const [visibleCount, setVisibleCount] = useState(12);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const sortMenuRef = useRef(null);
@@ -707,6 +707,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
     return translated && translated !== key ? translated : fallback;
   }, [t]);
   const sortOptions = useMemo(() => ([
+    { key: "support", label: tx("markets.sortSupport", "Sort: Most Supported") },
     { key: "activity", label: tx("markets.sortActivity", "Sort: Activity") },
     { key: "conviction", label: tx("markets.sortConviction", "Sort: Conviction") },
     { key: "closing", label: tx("markets.sortClosing", "Sort: Closing Soon") },
@@ -788,7 +789,19 @@ function PredictionMarketsSubTab({ deps, viewport }) {
       next = next.filter(m => (m.category || "General") === categoryFilter);
     }
 
-    if (sortBy === "conviction") {
+    if (sortBy === "support") {
+      // Support Index: combines yes probability with market activity (volume + liquidity)
+      // Markets with high yes% AND high participation rank highest
+      const supportScore = (m) => {
+        const yes = Number(m.probYes) || 0;
+        const vol = Number(m.volume24h) || 0;
+        const liq = Number(m.liquidity) || 0;
+        const totalVol = Number(m.volumeTotal) || 0;
+        // Weight = yes probability * log-scaled popularity
+        return yes * Math.log10(1 + vol + liq * 0.5 + totalVol * 0.1);
+      };
+      next.sort((a, b) => supportScore(b) - supportScore(a));
+    } else if (sortBy === "conviction") {
       next.sort((a, b) => {
         const aScore = Math.abs((Number(a.probYes) || 0.5) - 0.5);
         const bScore = Math.abs((Number(b.probYes) || 0.5) - 0.5);
@@ -973,15 +986,23 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                 const sourceColor = market.source === "Polymarket" ? POLY_BLUE : C.hold;
                 const barColor = market.source === "Polymarket" ? POLY_BLUE : C.ink;
                 return (
-                  <div
+                  <a
                     key={market.id}
+                    href={safeExternalHref(market.url, "https://polymarket.com")}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     style={{
                       border: `1px solid ${C.rule}`,
                       background: C.warmWhite,
                       padding: isMobile ? "14px 14px" : "16px 16px",
                       display: "grid",
                       gap: 10,
+                      textDecoration: "none",
+                      color: "inherit",
+                      transition: "border-color 0.15s",
                     }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = POLY_BLUE}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = C.rule}
                   >
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                       <span style={{
@@ -1052,22 +1073,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                         {tx("markets.timeToClose", "time to close")}
                       </div>
                     </div>
-
-                    <a
-                      href={safeExternalHref(market.url, "https://polymarket.com")}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        ...ctaBase,
-                        background: market.source === "Polymarket" ? POLY_BLUE : C.ink,
-                        color: C.cream,
-                        borderColor: market.source === "Polymarket" ? POLY_BLUE : C.ink,
-                        fontWeight: 800,
-                      }}
-                    >
-                      {tx("markets.tradeMarket", "Open Market")}
-                    </a>
-                  </div>
+                  </a>
                 );
               })}
             </div>
@@ -1205,15 +1211,23 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                   const sourceColor = market.source === "Polymarket" ? POLY_BLUE : C.hold;
                   const barColor = market.source === "Polymarket" ? POLY_BLUE : C.ink;
                   return (
-                    <div
+                    <a
                       key={market.id}
+                      href={safeExternalHref(market.url, "https://polymarket.com")}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       style={{
                         border: `1px solid ${C.rule}`,
                         background: C.warmWhite,
                         padding: "14px 14px",
                         display: "grid",
                         gap: 9,
+                        textDecoration: "none",
+                        color: "inherit",
+                        transition: "border-color 0.15s",
                       }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = POLY_BLUE}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = C.rule}
                     >
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                         <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sourceColor, fontFamily: "var(--body)" }}>
@@ -1249,22 +1263,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                         <span>{tx("markets.totalVolumeShort", "Tot")} {formatPredictionVolume(market, "volumeTotal")}</span>
                         <span>{tx("markets.liquidityShort", "Liq")} {formatPredictionVolume(market, "liquidity")}</span>
                       </div>
-
-                      <a
-                        href={safeExternalHref(market.url, "https://polymarket.com")}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          ...ctaBase,
-                          background: "transparent",
-                          color: market.source === "Polymarket" ? POLY_BLUE : C.ink,
-                          borderColor: market.source === "Polymarket" ? POLY_BLUE : C.rule,
-                          justifySelf: "start",
-                        }}
-                      >
-                        {tx("markets.openMarket", "Open Market")}
-                      </a>
-                    </div>
+                    </a>
                   );
                 })}
               </div>

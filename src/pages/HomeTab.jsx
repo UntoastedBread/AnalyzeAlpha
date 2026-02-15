@@ -1,5 +1,33 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 
+// ─── Prediction Markets helpers (shared with MarketsTab) ───
+function compactNumber(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "--";
+  const abs = Math.abs(num);
+  if (abs >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(0)}B`;
+  if (abs >= 1_000_000) return `${(num / 1_000_000).toFixed(0)}M`;
+  if (abs >= 1_000) return `${(num / 1_000).toFixed(abs < 10_000 ? 1 : 0)}K`;
+  return num.toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+function supportScore(m) {
+  const yes = Number(m.probYes) || 0;
+  const vol = Number(m.volume24h) || 0;
+  const liq = Number(m.liquidity) || 0;
+  const totalVol = Number(m.volumeTotal) || 0;
+  return yes * Math.log10(1 + vol + liq * 0.5 + totalVol * 0.1);
+}
+
+function safeExternalHref(url, fallback) {
+  const raw = String(url || "").trim();
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "https:") return fallback;
+    return parsed.toString();
+  } catch { return fallback; }
+}
+
 function HomeTab({
   deps,
   viewport,
@@ -26,6 +54,7 @@ function HomeTab({
     fetchQuickQuote,
     fetchRSSNews,
     fetchStockData,
+    fetchPredictionMarkets,
     labelFor,
     HelpWrap,
     TickerStrip,
@@ -60,12 +89,14 @@ function HomeTab({
   const [lastRefresh, setLastRefresh] = useState(null);
   const [agoText, setAgoText] = useState("");
   const [fearGreed, setFearGreed] = useState({ rsi: 50, spark: [], loading: true });
+  const [predictionMarkets, setPredictionMarkets] = useState([]);
+  const [predictionLoading, setPredictionLoading] = useState(true);
   const [customizing, setCustomizing] = useState(false);
   const [widgets, setWidgets] = useState(() => {
     try {
       const saved = localStorage.getItem("aa_home_widgets_v1");
-      return saved ? JSON.parse(saved) : { tickerStrip: true, indexes: true, movers: true, news: true, fearGreed: true, marketBrief: true, changelog: true, earningsCalendar: true, economicSnapshot: true };
-    } catch { return { tickerStrip: true, indexes: true, movers: true, news: true, fearGreed: true, marketBrief: true, changelog: true, earningsCalendar: true, economicSnapshot: true }; }
+      return saved ? JSON.parse(saved) : { tickerStrip: true, indexes: true, movers: true, news: true, fearGreed: true, predictionMarkets: true, marketBrief: true, changelog: true, earningsCalendar: true, economicSnapshot: true };
+    } catch { return { tickerStrip: true, indexes: true, movers: true, news: true, fearGreed: true, predictionMarkets: true, marketBrief: true, changelog: true, earningsCalendar: true, economicSnapshot: true }; }
   });
   const toggleWidget = (key) => {
     setWidgets(prev => {
@@ -229,6 +260,18 @@ function HomeTab({
     };
     loadNews();
 
+    const loadPredictions = async () => {
+      try {
+        const data = await fetchPredictionMarkets();
+        if (!cancelled.current && data?.items) {
+          const sorted = [...data.items].sort((a, b) => supportScore(b) - supportScore(a));
+          setPredictionMarkets(sorted.slice(0, 6));
+          setPredictionLoading(false);
+        }
+      } catch { if (!cancelled.current) setPredictionLoading(false); }
+    };
+    loadPredictions();
+
     return () => { cancelled.current = true; };
   }, [region, loadRegionData, loadMovers, loadTrending]);
 
@@ -361,6 +404,7 @@ function HomeTab({
               { key: "movers", label: "Movers" },
               { key: "news", label: "News" },
               { key: "fearGreed", label: "Fear & Greed" },
+              { key: "predictionMarkets", label: "Predictions" },
               { key: "marketBrief", label: "Market Brief" },
               { key: "earningsCalendar", label: "Earnings Calendar" },
               { key: "economicSnapshot", label: "Economic Snapshot" },
@@ -513,6 +557,24 @@ function HomeTab({
       {/* Fear & Greed Index */}
       {widgets.fearGreed && (
         <FearGreedWidget C={C} t={t} data={fearGreed} Sparkline={Sparkline} />
+      )}
+
+      {/* Prediction Markets */}
+      {widgets.predictionMarkets !== false && (
+        <LazySection minHeight={160}>
+          <PredictionMarketsWidget
+            C={C}
+            t={t}
+            isMobile={isMobile}
+            Section={Section}
+            markets={predictionMarkets}
+            loading={predictionLoading}
+            openAction={renderOpenAction(
+              () => onOpenDestination?.({ tab: "markets", subTab: "prediction" }),
+              "Open prediction markets"
+            )}
+          />
+        </LazySection>
       )}
 
       {/* Economic Snapshot */}
@@ -735,6 +797,93 @@ function EconomicSnapshot({ C, t, isMobile, Section, openAction }) {
           );
         })}
         {upcoming.length === 0 && <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", padding: 12 }}>No upcoming events scheduled.</div>}
+      </div>
+    </Section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PREDICTION MARKETS (Home widget)
+// ═══════════════════════════════════════════════════════════
+const POLY_BLUE = "#2E5CFF";
+
+function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, openAction }) {
+  if (loading) {
+    return (
+      <Section C={C} title="Prediction Markets" actions={openAction}>
+        <div style={{ padding: 24, textAlign: "center", color: C.inkMuted, fontFamily: "var(--body)", fontSize: 11 }}>
+          Loading prediction markets...
+        </div>
+      </Section>
+    );
+  }
+
+  if (!markets || markets.length === 0) return null;
+
+  return (
+    <Section C={C} title="Prediction Markets" actions={openAction}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+        gap: 10,
+      }}>
+        {markets.map((market) => {
+          const yesPct = Math.round((Number(market.probYes) || 0) * 100);
+          const barColor = market.source === "Polymarket" ? POLY_BLUE : C.ink;
+          const vol = Number(market.volume24h) || 0;
+          const liq = Number(market.liquidity) || 0;
+          return (
+            <a
+              key={market.id}
+              href={safeExternalHref(market.url, "https://polymarket.com")}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                border: `1px solid ${C.rule}`,
+                background: C.warmWhite,
+                padding: "14px 14px",
+                display: "grid",
+                gap: 8,
+                textDecoration: "none",
+                color: "inherit",
+                transition: "border-color 0.15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = POLY_BLUE}
+              onMouseLeave={e => e.currentTarget.style.borderColor = C.rule}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: POLY_BLUE, fontFamily: "var(--body)" }}>
+                  {market.source}
+                </span>
+                <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                  {market.category || "General"}
+                </span>
+              </div>
+
+              <div style={{ fontSize: 14, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.3, fontWeight: 800 }}>
+                {market.title}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span style={{ fontSize: 22, fontFamily: "var(--display)", color: C.ink, lineHeight: 1 }}>
+                  {yesPct}%
+                </span>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)" }}>
+                  YES
+                </span>
+              </div>
+
+              <div style={{ height: 6, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden" }}>
+                <div style={{ width: `${yesPct}%`, height: "100%", background: barColor }} />
+              </div>
+
+              <div style={{ display: "flex", gap: 10, fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>
+                {vol > 0 && <span>${compactNumber(vol)} vol</span>}
+                {liq > 0 && <span>${compactNumber(liq)} liq</span>}
+              </div>
+            </a>
+          );
+        })}
       </div>
     </Section>
   );
