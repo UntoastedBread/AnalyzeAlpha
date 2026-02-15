@@ -702,6 +702,50 @@ function PredictionMarketsSubTab({ deps, viewport }) {
   const POLY_SOFT = "#E9EEFF";
   const POLY_LOGO_URL = "https://polymarket.com/images/brand/logo-blue.png";
 
+  // ── Card design helpers ──
+  const CAT_STYLES = {
+    Politics: { bg: "rgba(59,130,246,0.12)", color: "#3B82F6", icon: "⚖" },
+    Sports:   { bg: "rgba(34,197,94,0.12)",  color: "#22C55E", icon: "🏆" },
+    Economy:  { bg: "rgba(234,179,8,0.12)",  color: "#B8860B", icon: "📊" },
+    Crypto:   { bg: "rgba(249,115,22,0.12)", color: "#F97316", icon: "₿" },
+    Tech:     { bg: "rgba(168,85,247,0.12)", color: "#A855F7", icon: "⚡" },
+  };
+  const DEFAULT_CAT = { bg: "rgba(156,163,175,0.10)", color: "#9CA3AF", icon: "◈" };
+  const catStyle = (cat) => CAT_STYLES[cat] || DEFAULT_CAT;
+
+  const accentForConviction = (probYes) => {
+    const conv = Math.abs((probYes || 0.5) - 0.5) * 2;
+    if (conv > 0.6) return POLY_BLUE;
+    if (conv > 0.3) return "rgba(46,92,255,0.4)";
+    return "rgba(46,92,255,0.15)";
+  };
+
+  const yesPctColor = (probYes) => {
+    const conv = Math.abs((probYes || 0.5) - 0.5) * 2;
+    if (conv > 0.6) return C.up;
+    if (conv < 0.2) return C.hold;
+    return C.ink;
+  };
+
+  const barGradient = (yesPct) => {
+    if (yesPct >= 70) return `linear-gradient(90deg, ${POLY_BLUE}, #22C55E)`;
+    if (yesPct <= 30) return `linear-gradient(90deg, ${POLY_BLUE}, #EF4444)`;
+    return POLY_BLUE;
+  };
+
+  const closingSoon = (closeTime) => {
+    const ts = Date.parse(closeTime || "");
+    if (!Number.isFinite(ts)) return false;
+    const diff = ts - Date.now();
+    return diff > 0 && diff < 7 * 24 * 60 * 60 * 1000;
+  };
+
+  const cardHover = (e, enter) => {
+    e.currentTarget.style.borderColor = enter ? POLY_BLUE : C.rule;
+    e.currentTarget.style.transform = enter ? "translateY(-2px)" : "none";
+    e.currentTarget.style.boxShadow = enter ? "0 4px 12px rgba(46,92,255,0.12)" : "none";
+  };
+
   const tx = useCallback((key, fallback, vars) => {
     const translated = t(key, vars);
     return translated && translated !== key ? translated : fallback;
@@ -978,7 +1022,8 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                 const yesPct = Math.round((Number(market.probYes) || 0) * 100);
                 const noPct = Math.max(0, 100 - yesPct);
                 const conviction = Math.round(Math.abs((Number(market.probYes) || 0.5) - 0.5) * 200);
-                const barColor = market.source === "Polymarket" ? POLY_BLUE : C.ink;
+                const cs = catStyle(market.category);
+                const closing = closingSoon(market.closeTime);
                 return (
                   <a
                     key={market.id}
@@ -987,21 +1032,35 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                     rel="noopener noreferrer"
                     style={{
                       border: `1px solid ${C.rule}`,
+                      borderLeft: `4px solid ${accentForConviction(market.probYes)}`,
                       background: C.warmWhite,
                       padding: isMobile ? "14px 14px" : "16px 16px",
                       display: "grid",
                       gap: 10,
                       textDecoration: "none",
                       color: "inherit",
-                      transition: "border-color 0.15s",
+                      transition: "border-color 0.15s, transform 0.15s, box-shadow 0.15s",
                     }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = POLY_BLUE}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = C.rule}
+                    onMouseEnter={e => cardHover(e, true)}
+                    onMouseLeave={e => cardHover(e, false)}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
-                      <span style={{ fontSize: 10, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, fontFamily: "var(--body)" }}>
-                        {market.category || "General"}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+                        fontFamily: "var(--body)", color: cs.color, background: cs.bg,
+                        padding: "3px 8px", borderRadius: 3, lineHeight: 1.4,
+                      }}>
+                        {cs.icon} {market.category || "General"}
                       </span>
+                      {closing && (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+                          fontFamily: "var(--body)", color: C.down, background: C.downBg,
+                          padding: "3px 7px", borderRadius: 3, lineHeight: 1.4,
+                        }}>
+                          ● Closing soon
+                        </span>
+                      )}
                     </div>
 
                     <div style={{ fontSize: isMobile ? 20 : 23, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.25, fontWeight: 800, letterSpacing: "-0.01em" }}>
@@ -1015,7 +1074,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                     )}
 
                     <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                      <span style={{ fontSize: 30, fontFamily: "var(--display)", color: C.ink, lineHeight: 1 }}>
+                      <span style={{ fontSize: 30, fontFamily: "var(--display)", color: yesPctColor(market.probYes), lineHeight: 1 }}>
                         {yesPct}%
                       </span>
                       <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)" }}>
@@ -1026,8 +1085,8 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                       </span>
                     </div>
 
-                    <div style={{ height: 10, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden" }}>
-                      <div style={{ width: `${yesPct}%`, height: "100%", background: barColor, transition: "width 0.2s ease" }} />
+                    <div style={{ height: 10, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden", borderRadius: 2 }}>
+                      <div style={{ width: `${yesPct}%`, height: "100%", background: barGradient(yesPct), transition: "width 0.2s ease" }} />
                     </div>
 
                     <div style={{
@@ -1187,7 +1246,8 @@ function PredictionMarketsSubTab({ deps, viewport }) {
               }}>
                 {rest.map((market) => {
                   const yesPct = Math.round((Number(market.probYes) || 0) * 100);
-                  const barColor = market.source === "Polymarket" ? POLY_BLUE : C.ink;
+                  const cs = catStyle(market.category);
+                  const closing = closingSoon(market.closeTime);
                   return (
                     <a
                       key={market.id}
@@ -1196,21 +1256,39 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                       rel="noopener noreferrer"
                       style={{
                         border: `1px solid ${C.rule}`,
+                        borderLeft: `3px solid ${accentForConviction(market.probYes)}`,
                         background: C.warmWhite,
                         padding: "14px 14px",
                         display: "grid",
                         gap: 9,
                         textDecoration: "none",
                         color: "inherit",
-                        transition: "border-color 0.15s",
+                        transition: "border-color 0.15s, transform 0.15s, box-shadow 0.15s",
                       }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = POLY_BLUE}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = C.rule}
+                      onMouseEnter={e => cardHover(e, true)}
+                      onMouseLeave={e => cardHover(e, false)}
                     >
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
-                        <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                          {market.category || "General"}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+                          fontFamily: "var(--body)", color: cs.color, background: cs.bg,
+                          padding: "2px 7px", borderRadius: 3, lineHeight: 1.4,
+                        }}>
+                          {cs.icon} {market.category || "General"}
                         </span>
+                        {closing ? (
+                          <span style={{
+                            fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+                            fontFamily: "var(--body)", color: C.down, background: C.downBg,
+                            padding: "2px 7px", borderRadius: 3, lineHeight: 1.4,
+                          }}>
+                            ● Closing soon
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>
+                            {closeTimeLabel(market.closeTime)}
+                          </span>
+                        )}
                       </div>
 
                       <div style={{ fontSize: isMobile ? 17 : 19, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.28, fontWeight: 800, letterSpacing: "-0.005em" }}>
@@ -1218,19 +1296,16 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                       </div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ fontSize: 20, fontFamily: "var(--display)", color: C.ink }}>
+                        <div style={{ fontSize: 20, fontFamily: "var(--display)", color: yesPctColor(market.probYes) }}>
                           {yesPct}%
                         </div>
                         <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
                           {market.yesLabel || "YES"}
                         </div>
-                        <div style={{ marginLeft: "auto", fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>
-                          {closeTimeLabel(market.closeTime)}
-                        </div>
                       </div>
 
-                      <div style={{ height: 8, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden" }}>
-                        <div style={{ width: `${yesPct}%`, height: "100%", background: barColor }} />
+                      <div style={{ height: 8, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden", borderRadius: 2 }}>
+                        <div style={{ width: `${yesPct}%`, height: "100%", background: barGradient(yesPct) }} />
                       </div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 11, color: C.inkMuted, fontFamily: "var(--mono)" }}>

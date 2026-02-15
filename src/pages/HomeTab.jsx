@@ -807,6 +807,15 @@ function EconomicSnapshot({ C, t, isMobile, Section, openAction }) {
 // ═══════════════════════════════════════════════════════════
 const POLY_BLUE = "#2E5CFF";
 
+const HOME_CAT_STYLES = {
+  Politics: { bg: "rgba(59,130,246,0.12)", color: "#3B82F6", icon: "⚖" },
+  Sports:   { bg: "rgba(34,197,94,0.12)",  color: "#22C55E", icon: "🏆" },
+  Economy:  { bg: "rgba(234,179,8,0.12)",  color: "#B8860B", icon: "📊" },
+  Crypto:   { bg: "rgba(249,115,22,0.12)", color: "#F97316", icon: "₿" },
+  Tech:     { bg: "rgba(168,85,247,0.12)", color: "#A855F7", icon: "⚡" },
+};
+const HOME_DEFAULT_CAT = { bg: "rgba(156,163,175,0.10)", color: "#9CA3AF", icon: "◈" };
+
 function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, openAction }) {
   if (loading) {
     return (
@@ -820,6 +829,32 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
 
   if (!markets || markets.length === 0) return null;
 
+  const accentColor = (probYes) => {
+    const conv = Math.abs((probYes || 0.5) - 0.5) * 2;
+    if (conv > 0.6) return POLY_BLUE;
+    if (conv > 0.3) return "rgba(46,92,255,0.4)";
+    return "rgba(46,92,255,0.15)";
+  };
+
+  const pctColor = (probYes) => {
+    const conv = Math.abs((probYes || 0.5) - 0.5) * 2;
+    if (conv > 0.6) return C.up;
+    if (conv < 0.2) return C.hold;
+    return C.ink;
+  };
+
+  const barGrad = (yesPct) => {
+    if (yesPct >= 70) return `linear-gradient(90deg, ${POLY_BLUE}, #22C55E)`;
+    if (yesPct <= 30) return `linear-gradient(90deg, ${POLY_BLUE}, #EF4444)`;
+    return POLY_BLUE;
+  };
+
+  const hoverCard = (e, enter) => {
+    e.currentTarget.style.borderColor = enter ? POLY_BLUE : C.rule;
+    e.currentTarget.style.transform = enter ? "translateY(-2px)" : "none";
+    e.currentTarget.style.boxShadow = enter ? "0 4px 12px rgba(46,92,255,0.12)" : "none";
+  };
+
   return (
     <Section C={C} title="Polymarket" actions={openAction}>
       <div style={{
@@ -829,9 +864,9 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
       }}>
         {markets.map((market) => {
           const yesPct = Math.round((Number(market.probYes) || 0) * 100);
-          const barColor = market.source === "Polymarket" ? POLY_BLUE : C.ink;
           const vol = Number(market.volume24h) || 0;
           const liq = Number(market.liquidity) || 0;
+          const cs = HOME_CAT_STYLES[market.category] || HOME_DEFAULT_CAT;
           return (
             <a
               key={market.id}
@@ -840,20 +875,25 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
               rel="noopener noreferrer"
               style={{
                 border: `1px solid ${C.rule}`,
+                borderLeft: `3px solid ${accentColor(market.probYes)}`,
                 background: C.warmWhite,
                 padding: "14px 14px",
                 display: "grid",
                 gap: 8,
                 textDecoration: "none",
                 color: "inherit",
-                transition: "border-color 0.15s",
+                transition: "border-color 0.15s, transform 0.15s, box-shadow 0.15s",
               }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = POLY_BLUE}
-              onMouseLeave={e => e.currentTarget.style.borderColor = C.rule}
+              onMouseEnter={e => hoverCard(e, true)}
+              onMouseLeave={e => hoverCard(e, false)}
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
-                <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                  {market.category || "General"}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 8 }}>
+                <span style={{
+                  fontSize: 8, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+                  fontFamily: "var(--body)", color: cs.color, background: cs.bg,
+                  padding: "2px 6px", borderRadius: 3, lineHeight: 1.4,
+                }}>
+                  {cs.icon} {market.category || "General"}
                 </span>
               </div>
 
@@ -862,7 +902,7 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
               </div>
 
               <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <span style={{ fontSize: 22, fontFamily: "var(--display)", color: C.ink, lineHeight: 1 }}>
+                <span style={{ fontSize: 22, fontFamily: "var(--display)", color: pctColor(market.probYes), lineHeight: 1 }}>
                   {yesPct}%
                 </span>
                 <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)" }}>
@@ -870,8 +910,8 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
                 </span>
               </div>
 
-              <div style={{ height: 6, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden" }}>
-                <div style={{ width: `${yesPct}%`, height: "100%", background: barColor }} />
+              <div style={{ height: 6, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden", borderRadius: 2 }}>
+                <div style={{ width: `${yesPct}%`, height: "100%", background: barGrad(yesPct) }} />
               </div>
 
               <div style={{ display: "flex", gap: 10, fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>
