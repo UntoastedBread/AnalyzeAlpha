@@ -757,6 +757,8 @@ const TRANSLATIONS = {
     "markets.predictionLoadErrorTitle": "Prediction markets unavailable",
     "markets.predictionLoadError": "Failed to load prediction markets.",
     "markets.retry": "Retry",
+    "markets.polyLiquidity": "Polymarket Liquidity",
+    "markets.depthHint": "Live order depth",
 
     // ─── Portfolio ──────────────────────────────────────
     "portfolio.ticker": "Ticker",

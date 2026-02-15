@@ -4,8 +4,7 @@ const MAX_BYTES = 2 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 9000;
 const CACHE_TTL_MS = 45 * 1000;
 const POLYMARKET_URL = 'https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=180&order=volume24hr&ascending=false';
-const MANIFOLD_URL = 'https://api.manifold.markets/v0/markets?limit=220&sort=last-bet-time';
-const ALLOWED_HOSTS = new Set(['gamma-api.polymarket.com', 'api.manifold.markets']);
+const ALLOWED_HOSTS = new Set(['gamma-api.polymarket.com']);
 
 let cache = {
   ts: 0,
@@ -134,46 +133,6 @@ function normalizePolymarket(markets) {
   return rows.slice(0, 120);
 }
 
-function normalizeManifold(markets) {
-  if (!Array.isArray(markets)) return [];
-  const rows = [];
-
-  for (const market of markets) {
-    if (!market || market.isResolved) continue;
-    if (normalizeText(market.outcomeType).toUpperCase() !== 'BINARY') continue;
-
-    const title = normalizeText(market.question);
-    if (!title) continue;
-
-    const probYes = toNumber(market.probability, NaN);
-    if (!Number.isFinite(probYes)) continue;
-
-    const closeTs = toNumber(market.closeTime, NaN);
-    const closeTime = Number.isFinite(closeTs) ? new Date(closeTs).toISOString() : null;
-
-    rows.push({
-      id: `manifold-${normalizeText(market.id || market.slug || title).toLowerCase()}`,
-      source: 'Manifold',
-      title,
-      subtitle: normalizeText(market.creatorName || market.creatorUsername) || null,
-      category: inferCategory(title, []),
-      probYes: clamp01(probYes),
-      yesLabel: 'YES',
-      noLabel: 'NO',
-      volume24h: toNumber(market.volume24Hours, 0),
-      volumeTotal: toNumber(market.volume, 0),
-      liquidity: toNumber(market.totalLiquidity, 0),
-      closeTime,
-      url: normalizeText(market.url) || `https://manifold.markets/market/${encodeURIComponent(normalizeText(market.slug || market.id))}`,
-      image: null,
-      tags: [],
-    });
-  }
-
-  rows.sort((a, b) => calcActivityScore(b) - calcActivityScore(a));
-  return rows.slice(0, 90);
-}
-
 function dedupeMarkets(items) {
   const out = [];
   const seen = new Set();
@@ -294,20 +253,16 @@ async function fetchPredictionMarkets() {
     return cache.payload;
   }
 
-  const [polyRes, manifoldRes] = await Promise.allSettled([
+  const [polyRes] = await Promise.allSettled([
     fetchJson(POLYMARKET_URL),
-    fetchJson(MANIFOLD_URL),
   ]);
 
   const polyItems = polyRes.status === 'fulfilled' ? normalizePolymarket(polyRes.value) : [];
-  const manifoldItems = manifoldRes.status === 'fulfilled' ? normalizeManifold(manifoldRes.value) : [];
 
-  let combined = dedupeMarkets([...polyItems, ...manifoldItems]);
+  let combined = dedupeMarkets([...polyItems]);
   if (!combined.length) {
     const polyError = polyRes.status === 'rejected' ? polyRes.reason?.message : null;
-    const manifoldError = manifoldRes.status === 'rejected' ? manifoldRes.reason?.message : null;
-    const details = [polyError, manifoldError].filter(Boolean).join(' | ');
-    throw new Error(details ? `Prediction sources unavailable: ${details}` : 'Prediction sources unavailable');
+    throw new Error(polyError ? `Polymarket unavailable: ${polyError}` : 'Polymarket unavailable');
   }
 
   combined = combined.map((item) => {
@@ -328,43 +283,13 @@ async function fetchPredictionMarkets() {
     return b.volume24h - a.volume24h;
   });
   const TARGET_COUNT = 80;
-  let limited = combined.slice(0, TARGET_COUNT);
-
-  if (polyItems.length > 0 && manifoldItems.length > 0) {
-    const polySorted = combined.filter(item => item.source === 'Polymarket');
-    const manifoldSorted = combined.filter(item => item.source === 'Manifold');
-    const polyTarget = Math.min(polySorted.length, Math.round(TARGET_COUNT * 0.6));
-    const manifoldTarget = Math.min(manifoldSorted.length, TARGET_COUNT - polyTarget);
-
-    const curated = [
-      ...polySorted.slice(0, polyTarget),
-      ...manifoldSorted.slice(0, manifoldTarget),
-    ];
-    const used = new Set(curated.map(item => item.id));
-    for (const item of combined) {
-      if (curated.length >= TARGET_COUNT) break;
-      if (used.has(item.id)) continue;
-      curated.push(item);
-    }
-    curated.sort((a, b) => {
-      if (b.rankScore !== a.rankScore) return b.rankScore - a.rankScore;
-      if (b.activityScore !== a.activityScore) return b.activityScore - a.activityScore;
-      return b.volume24h - a.volume24h;
-    });
-    limited = curated;
-  }
+  const limited = combined.slice(0, TARGET_COUNT);
   const sourceStatus = [
     {
       source: 'Polymarket',
       ok: polyRes.status === 'fulfilled',
       count: polyItems.length,
       error: polyRes.status === 'rejected' ? normalizeText(polyRes.reason?.message) || 'Source unavailable' : null,
-    },
-    {
-      source: 'Manifold',
-      ok: manifoldRes.status === 'fulfilled',
-      count: manifoldItems.length,
-      error: manifoldRes.status === 'rejected' ? normalizeText(manifoldRes.reason?.message) || 'Source unavailable' : null,
     },
   ];
 

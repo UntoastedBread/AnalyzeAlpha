@@ -691,7 +691,6 @@ function PredictionMarketsSubTab({ deps, viewport }) {
   const [payload, setPayload] = useState({ items: [], stats: null, updatedAt: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [sourceFilter, setSourceFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("activity");
   const [visibleCount, setVisibleCount] = useState(12);
@@ -751,7 +750,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
 
   useEffect(() => {
     setVisibleCount(12);
-  }, [sourceFilter, categoryFilter, sortBy]);
+  }, [categoryFilter, sortBy]);
 
   useEffect(() => {
     if (!sortMenuOpen) return undefined;
@@ -785,9 +784,6 @@ function PredictionMarketsSubTab({ deps, viewport }) {
 
   const filtered = useMemo(() => {
     let next = [...items];
-    if (sourceFilter !== "all") {
-      next = next.filter(m => m.source === sourceFilter);
-    }
     if (categoryFilter !== "all") {
       next = next.filter(m => (m.category || "General") === categoryFilter);
     }
@@ -812,14 +808,13 @@ function PredictionMarketsSubTab({ deps, viewport }) {
     }
 
     return next;
-  }, [items, sourceFilter, categoryFilter, sortBy]);
+  }, [items, categoryFilter, sortBy]);
 
   const featured = filtered.slice(0, 3);
   const rest = filtered.slice(3, 3 + visibleCount);
   const hasMore = filtered.length > (3 + visibleCount);
   const sourceStats = Array.isArray(payload.stats?.bySource) ? payload.stats.bySource : [];
   const polyStats = sourceStats.find(s => s.source === "Polymarket");
-  const manifoldStats = sourceStats.find(s => s.source === "Manifold");
   const avgConviction = Number(payload.stats?.averageConviction || 0);
   const updatedAtLabel = payload.updatedAt
     ? new Date(payload.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -902,14 +897,6 @@ function PredictionMarketsSubTab({ deps, viewport }) {
               style={{ ...ctaBase, background: "#fff", color: POLY_BLUE, borderColor: "#fff", fontWeight: 800 }}
             >
               {tx("markets.openPolymarket", "Open Polymarket")}
-            </a>
-            <a
-              href="https://manifold.markets"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ ...ctaBase, background: "rgba(255,255,255,0.18)", color: "#fff", borderColor: "rgba(255,255,255,0.45)" }}
-            >
-              {tx("markets.openManifold", "Open Manifold")}
             </a>
             {featured[0] && (
               <a
@@ -1004,13 +991,13 @@ function PredictionMarketsSubTab({ deps, viewport }) {
 
             <div style={metricCardStyle}>
               <div style={{ fontSize: 10, color: C.inkFaint, letterSpacing: "0.09em", fontWeight: 700, textTransform: "uppercase", fontFamily: "var(--body)" }}>
-                {tx("markets.manifoldVolume24h", "Manifold 24h Vol")}
+                {tx("markets.polyLiquidity", "Polymarket Liquidity")}
               </div>
               <div style={{ fontSize: 28, fontFamily: "var(--display)", color: C.ink, lineHeight: 1 }}>
-                M${compactNumber(manifoldStats?.volume24h || 0)}
+                ${compactNumber(polyStats?.liquidity || 0)}
               </div>
               <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
-                {manifoldStats?.count || 0} {tx("markets.markets", "markets")}
+                {tx("markets.depthHint", "Live order depth")}
               </div>
             </div>
           </div>
@@ -1131,24 +1118,6 @@ function PredictionMarketsSubTab({ deps, viewport }) {
           <Section title={tx("markets.exploreMarkets", "Explore Markets")}>
             <div style={{ display: "grid", gap: 12 }}>
               <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {[
-                    { key: "all", label: tx("markets.allSources", "All Sources") },
-                    { key: "Polymarket", label: "Polymarket" },
-                    { key: "Manifold", label: "Manifold" },
-                  ].map(opt => (
-                    <ControlChip
-                      key={opt.key}
-                      C={C}
-                      active={sourceFilter === opt.key}
-                      onClick={() => setSourceFilter(opt.key)}
-                      style={{ fontSize: 12, padding: "7px 12px" }}
-                    >
-                      {opt.label}
-                    </ControlChip>
-                  ))}
-                </div>
-
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   <ControlChip
                     C={C}
