@@ -806,6 +806,7 @@ function EconomicSnapshot({ C, t, isMobile, Section, openAction }) {
 // PREDICTION MARKETS (Home widget)
 // ═══════════════════════════════════════════════════════════
 const POLY_BLUE = "#2E5CFF";
+const POLY_LOGO_URL = "https://polymarket.com/images/brand/logo-blue.png";
 
 function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, openAction }) {
   if (loading) {
@@ -852,9 +853,10 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
               onMouseLeave={e => e.currentTarget.style.borderColor = C.rule}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: POLY_BLUE, fontFamily: "var(--body)" }}>
-                  {market.source}
-                </span>
+                {market.source === "Polymarket"
+                  ? <img src={POLY_LOGO_URL} alt="Polymarket" style={{ height: 11, objectFit: "contain" }} />
+                  : <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: POLY_BLUE, fontFamily: "var(--body)" }}>{market.source}</span>
+                }
                 <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
                   {market.category || "General"}
                 </span>

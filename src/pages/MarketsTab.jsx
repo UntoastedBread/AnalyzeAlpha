@@ -868,6 +868,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
           gap: 16,
           flexWrap: "wrap",
         }}>
+          <img src={POLY_LOGO_URL} alt="Polymarket" style={{ height: 20, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: isMobile ? 16 : 18, fontFamily: "var(--display)", color: "#fff", lineHeight: 1.2, marginBottom: 4 }}>
               {tx("markets.predictionHero", "Real-time probability markets")}
@@ -876,14 +877,6 @@ function PredictionMarketsSubTab({ deps, viewport }) {
               {tx("markets.liveFeed", "Live feed")} · {tx("markets.lastUpdate", "Last update")}: {updatedAtLabel}
             </div>
           </div>
-          <a
-            href="https://polymarket.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ ...ctaBase, background: "#fff", color: POLY_BLUE, borderColor: "#fff", fontWeight: 800, padding: "8px 14px", fontSize: 11, minHeight: 34 }}
-          >
-            {tx("markets.openPolymarket", "Open Polymarket")}
-          </a>
         </div>
 
       {loading && (
@@ -983,7 +976,6 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                 const yesPct = Math.round((Number(market.probYes) || 0) * 100);
                 const noPct = Math.max(0, 100 - yesPct);
                 const conviction = Math.round(Math.abs((Number(market.probYes) || 0.5) - 0.5) * 200);
-                const sourceColor = market.source === "Polymarket" ? POLY_BLUE : C.hold;
                 const barColor = market.source === "Polymarket" ? POLY_BLUE : C.ink;
                 return (
                   <a
@@ -1005,21 +997,10 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                     onMouseLeave={e => e.currentTarget.style.borderColor = C.rule}
                   >
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                      <span style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        padding: "3px 8px",
-                        border: `1px solid ${C.rule}`,
-                        background: C.paper,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        letterSpacing: "0.07em",
-                        textTransform: "uppercase",
-                        color: sourceColor,
-                        fontFamily: "var(--body)",
-                      }}>
-                        {market.source}
-                      </span>
+                      {market.source === "Polymarket"
+                        ? <img src={POLY_LOGO_URL} alt="Polymarket" style={{ height: 14, objectFit: "contain" }} />
+                        : <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: C.hold, fontFamily: "var(--body)" }}>{market.source}</span>
+                      }
                       <span style={{ fontSize: 10, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, fontFamily: "var(--body)" }}>
                         {market.category || "General"}
                       </span>
@@ -1208,7 +1189,6 @@ function PredictionMarketsSubTab({ deps, viewport }) {
               }}>
                 {rest.map((market) => {
                   const yesPct = Math.round((Number(market.probYes) || 0) * 100);
-                  const sourceColor = market.source === "Polymarket" ? POLY_BLUE : C.hold;
                   const barColor = market.source === "Polymarket" ? POLY_BLUE : C.ink;
                   return (
                     <a
@@ -1230,9 +1210,10 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                       onMouseLeave={e => e.currentTarget.style.borderColor = C.rule}
                     >
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sourceColor, fontFamily: "var(--body)" }}>
-                          {market.source}
-                        </span>
+                        {market.source === "Polymarket"
+                          ? <img src={POLY_LOGO_URL} alt="Polymarket" style={{ height: 12, objectFit: "contain" }} />
+                          : <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.hold, fontFamily: "var(--body)" }}>{market.source}</span>
+                        }
                         <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
                           {market.category || "General"}
                         </span>
