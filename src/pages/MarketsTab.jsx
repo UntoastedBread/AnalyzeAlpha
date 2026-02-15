@@ -713,13 +713,6 @@ function PredictionMarketsSubTab({ deps, viewport }) {
   const DEFAULT_CAT = { bg: "rgba(156,163,175,0.10)", color: "#9CA3AF", icon: "◈" };
   const catStyle = (cat) => CAT_STYLES[cat] || DEFAULT_CAT;
 
-  const accentForConviction = (probYes) => {
-    const conv = Math.abs((probYes || 0.5) - 0.5) * 2;
-    if (conv > 0.6) return POLY_BLUE;
-    if (conv > 0.3) return "rgba(46,92,255,0.4)";
-    return "rgba(46,92,255,0.15)";
-  };
-
   const yesPctColor = (probYes) => {
     const conv = Math.abs((probYes || 0.5) - 0.5) * 2;
     if (conv > 0.6) return C.up;
@@ -743,7 +736,24 @@ function PredictionMarketsSubTab({ deps, viewport }) {
   const cardHover = (e, enter) => {
     e.currentTarget.style.borderColor = enter ? POLY_BLUE : C.rule;
     e.currentTarget.style.transform = enter ? "translateY(-2px)" : "none";
-    e.currentTarget.style.boxShadow = enter ? "0 4px 12px rgba(46,92,255,0.12)" : "none";
+    e.currentTarget.style.animation = enter ? "polyCardGlow 2s ease-in-out infinite" : "none";
+    e.currentTarget.style.boxShadow = enter ? "0 4px 16px rgba(46,92,255,0.15)" : "none";
+  };
+
+  const ConvictionDial = ({ value, size = 14 }) => {
+    const r = (size - 2) / 2;
+    const circ = 2 * Math.PI * r;
+    const pct = Math.min(100, Math.max(0, value)) / 100;
+    const dialColor = pct > 0.6 ? C.up : pct > 0.3 ? C.hold : C.inkFaint;
+    return (
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ verticalAlign: "middle", flexShrink: 0 }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={C.rule} strokeWidth="1.5" />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={dialColor} strokeWidth="1.5"
+          strokeDasharray={`${pct * circ} ${circ}`}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size/2} ${size/2})`} />
+      </svg>
+    );
   };
 
   const tx = useCallback((key, fallback, vars) => {
@@ -903,6 +913,12 @@ function PredictionMarketsSubTab({ deps, viewport }) {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <style>{`
+        @keyframes polyCardGlow {
+          0%, 100% { box-shadow: 0 4px 16px rgba(46,92,255,0.12); }
+          50% { box-shadow: 0 8px 24px rgba(46,92,255,0.22); }
+        }
+      `}</style>
       <div style={{
           border: `1px solid ${POLY_BLUE}`,
           background: `linear-gradient(140deg, ${POLY_NAVY} 0%, ${POLY_BLUE} 58%, #4A72FF 100%)`,
@@ -1032,7 +1048,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                     rel="noopener noreferrer"
                     style={{
                       border: `1px solid ${C.rule}`,
-                      borderLeft: `4px solid ${accentForConviction(market.probYes)}`,
+                      borderLeft: `4px solid ${POLY_BLUE}`,
                       background: C.warmWhite,
                       padding: isMobile ? "14px 14px" : "16px 16px",
                       display: "grid",
@@ -1099,16 +1115,15 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                         {tx("markets.vol24h", "24h volume")}
                       </div>
                       <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
-                        <strong style={{ color: C.ink }}>{formatPredictionVolume(market, "liquidity")}</strong><br />
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <strong style={{ color: C.ink }}>{formatPredictionVolume(market, "liquidity")}</strong>
+                          <ConvictionDial value={conviction} size={14} />
+                          <span style={{ fontSize: 10, color: C.inkFaint }}>{conviction}</span>
+                        </div>
                         {tx("markets.liquidity", "liquidity")}
                       </div>
-                      <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
-                        <strong style={{ color: C.ink }}>{conviction}/100</strong><br />
-                        {tx("markets.conviction", "conviction")}
-                      </div>
-                      <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)" }}>
-                        <strong style={{ color: C.ink }}>{closeTimeLabel(market.closeTime)}</strong><br />
-                        {tx("markets.timeToClose", "time to close")}
+                      <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", gridColumn: "1 / -1" }}>
+                        <strong style={{ color: C.ink }}>{closeTimeLabel(market.closeTime)}</strong> · {tx("markets.timeToClose", "time to close")}
                       </div>
                     </div>
                   </a>
@@ -1246,6 +1261,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
               }}>
                 {rest.map((market) => {
                   const yesPct = Math.round((Number(market.probYes) || 0) * 100);
+                  const convExplore = Math.round(Math.abs((Number(market.probYes) || 0.5) - 0.5) * 200);
                   const cs = catStyle(market.category);
                   const closing = closingSoon(market.closeTime);
                   return (
@@ -1256,7 +1272,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                       rel="noopener noreferrer"
                       style={{
                         border: `1px solid ${C.rule}`,
-                        borderLeft: `3px solid ${accentForConviction(market.probYes)}`,
+                        borderLeft: `3px solid ${POLY_BLUE}`,
                         background: C.warmWhite,
                         padding: "14px 14px",
                         display: "grid",
@@ -1311,7 +1327,11 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 11, color: C.inkMuted, fontFamily: "var(--mono)" }}>
                         <span>{tx("markets.vol24hShort", "24h")} {formatPredictionVolume(market, "volume24h")}</span>
                         <span>{tx("markets.totalVolumeShort", "Tot")} {formatPredictionVolume(market, "volumeTotal")}</span>
-                        <span>{tx("markets.liquidityShort", "Liq")} {formatPredictionVolume(market, "liquidity")}</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                          {tx("markets.liquidityShort", "Liq")} {formatPredictionVolume(market, "liquidity")}
+                          <ConvictionDial value={convExplore} size={12} />
+                          <span style={{ fontSize: 10 }}>{convExplore}</span>
+                        </span>
                       </div>
                     </a>
                   );

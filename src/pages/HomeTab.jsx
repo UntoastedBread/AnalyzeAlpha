@@ -829,13 +829,6 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
 
   if (!markets || markets.length === 0) return null;
 
-  const accentColor = (probYes) => {
-    const conv = Math.abs((probYes || 0.5) - 0.5) * 2;
-    if (conv > 0.6) return POLY_BLUE;
-    if (conv > 0.3) return "rgba(46,92,255,0.4)";
-    return "rgba(46,92,255,0.15)";
-  };
-
   const pctColor = (probYes) => {
     const conv = Math.abs((probYes || 0.5) - 0.5) * 2;
     if (conv > 0.6) return C.up;
@@ -852,11 +845,34 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
   const hoverCard = (e, enter) => {
     e.currentTarget.style.borderColor = enter ? POLY_BLUE : C.rule;
     e.currentTarget.style.transform = enter ? "translateY(-2px)" : "none";
-    e.currentTarget.style.boxShadow = enter ? "0 4px 12px rgba(46,92,255,0.12)" : "none";
+    e.currentTarget.style.animation = enter ? "polyCardGlow 2s ease-in-out infinite" : "none";
+    e.currentTarget.style.boxShadow = enter ? "0 4px 16px rgba(46,92,255,0.15)" : "none";
+  };
+
+  const ConvictionDial = ({ value, size = 12 }) => {
+    const r = (size - 2) / 2;
+    const circ = 2 * Math.PI * r;
+    const pct = Math.min(100, Math.max(0, value)) / 100;
+    const dialColor = pct > 0.6 ? C.up : pct > 0.3 ? C.hold : C.inkFaint;
+    return (
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ verticalAlign: "middle", flexShrink: 0 }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={C.rule} strokeWidth="1.5" />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={dialColor} strokeWidth="1.5"
+          strokeDasharray={`${pct * circ} ${circ}`}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size/2} ${size/2})`} />
+      </svg>
+    );
   };
 
   return (
     <Section C={C} title="Polymarket" actions={openAction}>
+      <style>{`
+        @keyframes polyCardGlow {
+          0%, 100% { box-shadow: 0 4px 16px rgba(46,92,255,0.12); }
+          50% { box-shadow: 0 8px 24px rgba(46,92,255,0.22); }
+        }
+      `}</style>
       <div style={{
         display: "grid",
         gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
@@ -864,6 +880,7 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
       }}>
         {markets.map((market) => {
           const yesPct = Math.round((Number(market.probYes) || 0) * 100);
+          const conv = Math.round(Math.abs((Number(market.probYes) || 0.5) - 0.5) * 200);
           const vol = Number(market.volume24h) || 0;
           const liq = Number(market.liquidity) || 0;
           const cs = HOME_CAT_STYLES[market.category] || HOME_DEFAULT_CAT;
@@ -875,7 +892,7 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
               rel="noopener noreferrer"
               style={{
                 border: `1px solid ${C.rule}`,
-                borderLeft: `3px solid ${accentColor(market.probYes)}`,
+                borderLeft: `3px solid ${POLY_BLUE}`,
                 background: C.warmWhite,
                 padding: "14px 14px",
                 display: "grid",
@@ -914,9 +931,14 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
                 <div style={{ width: `${yesPct}%`, height: "100%", background: barGrad(yesPct) }} />
               </div>
 
-              <div style={{ display: "flex", gap: 10, fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>
                 {vol > 0 && <span>${compactNumber(vol)} vol</span>}
-                {liq > 0 && <span>${compactNumber(liq)} liq</span>}
+                {liq > 0 && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                    ${compactNumber(liq)} liq
+                    <ConvictionDial value={conv} size={11} />
+                  </span>
+                )}
               </div>
             </a>
           );
