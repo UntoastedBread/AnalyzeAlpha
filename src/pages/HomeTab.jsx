@@ -873,11 +873,11 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
     <Section C={C} title="Polymarket" actions={openAction}>
       <style>{`
         @keyframes polyCardGlow {
-          0%   { box-shadow: 0 -6px 18px -4px rgba(46,92,255,0.30),  6px 0 18px -4px rgba(34,197,94,0.18),  0 6px 18px -4px rgba(168,85,247,0.10), -6px 0 18px -4px rgba(249,115,22,0.05); }
-          25%  { box-shadow: 0 -6px 18px -4px rgba(249,115,22,0.05),  6px 0 18px -4px rgba(46,92,255,0.30),  0 6px 18px -4px rgba(34,197,94,0.18), -6px 0 18px -4px rgba(168,85,247,0.10); }
-          50%  { box-shadow: 0 -6px 18px -4px rgba(168,85,247,0.10),  6px 0 18px -4px rgba(249,115,22,0.05),  0 6px 18px -4px rgba(46,92,255,0.30), -6px 0 18px -4px rgba(34,197,94,0.18); }
-          75%  { box-shadow: 0 -6px 18px -4px rgba(34,197,94,0.18),  6px 0 18px -4px rgba(168,85,247,0.10),  0 6px 18px -4px rgba(249,115,22,0.05), -6px 0 18px -4px rgba(46,92,255,0.30); }
-          100% { box-shadow: 0 -6px 18px -4px rgba(46,92,255,0.30),  6px 0 18px -4px rgba(34,197,94,0.18),  0 6px 18px -4px rgba(168,85,247,0.10), -6px 0 18px -4px rgba(249,115,22,0.05); }
+          0%   { box-shadow: 0 -8px 24px -2px rgba(46,92,255,0.45),  8px 0 24px -2px rgba(34,197,94,0.30),  0 8px 24px -2px rgba(168,85,247,0.15), -8px 0 24px -2px rgba(249,115,22,0.08); }
+          25%  { box-shadow: 0 -8px 24px -2px rgba(249,115,22,0.08),  8px 0 24px -2px rgba(46,92,255,0.45),  0 8px 24px -2px rgba(34,197,94,0.30), -8px 0 24px -2px rgba(168,85,247,0.15); }
+          50%  { box-shadow: 0 -8px 24px -2px rgba(168,85,247,0.15),  8px 0 24px -2px rgba(249,115,22,0.08),  0 8px 24px -2px rgba(46,92,255,0.45), -8px 0 24px -2px rgba(34,197,94,0.30); }
+          75%  { box-shadow: 0 -8px 24px -2px rgba(34,197,94,0.30),  8px 0 24px -2px rgba(168,85,247,0.15),  0 8px 24px -2px rgba(249,115,22,0.08), -8px 0 24px -2px rgba(46,92,255,0.45); }
+          100% { box-shadow: 0 -8px 24px -2px rgba(46,92,255,0.45),  8px 0 24px -2px rgba(34,197,94,0.30),  0 8px 24px -2px rgba(168,85,247,0.15), -8px 0 24px -2px rgba(249,115,22,0.08); }
         }
       `}</style>
       <div style={{
@@ -898,7 +898,9 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
               target="_blank"
               rel="noopener noreferrer"
               style={{
-                border: `1px solid ${C.rule}`,
+                borderTop: `1px solid ${C.rule}`,
+                borderRight: `1px solid ${C.rule}`,
+                borderBottom: `1px solid ${C.rule}`,
                 borderLeft: `3px solid ${POLY_BLUE}`,
                 background: C.warmWhite,
                 padding: "14px 14px",
@@ -940,12 +942,11 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
 
               <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 10, color: C.inkMuted, fontFamily: "var(--mono)" }}>
                 {vol > 0 && <span>${compactNumber(vol)} vol</span>}
-                {liq > 0 && (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                    ${compactNumber(liq)} liq
-                    <ConvictionDial value={conv} size={11} />
-                  </span>
-                )}
+                {liq > 0 && <span>${compactNumber(liq)} liq</span>}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <ConvictionDial value={conv} size={11} />
+                  <span style={{ fontSize: 9 }}>{conv} conv</span>
+                </span>
               </div>
             </a>
           );
