@@ -734,10 +734,14 @@ function PredictionMarketsSubTab({ deps, viewport }) {
   };
 
   const cardHover = (e, enter) => {
-    e.currentTarget.style.borderColor = enter ? POLY_BLUE : C.rule;
-    e.currentTarget.style.transform = enter ? "translateY(-2px)" : "none";
-    e.currentTarget.style.animation = enter ? "polyCardGlow 2s ease-in-out infinite" : "none";
-    e.currentTarget.style.boxShadow = enter ? "0 4px 16px rgba(46,92,255,0.15)" : "none";
+    const el = e.currentTarget;
+    const bc = enter ? POLY_BLUE : C.rule;
+    el.style.borderTopColor = bc;
+    el.style.borderRightColor = bc;
+    el.style.borderBottomColor = bc;
+    el.style.transform = enter ? "translateY(-2px)" : "none";
+    el.style.animation = enter ? "polyCardGlow 3s linear infinite" : "none";
+    if (!enter) el.style.boxShadow = "none";
   };
 
   const ConvictionDial = ({ value, size = 14 }) => {
@@ -915,8 +919,11 @@ function PredictionMarketsSubTab({ deps, viewport }) {
     <div style={{ display: "grid", gap: 16 }}>
       <style>{`
         @keyframes polyCardGlow {
-          0%, 100% { box-shadow: 0 4px 16px rgba(46,92,255,0.12); }
-          50% { box-shadow: 0 8px 24px rgba(46,92,255,0.22); }
+          0%   { box-shadow: 0 -6px 18px -4px rgba(46,92,255,0.30),  6px 0 18px -4px rgba(34,197,94,0.18),  0 6px 18px -4px rgba(168,85,247,0.10), -6px 0 18px -4px rgba(249,115,22,0.05); }
+          25%  { box-shadow: 0 -6px 18px -4px rgba(249,115,22,0.05),  6px 0 18px -4px rgba(46,92,255,0.30),  0 6px 18px -4px rgba(34,197,94,0.18), -6px 0 18px -4px rgba(168,85,247,0.10); }
+          50%  { box-shadow: 0 -6px 18px -4px rgba(168,85,247,0.10),  6px 0 18px -4px rgba(249,115,22,0.05),  0 6px 18px -4px rgba(46,92,255,0.30), -6px 0 18px -4px rgba(34,197,94,0.18); }
+          75%  { box-shadow: 0 -6px 18px -4px rgba(34,197,94,0.18),  6px 0 18px -4px rgba(168,85,247,0.10),  0 6px 18px -4px rgba(249,115,22,0.05), -6px 0 18px -4px rgba(46,92,255,0.30); }
+          100% { box-shadow: 0 -6px 18px -4px rgba(46,92,255,0.30),  6px 0 18px -4px rgba(34,197,94,0.18),  0 6px 18px -4px rgba(168,85,247,0.10), -6px 0 18px -4px rgba(249,115,22,0.05); }
         }
       `}</style>
       <div style={{
