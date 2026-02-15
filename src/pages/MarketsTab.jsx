@@ -998,11 +998,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                     onMouseEnter={e => e.currentTarget.style.borderColor = POLY_BLUE}
                     onMouseLeave={e => e.currentTarget.style.borderColor = C.rule}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                      {market.source === "Polymarket"
-                        ? <img src={POLY_LOGO_URL} alt="Polymarket" style={{ height: 14, objectFit: "contain" }} />
-                        : <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: C.hold, fontFamily: "var(--body)" }}>{market.source}</span>
-                      }
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
                       <span style={{ fontSize: 10, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, fontFamily: "var(--body)" }}>
                         {market.category || "General"}
                       </span>
@@ -1211,11 +1207,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                       onMouseEnter={e => e.currentTarget.style.borderColor = POLY_BLUE}
                       onMouseLeave={e => e.currentTarget.style.borderColor = C.rule}
                     >
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                        {market.source === "Polymarket"
-                          ? <img src={POLY_LOGO_URL} alt="Polymarket" style={{ height: 12, objectFit: "contain" }} />
-                          : <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.hold, fontFamily: "var(--body)" }}>{market.source}</span>
-                        }
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
                         <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
                           {market.category || "General"}
                         </span>
