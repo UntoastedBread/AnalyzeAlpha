@@ -524,8 +524,23 @@ function PortfolioTab({
           {holdings.length === 0 ? (
             <EmptyState
               C={C}
+              icon={<span style={{ fontSize: 28 }}>📊</span>}
               title={t("portfolio.noHoldings")}
               message={t("portfolio.noHoldingsMsg")}
+              action={
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 12, lineHeight: 1.5 }}>
+                    Enter a ticker above (e.g. AAPL), shares, and cost basis to start tracking your portfolio performance, sector allocation, and risk metrics.
+                  </div>
+                  <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+                    {[{ label: "Live P&L", icon: "💰" }, { label: "Allocation", icon: "🍩" }, { label: "Sparklines", icon: "📈" }].map(f => (
+                      <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontFamily: "var(--mono)", color: C.inkMuted, fontWeight: 600 }}>
+                        <span>{f.icon}</span> {f.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              }
             />
           ) : (
             <>
@@ -761,8 +776,9 @@ function PortfolioTab({
           {paper.positions.length === 0 ? (
             <EmptyState
               C={C}
+              icon={<span style={{ fontSize: 28 }}>🏦</span>}
               title={t("portfolio.noPositions")}
-              message={t("portfolio.noPositionsMsg")}
+              message={`${t("portfolio.noPositionsMsg")} You start with $100,000 virtual cash — use the form above to place your first trade.`}
               style={sectionGap}
             />
           ) : (

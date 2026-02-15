@@ -30,6 +30,14 @@ const LEADERBOARD = [
 
 const RANK_COLORS = { 1: "#D4A017", 2: "#B6B6B6", 3: "#CD7F32" };
 
+// Deterministic avatar colors based on username
+const AVATAR_COLORS = ["#4A90D9", "#E8913A", "#50B87A", "#8B6BB5", "#D4534E", "#6DBFB8", "#7A8B99", "#E06B9F", "#5B8C5A", "#C4A05A"];
+function avatarColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
 function formatTimeAgo(ts) {
   const diff = Math.max(0, Math.floor((Date.now() - ts) / 1000));
   if (diff < 60) return `${diff}s ago`;
@@ -200,6 +208,7 @@ function SentimentVoting({ C }) {
     fontWeight: 700,
     textAlign: "center",
     transition: "all 0.15s",
+    opacity: userVote && userVote !== key ? 0.5 : 1,
   });
 
   return (
@@ -271,6 +280,7 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
   const [sortCol, setSortCol] = useState(null);
   const [sortDir, setSortDir] = useState(1);
   const [trendingSparks, setTrendingSparks] = useState({});
+  const [feedFilter, setFeedFilter] = useState("ALL");
 
   // Create post state
   const [showPostForm, setShowPostForm] = useState(false);
@@ -332,8 +342,10 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
 
   const allFeed = useMemo(() => {
     const combined = [...localFeed, ...SIMULATED_FEED];
-    return combined.sort((a, b) => b.time - a.time);
-  }, [localFeed]);
+    const sorted = combined.sort((a, b) => b.time - a.time);
+    if (feedFilter === "ALL") return sorted;
+    return sorted.filter(item => item.action.toUpperCase().includes(feedFilter));
+  }, [localFeed, feedFilter]);
 
   const sentimentColor = useCallback((s) => {
     if (s === "BULLISH") return C.up;
@@ -402,17 +414,7 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", position: "relative" }}>
 
-      {/* ============ Game of Life Background ============ */}
-      <div style={{ marginBottom: 24, position: "relative", height: 50, border: `1px solid ${C.ruleFaint}`, overflow: "hidden", background: C.warmWhite }}>
-        <GameOfLifeCanvas C={C} />
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-          <span style={{ padding: "4px 12px", background: `${C.cream}B3`, border: `1px solid ${C.rule}`, color: C.ink, fontSize: 14, fontFamily: "var(--display)", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            The Community
-          </span>
-        </div>
-      </div>
-
-      {/* ============ Trending + Leaderboard (moved to top) ============ */}
+      {/* ============ Trending + Leaderboard ============ */}
       <div style={{
         display: "grid",
         gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
@@ -573,7 +575,12 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
       )}
 
       {/* ============ Community Feed ============ */}
-      <Section title={t("community.feedTitle")}>
+      <Section title={<span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>{t("community.feedTitle")} <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--mono)", background: C.paper, padding: "2px 6px" }}>DEMO DATA</span></span>}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+          {[["ALL", "All"], ["BUY", "Buy"], ["SELL", "Sell"], ["HOLD", "Hold"]].map(([key, label]) => (
+            <ControlChip key={key} C={C} active={feedFilter === key} onClick={() => setFeedFilter(key)}>{label}</ControlChip>
+          ))}
+        </div>
         <div style={{
           display: "grid", gridTemplateColumns: "1fr",
           gap: 8, marginBottom: 24,
@@ -593,7 +600,8 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
                   {/* Avatar */}
                   <div style={{
                     width: 32, height: 32, borderRadius: "50%",
-                    background: C.paper, color: C.ink,
+                    background: item.isLocal ? C.ink : avatarColor(item.user),
+                    color: "#fff",
                     fontSize: 14, fontWeight: 700,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontFamily: "var(--display)", flexShrink: 0,
@@ -737,6 +745,11 @@ function CommunityTab({ deps, viewport, session, recentAnalyses, onAnalyze }) {
           </UIButton>
         </div>
       )}
+
+      {/* ============ Game of Life (bottom accent) ============ */}
+      <div style={{ position: "relative", height: 40, border: `1px solid ${C.ruleFaint}`, overflow: "hidden", background: C.warmWhite, opacity: 0.6 }}>
+        <GameOfLifeCanvas C={C} />
+      </div>
     </div>
   );
 }

@@ -310,9 +310,11 @@ function BacktestTab({ deps, viewport }) {
         </div>
         <div style={{ flex: isMobile ? "1 1 100%" : "0 0 auto" }}>
           <div style={labelStyle}>{t("backtest.period")}</div>
-          <select value={period} onChange={e => setPeriod(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
-            {PERIODS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-          </select>
+          <div style={{ display: "flex", gap: 4 }}>
+            {PERIODS.map(p => (
+              <ControlChip key={p.key} C={C} active={period === p.key} onClick={() => setPeriod(p.key)}>{p.label}</ControlChip>
+            ))}
+          </div>
         </div>
         <UIButton C={C} variant="primary" onClick={handleRun} disabled={loading || !ticker.trim()}
           style={{ width: "100%", padding: "12px 24px", fontSize: 13, background: C.ink, marginTop: 8 }}>

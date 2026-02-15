@@ -119,7 +119,7 @@ function ScreenerTab({ deps, viewport, onAnalyze, isPro, onUpgradePro, compariso
   const [scanProgress, setScanProgress] = useState({ done: 0, total: 0 });
   const [sortCol, setSortCol] = useState(null);
   const [sortDir, setSortDir] = useState(1);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(true);
 
   // ─── Comparison state ─────────────────────────────────────
   const [compTickers, setCompTickers] = useState(comparisonTickers || "AAPL, MSFT, GOOGL, AMZN");
@@ -581,12 +581,18 @@ function ScreenerTab({ deps, viewport, onAnalyze, isPro, onUpgradePro, compariso
           {!scanning && !scanResults && (
             <EmptyState
               C={C}
+              icon={<span style={{ fontSize: 28 }}>🔍</span>}
               title={t("screener.emptyTitle")}
               message={t("screener.emptyMessage")}
               action={
-                <UIButton C={C} variant="primary" onClick={() => runScan(filters)}>
-                  {t("screener.runFirstScan")}
-                </UIButton>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+                  <UIButton C={C} variant="primary" onClick={() => handlePreset("oversold")}>
+                    Try "Oversold"
+                  </UIButton>
+                  <UIButton C={C} variant="secondary" onClick={() => runScan(filters)}>
+                    {t("screener.runFirstScan")}
+                  </UIButton>
+                </div>
               }
             />
           )}

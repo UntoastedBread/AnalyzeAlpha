@@ -7,8 +7,6 @@ function HomeTab({
   region = "Global",
   onRegionChange,
   greetingName,
-  isDark = false,
-  onToggleTheme,
   portfolio,
   onOpenDestination,
 }) {
@@ -352,31 +350,38 @@ function HomeTab({
   return (
     <div style={{ display: "grid", gap: isMobile ? 20 : 18, minWidth: 0 }}>
       {customizing && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "10px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
-          {[
-            { key: "tickerStrip", label: "Ticker Strip" },
-            { key: "indexes", label: "Indexes" },
-            { key: "movers", label: "Movers" },
-            { key: "news", label: "News" },
-            { key: "fearGreed", label: "Fear & Greed" },
-            { key: "marketBrief", label: "Market Brief" },
-            { key: "earningsCalendar", label: "Earnings Calendar" },
-            { key: "economicSnapshot", label: "Economic Snapshot" },
-            { key: "changelog", label: "Changelog" },
-          ].map(w => (
-            <button
-              key={w.key}
-              onClick={() => toggleWidget(w.key)}
-              style={{
-                padding: "6px 12px", border: `1px solid ${widgets[w.key] ? C.ink : C.rule}`,
-                background: widgets[w.key] ? C.ink : "transparent",
-                color: widgets[w.key] ? C.cream : C.inkMuted,
-                fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.06em",
-              }}
-            >
-              {w.label}
-            </button>
-          ))}
+        <div style={{ padding: "12px 16px", border: `1px solid ${C.rule}`, background: C.warmWhite, display: "grid", gap: 10 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "var(--body)", color: C.inkMuted }}>
+            Toggle widgets
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {[
+              { key: "tickerStrip", label: "Ticker Strip" },
+              { key: "indexes", label: "Indexes" },
+              { key: "movers", label: "Movers" },
+              { key: "news", label: "News" },
+              { key: "fearGreed", label: "Fear & Greed" },
+              { key: "marketBrief", label: "Market Brief" },
+              { key: "earningsCalendar", label: "Earnings Calendar" },
+              { key: "economicSnapshot", label: "Economic Snapshot" },
+              { key: "changelog", label: "Changelog" },
+            ].map(w => (
+              <button
+                key={w.key}
+                onClick={() => toggleWidget(w.key)}
+                style={{
+                  padding: "6px 12px", border: `1px solid ${widgets[w.key] ? C.ink : C.rule}`,
+                  background: widgets[w.key] ? C.ink : "transparent",
+                  color: widgets[w.key] ? C.cream : C.inkMuted,
+                  fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.06em",
+                  display: "inline-flex", alignItems: "center", gap: 5, transition: "all 0.15s",
+                }}
+              >
+                <span style={{ fontSize: 11, lineHeight: 1 }}>{widgets[w.key] ? "✓" : "○"}</span>
+                {w.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -401,47 +406,22 @@ function HomeTab({
 
       {/* Greeting */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 2px 14px", marginTop: 6, marginBottom: 6 }}>
-        <button
-          type="button"
-          onClick={onToggleTheme}
-          className={`theme-toggle ${isDark ? "theme-toggle-dark" : "theme-toggle-light"}`}
-          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          <span className="theme-icon sun" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24">
-              <g stroke={C.accent} strokeWidth="1.6" strokeLinecap="round">
-                <line x1="12" y1="2" x2="12" y2="6" />
-                <line x1="12" y1="18" x2="12" y2="22" />
-                <line x1="2" y1="12" x2="6" y2="12" />
-                <line x1="18" y1="12" x2="22" y2="12" />
-                <line x1="4.5" y1="4.5" x2="7.5" y2="7.5" />
-                <line x1="16.5" y1="16.5" x2="19.5" y2="19.5" />
-                <line x1="4.5" y1="19.5" x2="7.5" y2="16.5" />
-                <line x1="16.5" y1="7.5" x2="19.5" y2="4.5" />
-              </g>
-              <circle cx="12" cy="12" r="3" fill={C.accent} />
-            </svg>
-          </span>
-          <span className="theme-icon moon" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24">
-              <path
-                d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5Z"
-                fill="none"
-                stroke={C.accent}
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-        </button>
         <div style={{ fontSize: isMobile ? 18 : 24, fontFamily: "var(--display)", color: C.ink, letterSpacing: "-0.01em", lineHeight: 1.2 }}>
           {greetingText}
         </div>
         <button
           onClick={() => setCustomizing(c => !c)}
-          style={{ marginLeft: "auto", padding: "4px 10px", border: `1px solid ${C.rule}`, background: customizing ? C.ink : "transparent", color: customizing ? C.cream : C.inkMuted, fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" }}
+          style={{
+            marginLeft: "auto", padding: "5px 10px", border: `1px solid ${customizing ? C.ink : C.rule}`,
+            background: customizing ? C.ink : "transparent", color: customizing ? C.cream : C.inkMuted,
+            fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase",
+            display: "inline-flex", alignItems: "center", gap: 5,
+          }}
         >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" />
+            <circle cx="9" cy="6" r="2" fill="currentColor" /><circle cx="16" cy="12" r="2" fill="currentColor" /><circle cx="11" cy="18" r="2" fill="currentColor" />
+          </svg>
           {customizing ? "Done" : "Customize"}
         </button>
       </div>
@@ -456,10 +436,29 @@ function HomeTab({
             <NewsSection news={news} loading={newsLoading} />
           </Section>}
           <HelpWrap help={{ title: t("help.portfolioSnapshot.title"), body: t("help.portfolioSnapshot.body") }} block>
-            <PortfolioTileCard
-              data={portfolioTileData}
-              onOpen={() => onOpenDestination?.({ tab: "portfolio" })}
-            />
+            {portfolioTileData.value === 0 && !(portfolio?.holdings || []).some(h => h && h.ticker && Number(h.shares) > 0) ? (
+              <div
+                onClick={() => onOpenDestination?.({ tab: "portfolio" })}
+                style={{
+                  border: `1px solid ${C.rule}`, background: C.warmWhite, padding: "20px 20px",
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 16,
+                }}
+              >
+                <div style={{ width: 44, height: 44, border: `2px dashed ${C.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.inkMuted} strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--body)", color: C.ink, marginBottom: 2 }}>Track your portfolio</div>
+                  <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", lineHeight: 1.5 }}>Add holdings to see live P&L, sector allocation, and risk metrics.</div>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.inkFaint} strokeWidth="2" strokeLinecap="round" style={{ marginLeft: "auto", flexShrink: 0 }}><path d="M9 18l6-6-6-6" /></svg>
+              </div>
+            ) : (
+              <PortfolioTileCard
+                data={portfolioTileData}
+                onOpen={() => onOpenDestination?.({ tab: "portfolio" })}
+              />
+            )}
           </HelpWrap>
         </div>
         {widgets.indexes && <Section

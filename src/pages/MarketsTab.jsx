@@ -846,74 +846,32 @@ function PredictionMarketsSubTab({ deps, viewport }) {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <Section title={tx("markets.predictionTitle", "Prediction Markets")}>
-        <div style={{
+      <div style={{
           border: `1px solid ${POLY_BLUE}`,
           background: `linear-gradient(140deg, ${POLY_NAVY} 0%, ${POLY_BLUE} 58%, #4A72FF 100%)`,
-          padding: isMobile ? "16px 14px" : "20px 20px",
-          display: "grid",
-          gap: 14,
+          padding: isMobile ? "14px 14px" : "14px 20px",
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          flexWrap: "wrap",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <div style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "3px 10px",
-              border: "1px solid rgba(255,255,255,0.35)",
-              background: "rgba(255,255,255,0.12)",
-              fontSize: 10,
-              fontFamily: "var(--body)",
-              color: "#fff",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              fontWeight: 700,
-            }}>
-              Polymarket Sponsored
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: isMobile ? 16 : 18, fontFamily: "var(--display)", color: "#fff", lineHeight: 1.2, marginBottom: 4 }}>
+              {tx("markets.predictionHero", "Real-time probability markets")}
             </div>
-            <img
-              src={POLY_LOGO_URL}
-              alt="Polymarket"
-              style={{ height: 24, width: "auto", border: "1px solid rgba(255,255,255,0.4)" }}
-              onError={(e) => { e.currentTarget.style.display = "none"; }}
-            />
-          </div>
-          <div style={{ display: "grid", gap: 8 }}>
-            <div style={{ fontSize: isMobile ? 23 : 30, fontFamily: "var(--display)", color: "#fff", lineHeight: 1.15 }}>
-              {tx("markets.predictionHero", "Trade real-time probability markets")}
-            </div>
-            <div style={{ fontSize: 13, fontFamily: "var(--body)", color: "rgba(255,255,255,0.9)", lineHeight: 1.6, maxWidth: 760 }}>
-              {tx(
-                "markets.predictionHeroBody",
-                "Monitor high-signal events from top prediction exchanges. Markets update automatically and are ranked by activity plus conviction."
-              )}
+            <div style={{ fontSize: 11, fontFamily: "var(--body)", color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
+              {tx("markets.liveFeed", "Live feed")} · {tx("markets.lastUpdate", "Last update")}: {updatedAtLabel}
             </div>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-            <a
-              href="https://polymarket.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ ...ctaBase, background: "#fff", color: POLY_BLUE, borderColor: "#fff", fontWeight: 800 }}
-            >
-              {tx("markets.openPolymarket", "Open Polymarket")}
-            </a>
-            {featured[0] && (
-              <a
-                href={safeExternalHref(featured[0].url, "https://polymarket.com")}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ ...ctaBase, background: "transparent", color: "#fff", borderColor: "rgba(255,255,255,0.45)" }}
-              >
-                {tx("markets.openTopMarket", "Open Top Market")}
-              </a>
-            )}
-          </div>
-          <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: "rgba(255,255,255,0.75)", letterSpacing: "0.04em" }}>
-            {tx("markets.liveFeed", "Live feed")} · {tx("markets.lastUpdate", "Last update")}: {updatedAtLabel}
-          </div>
+          <a
+            href="https://polymarket.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ ...ctaBase, background: "#fff", color: POLY_BLUE, borderColor: "#fff", fontWeight: 800, padding: "8px 14px", fontSize: 11, minHeight: 34 }}
+          >
+            {tx("markets.openPolymarket", "Open Polymarket")}
+          </a>
         </div>
-      </Section>
 
       {loading && (
         <div style={{ display: "grid", gap: 12 }}>
@@ -1429,7 +1387,7 @@ function EconomicSubTab({ deps, viewport, focusKey, onFocusHandled }) {
               />
               {macroData.vix.spark.length > 1 && (
                 <div style={{ padding: "4px 10px 6px" }}>
-                  <Sparkline data={macroData.vix.spark} color={macroData.vix.change >= 0 ? C.up : C.down} width={80} height={24} />
+                  <Sparkline data={macroData.vix.spark} color={macroData.vix.change >= 0 ? C.up : C.down} width={120} height={32} />
                 </div>
               )}
             </div>
@@ -1443,7 +1401,7 @@ function EconomicSubTab({ deps, viewport, focusKey, onFocusHandled }) {
               />
               {macroData.tnx.spark.length > 1 && (
                 <div style={{ padding: "4px 10px 6px" }}>
-                  <Sparkline data={macroData.tnx.spark} color={macroData.tnx.change >= 0 ? C.up : C.down} width={80} height={24} />
+                  <Sparkline data={macroData.tnx.spark} color={macroData.tnx.change >= 0 ? C.up : C.down} width={120} height={32} />
                 </div>
               )}
             </div>
@@ -1456,7 +1414,7 @@ function EconomicSubTab({ deps, viewport, focusKey, onFocusHandled }) {
               />
               {macroData.dxy.spark.length > 1 && (
                 <div style={{ padding: "4px 10px 6px" }}>
-                  <Sparkline data={macroData.dxy.spark} color={macroData.dxy.change >= 0 ? C.up : C.down} width={80} height={24} />
+                  <Sparkline data={macroData.dxy.spark} color={macroData.dxy.change >= 0 ? C.up : C.down} width={120} height={32} />
                 </div>
               )}
             </div>
@@ -1469,7 +1427,7 @@ function EconomicSubTab({ deps, viewport, focusKey, onFocusHandled }) {
               />
               {macroData.oil.spark.length > 1 && (
                 <div style={{ padding: "4px 10px 6px" }}>
-                  <Sparkline data={macroData.oil.spark} color={macroData.oil.change >= 0 ? C.up : C.down} width={80} height={24} />
+                  <Sparkline data={macroData.oil.spark} color={macroData.oil.change >= 0 ? C.up : C.down} width={120} height={32} />
                 </div>
               )}
             </div>
@@ -1615,28 +1573,8 @@ const SUB_TABS = [
   { key: "crypto", label: "Crypto" },
   { key: "economic", label: "Economic" },
   { key: "prediction", label: "Prediction" },
-  { key: "rates", label: "Rates" },
-  { key: "commodities", label: "Commodities" },
-  { key: "currencies", label: "Currencies" },
 ];
 
-function EmptyMarketsSubTab({ deps, title }) {
-  const { C, Section } = deps;
-  return (
-    <Section title={title}>
-      <div style={{
-        padding: "20px 14px",
-        border: `1px solid ${C.rule}`,
-        background: C.warmWhite,
-        color: C.inkMuted,
-        fontFamily: "var(--body)",
-        fontSize: 12,
-      }}>
-        Coming soon.
-      </div>
-    </Section>
-  );
-}
 
 function MarketsTab({ deps, viewport, subTab, onSubTabChange, focusKey, onFocusHandled, isPro, onUpgradePro, onAnalyze }) {
   const {
@@ -1707,23 +1645,6 @@ function MarketsTab({ deps, viewport, subTab, onSubTabChange, focusKey, onFocusH
         </LazySection>
       )}
 
-      {activeTab === "rates" && (
-        <LazySection minHeight={180}>
-          <EmptyMarketsSubTab deps={deps} title="Rates" />
-        </LazySection>
-      )}
-
-      {activeTab === "commodities" && (
-        <LazySection minHeight={180}>
-          <EmptyMarketsSubTab deps={deps} title="Commodities" />
-        </LazySection>
-      )}
-
-      {activeTab === "currencies" && (
-        <LazySection minHeight={180}>
-          <EmptyMarketsSubTab deps={deps} title="Currencies" />
-        </LazySection>
-      )}
     </div>
   );
 }

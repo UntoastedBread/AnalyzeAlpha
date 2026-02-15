@@ -211,12 +211,12 @@ function AnalysisTab({
     textTransform: "uppercase",
   });
   const openChartsBtn = {
-    padding: "4px 10px",
-    border: `1px solid ${C.rule}`,
-    background: "transparent",
-    color: C.inkMuted,
+    padding: "5px 12px",
+    border: `1px solid ${C.ink}`,
+    background: C.ink,
+    color: C.cream,
     fontSize: 10,
-    fontWeight: 600,
+    fontWeight: 700,
     cursor: "pointer",
     fontFamily: "var(--body)",
     letterSpacing: "0.08em",
@@ -269,7 +269,14 @@ function AnalysisTab({
               <div style={{ fontSize: 28, fontWeight: 700, color: recColor(rec.action), fontFamily: "var(--display)", lineHeight: 1 }}>
                 {translateEnum(rec.action, t, "signal")}
               </div>
-              <div style={{ display: "flex", gap: 16, marginTop: 10, fontSize: 12, fontFamily: "var(--body)" }}>
+              <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginTop: 8, lineHeight: 1.5 }}>
+                {rec.action === "SELL" || rec.action === "STRONG_SELL"
+                  ? `Technical momentum is bearish${marketValuation?.stretch != null && marketValuation.stretch < 60 ? " despite fair valuation" : ""}.`
+                  : rec.action === "BUY" || rec.action === "STRONG_BUY"
+                    ? `Technical signals are bullish${marketValuation?.stretch != null && marketValuation.stretch > 70 ? " though valuation is stretched" : ""}.`
+                    : "Mixed signals — no strong directional conviction."}
+              </div>
+              <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 12, fontFamily: "var(--body)" }}>
                 <span style={{ color: C.inkMuted }}>{t("analysis.confidence")} <strong style={{ color: C.ink }}>{fmtPct(rec.confidence * 100, 0)}</strong></span>
                 <span style={{ color: C.inkMuted }}>{t("analysis.score")} <strong style={{ color: C.ink }}>{fmt(rec.score)}</strong></span>
               </div>
@@ -527,7 +534,7 @@ function AnalysisTab({
                       <YAxis domain={["auto", "auto"]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={55} />
                       <Line dataKey="past" stroke={C.ink} dot={false} strokeWidth={2} name={t("analysis.past12Months")} />
                       <Line dataKey="targetLine" stroke="#3B82F6" dot={false} strokeWidth={2} strokeDasharray="4 4" name={t("analysis.target12Month")} />
-                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} />
+                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} formatter={(v) => v != null ? `$${Number(v).toFixed(2)}` : "--"} />
                     </ComposedChart>
                   </ResponsiveContainer>
                   <div style={{ display: "flex", gap: 14, marginTop: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>
@@ -547,14 +554,14 @@ function AnalysisTab({
                     <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>{t("analysis.earningsPerShare")}</div>
                     {epsSeries.length ? (
                       <ResponsiveContainer width="100%" height={170}>
-                        <LineChart data={epsSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+                        <BarChart data={epsSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                           <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                           <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
                           <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} />
                           <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
                             formatter={(v) => [`$${fmt(v, 2)}`, t("analysis.eps")]} />
-                          <Line type="monotone" dataKey="eps" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
-                        </LineChart>
+                          <Bar dataKey="eps" fill="#2563EB" radius={[2, 2, 0, 0]} barSize={36} />
+                        </BarChart>
                       </ResponsiveContainer>
                     ) : (
                       <div style={{ fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)" }}>{t("analysis.epsUnavailable")}</div>
@@ -564,28 +571,28 @@ function AnalysisTab({
                 <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
                   <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>{t("analysis.revenue")}</div>
                   <ResponsiveContainer width="100%" height={170}>
-                    <LineChart data={finSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+                    <BarChart data={finSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                       <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
                       <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${fmt(v, 0)}B`} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
                         formatter={(v) => [`$${fmt(v, 2)}B`, t("analysis.revenue")]} />
-                      <Line type="monotone" dataKey="revenue" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
-                    </LineChart>
+                      <Bar dataKey="revenue" fill="#2563EB" radius={[2, 2, 0, 0]} barSize={36} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
 
                 <div style={{ padding: "10px 12px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
                   <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>{t("analysis.netProfitMargin")}</div>
                   <ResponsiveContainer width="100%" height={170}>
-                    <LineChart data={finSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+                    <BarChart data={finSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                       <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
                       <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={32} tickFormatter={(v) => `${fmt(v, 0)}%`} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
                         formatter={(v) => [`${fmt(v, 1)}%`, t("analysis.netMargin")]} />
-                      <Line type="monotone" dataKey="netMargin" stroke="#2563EB" dot={{ fill: "#2563EB", r: 2 }} strokeWidth={2} />
-                    </LineChart>
+                      <Bar dataKey="netMargin" fill="#2563EB" radius={[2, 2, 0, 0]} barSize={36} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
 

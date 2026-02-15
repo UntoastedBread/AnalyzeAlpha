@@ -4736,6 +4736,30 @@ function App() {
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: viewport.isMobile ? 12 : 16, width: "auto", justifyContent: viewport.isTablet ? "flex-start" : "flex-end", flexWrap: "nowrap", maxWidth: "100%" }}>
             <button
+              type="button"
+              onClick={toggleTheme}
+              className={`theme-toggle ${isDark ? "theme-toggle-dark" : "theme-toggle-light"}`}
+              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 0", marginBottom: -2, display: "inline-flex", alignItems: "center" }}
+            >
+              <span className="theme-icon sun" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <g stroke={C.inkMuted} strokeWidth="1.6" strokeLinecap="round">
+                    <line x1="12" y1="2" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="22" />
+                    <line x1="2" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="22" y2="12" />
+                    <line x1="4.5" y1="4.5" x2="7.5" y2="7.5" /><line x1="16.5" y1="16.5" x2="19.5" y2="19.5" />
+                    <line x1="4.5" y1="19.5" x2="7.5" y2="16.5" /><line x1="16.5" y1="7.5" x2="19.5" y2="4.5" />
+                  </g>
+                  <circle cx="12" cy="12" r="3" fill={C.inkMuted} />
+                </svg>
+              </span>
+              <span className="theme-icon moon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5Z" fill="none" stroke={C.inkMuted} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            </button>
+            <button
               onClick={() => setHelpMode(m => !m)}
               style={utilityTabStyle(helpMode)}
               aria-pressed={helpMode}
@@ -5112,8 +5136,6 @@ function App() {
             region={homeRegion}
             onRegionChange={setHomeRegion}
             greetingName={profileName}
-            isDark={isDark}
-            onToggleTheme={toggleTheme}
             portfolio={portfolio}
             onOpenDestination={openFromHome}
           />

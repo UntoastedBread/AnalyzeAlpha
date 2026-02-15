@@ -58,7 +58,7 @@ function ChartsTab({
     });
   }, [data, chartLivePrice, interval, result?.interval]);
   const btn = (on) => ({ padding: "5px 14px", border: `1px solid ${on ? C.ink : C.rule}`, background: on ? C.ink : "transparent", color: on ? C.cream : C.inkMuted, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.04em" });
-  const h = show.rsi || show.macd || show.stoch ? 260 : 380;
+  const h = show.rsi || show.macd || show.stoch ? 300 : 400;
   const expandBtn = { padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" };
 
   useEffect(() => {
@@ -121,32 +121,23 @@ function ChartsTab({
       <HelpWrap help={{ title: t("help.chartsControls.title"), body: t("help.chartsControls.body") }} block>
         <div style={{ display: "grid", gap: 10, borderBottom: `1px solid ${C.rule}`, paddingBottom: 12 }}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            {[
-              ["sma", t("charts.movingAvg")],
-              ["bb", t("charts.bollinger")],
-              ["vol", t("charts.volume")],
-              ["rsi", t("charts.rsi")],
-              ["macd", t("charts.macd")],
-              ["stoch", t("charts.stochastic")]
-            ].map(([k, l]) => (
+            {[["sma", t("charts.movingAvg")], ["bb", t("charts.bollinger")]].map(([k, l]) => (
+              <ControlChip key={k} C={C} active={show[k]} onClick={() => toggle(k)}>{l}</ControlChip>
+            ))}
+            <span style={{ width: 1, height: 18, background: C.ruleFaint, margin: "0 2px" }} />
+            {[["vol", t("charts.volume")], ["rsi", t("charts.rsi")], ["macd", t("charts.macd")], ["stoch", t("charts.stochastic")]].map(([k, l]) => (
               <ControlChip key={k} C={C} active={show[k]} onClick={() => toggle(k)}>{l}</ControlChip>
             ))}
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            <span style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em" }}>{t("charts.chart")}</span>
             <ControlChip C={C} active={activeChartType === "line"} onClick={() => onChartTypeChange?.("line")}>{t("common.line")}</ControlChip>
             <ControlChip C={C} active={activeChartType === "candles"} onClick={() => onChartTypeChange?.("candles")}>{t("common.candles")}</ControlChip>
             {onReanalyze && (
               <>
-                <span style={{ marginLeft: 4, fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em" }}>{t("charts.period")}</span>
-                <select value={period || "1y"} onChange={e => onReanalyze(ticker, e.target.value, interval)}
-                  style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", color: C.inkMuted, fontSize: 11, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
-                  {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"],["2y","2Y"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
-                </select>
-                <select value={interval || "1d"} onChange={e => onReanalyze(ticker, period, e.target.value)}
-                  style={{ background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 8px", color: C.inkMuted, fontSize: 11, fontFamily: "var(--body)", outline: "none", cursor: "pointer" }}>
-                  {(["1d","5d"].includes(period) ? [["1m","1m"],["5m","5m"],["15m","15m"],["30m","30m"],["60m","1h"]] : period === "1mo" ? [["15m","15m"],["30m","30m"],["60m","1h"],["1d","1d"]] : [["1d","1d"]]).map(([v,l])=><option key={v} value={v}>{l}</option>)}
-                </select>
+                <span style={{ width: 1, height: 18, background: C.ruleFaint, margin: "0 2px" }} />
+                {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"],["2y","2Y"]].map(([v,l]) => (
+                  <ControlChip key={v} C={C} active={(period || "1y") === v} onClick={() => onReanalyze(ticker, v, v === "1d" || v === "5d" ? "5m" : "1d")}>{l}</ControlChip>
+                ))}
               </>
             )}
           </div>
