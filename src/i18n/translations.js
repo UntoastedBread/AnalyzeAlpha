@@ -691,7 +691,7 @@ const TRANSLATIONS = {
     "markets.tab.sectors": "Sectors",
     "markets.tab.crypto": "Crypto",
     "markets.tab.economic": "Economic",
-    "markets.tab.prediction": "Prediction",
+    "markets.tab.prediction": "Polymarket",
     "markets.loading": "Loading…",
     "markets.error": "Error",
     "markets.heatmapHelp": "Market Heatmap",
