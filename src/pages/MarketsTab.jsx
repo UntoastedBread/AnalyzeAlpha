@@ -695,11 +695,24 @@ function PredictionMarketsSubTab({ deps, viewport }) {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("activity");
   const [visibleCount, setVisibleCount] = useState(12);
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const sortMenuRef = useRef(null);
+
+  const POLY_BLUE = "#2E5CFF";
+  const POLY_NAVY = "#0A1026";
+  const POLY_SOFT = "#E9EEFF";
+  const POLY_LOGO_URL = "https://polymarket.com/images/brand/logo-blue.png";
 
   const tx = useCallback((key, fallback, vars) => {
     const translated = t(key, vars);
     return translated && translated !== key ? translated : fallback;
   }, [t]);
+  const sortOptions = useMemo(() => ([
+    { key: "activity", label: tx("markets.sortActivity", "Sort: Activity") },
+    { key: "conviction", label: tx("markets.sortConviction", "Sort: Conviction") },
+    { key: "closing", label: tx("markets.sortClosing", "Sort: Closing Soon") },
+  ]), [tx]);
+  const activeSortOption = sortOptions.find(opt => opt.key === sortBy) || sortOptions[0];
 
   const loadPredictionMarkets = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -739,6 +752,25 @@ function PredictionMarketsSubTab({ deps, viewport }) {
   useEffect(() => {
     setVisibleCount(12);
   }, [sourceFilter, categoryFilter, sortBy]);
+
+  useEffect(() => {
+    if (!sortMenuOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (!sortMenuRef.current) return;
+      if (!sortMenuRef.current.contains(event.target)) {
+        setSortMenuOpen(false);
+      }
+    };
+    const onEscape = (event) => {
+      if (event.key === "Escape") setSortMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onEscape);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onEscape);
+    };
+  }, [sortMenuOpen]);
 
   const categories = useMemo(() => {
     const counts = new Map();
@@ -798,7 +830,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
     alignItems: "center",
     justifyContent: "center",
     textDecoration: "none",
-    padding: isMobile ? "10px 12px" : "11px 14px",
+    padding: isMobile ? "11px 14px" : "12px 16px",
     border: `1px solid ${C.rule}`,
     fontFamily: "var(--body)",
     fontSize: 12,
@@ -821,17 +853,41 @@ function PredictionMarketsSubTab({ deps, viewport }) {
     <div style={{ display: "grid", gap: 16 }}>
       <Section title={tx("markets.predictionTitle", "Prediction Markets")}>
         <div style={{
-          border: `1px solid ${C.rule}`,
-          background: `linear-gradient(155deg, ${C.warmWhite} 0%, ${C.paper} 100%)`,
+          border: `1px solid ${POLY_BLUE}`,
+          background: `linear-gradient(140deg, ${POLY_NAVY} 0%, ${POLY_BLUE} 58%, #4A72FF 100%)`,
           padding: isMobile ? "16px 14px" : "20px 20px",
           display: "grid",
           gap: 14,
         }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "3px 10px",
+              border: "1px solid rgba(255,255,255,0.35)",
+              background: "rgba(255,255,255,0.12)",
+              fontSize: 10,
+              fontFamily: "var(--body)",
+              color: "#fff",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              fontWeight: 700,
+            }}>
+              Polymarket Sponsored
+            </div>
+            <img
+              src={POLY_LOGO_URL}
+              alt="Polymarket"
+              style={{ height: 24, width: "auto", border: "1px solid rgba(255,255,255,0.4)" }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
+          </div>
           <div style={{ display: "grid", gap: 8 }}>
-            <div style={{ fontSize: isMobile ? 21 : 26, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.2 }}>
+            <div style={{ fontSize: isMobile ? 23 : 30, fontFamily: "var(--display)", color: "#fff", lineHeight: 1.15 }}>
               {tx("markets.predictionHero", "Trade real-time probability markets")}
             </div>
-            <div style={{ fontSize: 13, fontFamily: "var(--body)", color: C.inkMuted, lineHeight: 1.6, maxWidth: 760 }}>
+            <div style={{ fontSize: 13, fontFamily: "var(--body)", color: "rgba(255,255,255,0.9)", lineHeight: 1.6, maxWidth: 760 }}>
               {tx(
                 "markets.predictionHeroBody",
                 "Monitor high-signal events from top prediction exchanges. Markets update automatically and are ranked by activity plus conviction."
@@ -843,7 +899,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
               href="https://polymarket.com"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ ...ctaBase, background: C.ink, color: C.cream, borderColor: C.ink }}
+              style={{ ...ctaBase, background: "#fff", color: POLY_BLUE, borderColor: "#fff", fontWeight: 800 }}
             >
               {tx("markets.openPolymarket", "Open Polymarket")}
             </a>
@@ -851,7 +907,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
               href="https://manifold.markets"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ ...ctaBase, background: C.cream, color: C.ink }}
+              style={{ ...ctaBase, background: "rgba(255,255,255,0.18)", color: "#fff", borderColor: "rgba(255,255,255,0.45)" }}
             >
               {tx("markets.openManifold", "Open Manifold")}
             </a>
@@ -860,13 +916,13 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                 href={safeExternalHref(featured[0].url, "https://polymarket.com")}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ ...ctaBase, background: "transparent", color: C.inkMuted }}
+                style={{ ...ctaBase, background: "transparent", color: "#fff", borderColor: "rgba(255,255,255,0.45)" }}
               >
                 {tx("markets.openTopMarket", "Open Top Market")}
               </a>
             )}
           </div>
-          <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, letterSpacing: "0.04em" }}>
+          <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: "rgba(255,255,255,0.75)", letterSpacing: "0.04em" }}>
             {tx("markets.liveFeed", "Live feed")} · {tx("markets.lastUpdate", "Last update")}: {updatedAtLabel}
           </div>
         </div>
@@ -969,7 +1025,8 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                 const yesPct = Math.round((Number(market.probYes) || 0) * 100);
                 const noPct = Math.max(0, 100 - yesPct);
                 const conviction = Math.round(Math.abs((Number(market.probYes) || 0.5) - 0.5) * 200);
-                const sourceColor = market.source === "Polymarket" ? C.up : C.hold;
+                const sourceColor = market.source === "Polymarket" ? POLY_BLUE : C.hold;
+                const barColor = market.source === "Polymarket" ? POLY_BLUE : C.ink;
                 return (
                   <div
                     key={market.id}
@@ -1002,7 +1059,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                       </span>
                     </div>
 
-                    <div style={{ fontSize: 18, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.35 }}>
+                    <div style={{ fontSize: isMobile ? 20 : 23, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.25, fontWeight: 800, letterSpacing: "-0.01em" }}>
                       {market.title}
                     </div>
 
@@ -1025,7 +1082,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                     </div>
 
                     <div style={{ height: 10, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden" }}>
-                      <div style={{ width: `${yesPct}%`, height: "100%", background: C.ink, transition: "width 0.2s ease" }} />
+                      <div style={{ width: `${yesPct}%`, height: "100%", background: barColor, transition: "width 0.2s ease" }} />
                     </div>
 
                     <div style={{
@@ -1055,7 +1112,13 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                       href={safeExternalHref(market.url, "https://polymarket.com")}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ ...ctaBase, background: C.ink, color: C.cream, borderColor: C.ink }}
+                      style={{
+                        ...ctaBase,
+                        background: market.source === "Polymarket" ? POLY_BLUE : C.ink,
+                        color: C.cream,
+                        borderColor: market.source === "Polymarket" ? POLY_BLUE : C.ink,
+                        fontWeight: 800,
+                      }}
                     >
                       {tx("markets.tradeMarket", "Open Market")}
                     </a>
@@ -1108,22 +1171,92 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                   ))}
                 </div>
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {[
-                    { key: "activity", label: tx("markets.sortActivity", "Sort: Activity") },
-                    { key: "conviction", label: tx("markets.sortConviction", "Sort: Conviction") },
-                    { key: "closing", label: tx("markets.sortClosing", "Sort: Closing Soon") },
-                  ].map(opt => (
-                    <ControlChip
-                      key={opt.key}
-                      C={C}
-                      active={sortBy === opt.key}
-                      onClick={() => setSortBy(opt.key)}
-                      style={{ fontSize: 12, padding: "7px 12px" }}
-                    >
-                      {opt.label}
-                    </ControlChip>
-                  ))}
+                <div ref={sortMenuRef} style={{ position: "relative", width: isMobile ? "100%" : 300 }}>
+                  <button
+                    type="button"
+                    onClick={() => setSortMenuOpen(v => !v)}
+                    style={{
+                      width: "100%",
+                      minHeight: 42,
+                      border: `1px solid ${sortMenuOpen ? POLY_BLUE : C.rule}`,
+                      background: sortMenuOpen ? POLY_SOFT : C.warmWhite,
+                      color: C.ink,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      padding: "0 12px",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontFamily: "var(--body)",
+                      fontWeight: 700,
+                      letterSpacing: "0.05em",
+                      textTransform: "uppercase",
+                      transition: "all 0.18s ease",
+                    }}
+                    aria-haspopup="listbox"
+                    aria-expanded={sortMenuOpen}
+                  >
+                    <span>{activeSortOption?.label || tx("markets.sortActivity", "Sort: Activity")}</span>
+                    <span style={{ transform: sortMenuOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease", color: C.inkMuted }}>
+                      ▼
+                    </span>
+                  </button>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 6px)",
+                      left: 0,
+                      right: 0,
+                      border: `1px solid ${C.rule}`,
+                      background: C.warmWhite,
+                      boxShadow: "0 10px 26px rgba(0,0,0,0.08)",
+                      overflow: "hidden",
+                      zIndex: 20,
+                      opacity: sortMenuOpen ? 1 : 0,
+                      transform: sortMenuOpen ? "translateY(0)" : "translateY(-6px)",
+                      maxHeight: sortMenuOpen ? 220 : 0,
+                      pointerEvents: sortMenuOpen ? "auto" : "none",
+                      transition: "opacity 0.2s ease, transform 0.2s ease, max-height 0.24s ease",
+                    }}
+                    role="listbox"
+                    aria-label={tx("markets.sortBy", "Sort by")}
+                  >
+                    {sortOptions.map((opt) => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => {
+                          setSortBy(opt.key);
+                          setSortMenuOpen(false);
+                        }}
+                        style={{
+                          width: "100%",
+                          minHeight: 40,
+                          border: "none",
+                          borderBottom: `1px solid ${C.ruleFaint}`,
+                          background: sortBy === opt.key ? POLY_SOFT : "transparent",
+                          color: sortBy === opt.key ? POLY_BLUE : C.ink,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          padding: "0 12px",
+                          cursor: "pointer",
+                          fontSize: 12,
+                          fontFamily: "var(--body)",
+                          fontWeight: sortBy === opt.key ? 700 : 600,
+                          letterSpacing: "0.05em",
+                          textTransform: "uppercase",
+                        }}
+                        role="option"
+                        aria-selected={sortBy === opt.key}
+                      >
+                        <span>{opt.label}</span>
+                        {sortBy === opt.key && <span style={{ color: POLY_BLUE }}>●</span>}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1142,7 +1275,8 @@ function PredictionMarketsSubTab({ deps, viewport }) {
               }}>
                 {rest.map((market) => {
                   const yesPct = Math.round((Number(market.probYes) || 0) * 100);
-                  const sourceColor = market.source === "Polymarket" ? C.up : C.hold;
+                  const sourceColor = market.source === "Polymarket" ? POLY_BLUE : C.hold;
+                  const barColor = market.source === "Polymarket" ? POLY_BLUE : C.ink;
                   return (
                     <div
                       key={market.id}
@@ -1163,7 +1297,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                         </span>
                       </div>
 
-                      <div style={{ fontSize: 15, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.35 }}>
+                      <div style={{ fontSize: isMobile ? 17 : 19, fontFamily: "var(--display)", color: C.ink, lineHeight: 1.28, fontWeight: 800, letterSpacing: "-0.005em" }}>
                         {market.title}
                       </div>
 
@@ -1180,7 +1314,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                       </div>
 
                       <div style={{ height: 8, border: `1px solid ${C.rule}`, background: C.paper, overflow: "hidden" }}>
-                        <div style={{ width: `${yesPct}%`, height: "100%", background: C.ink }} />
+                        <div style={{ width: `${yesPct}%`, height: "100%", background: barColor }} />
                       </div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 11, color: C.inkMuted, fontFamily: "var(--mono)" }}>
@@ -1193,7 +1327,13 @@ function PredictionMarketsSubTab({ deps, viewport }) {
                         href={safeExternalHref(market.url, "https://polymarket.com")}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ ...ctaBase, background: "transparent", color: C.ink, justifySelf: "start" }}
+                        style={{
+                          ...ctaBase,
+                          background: "transparent",
+                          color: market.source === "Polymarket" ? POLY_BLUE : C.ink,
+                          borderColor: market.source === "Polymarket" ? POLY_BLUE : C.rule,
+                          justifySelf: "start",
+                        }}
                       >
                         {tx("markets.openMarket", "Open Market")}
                       </a>
