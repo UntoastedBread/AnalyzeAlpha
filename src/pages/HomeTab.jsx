@@ -404,7 +404,7 @@ function HomeTab({
               { key: "movers", label: "Movers" },
               { key: "news", label: "News" },
               { key: "fearGreed", label: "Fear & Greed" },
-              { key: "predictionMarkets", label: "Predictions" },
+              { key: "predictionMarkets", label: "Polymarket" },
               { key: "marketBrief", label: "Market Brief" },
               { key: "earningsCalendar", label: "Earnings Calendar" },
               { key: "economicSnapshot", label: "Economic Snapshot" },
@@ -571,7 +571,7 @@ function HomeTab({
             loading={predictionLoading}
             openAction={renderOpenAction(
               () => onOpenDestination?.({ tab: "markets", subTab: "prediction" }),
-              "Open prediction markets"
+              "Open Polymarket"
             )}
           />
         </LazySection>
@@ -811,9 +811,9 @@ const POLY_LOGO_URL = "https://polymarket.com/images/brand/logo-blue.png";
 function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, openAction }) {
   if (loading) {
     return (
-      <Section C={C} title="Prediction Markets" actions={openAction}>
+      <Section C={C} title="Polymarket" actions={openAction}>
         <div style={{ padding: 24, textAlign: "center", color: C.inkMuted, fontFamily: "var(--body)", fontSize: 11 }}>
-          Loading prediction markets...
+          Loading markets...
         </div>
       </Section>
     );
@@ -822,7 +822,7 @@ function PredictionMarketsWidget({ C, t, isMobile, Section, markets, loading, op
   if (!markets || markets.length === 0) return null;
 
   return (
-    <Section C={C} title="Prediction Markets" actions={openAction}>
+    <Section C={C} title="Polymarket" actions={openAction}>
       <div style={{
         display: "grid",
         gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",

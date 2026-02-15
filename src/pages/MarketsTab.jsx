@@ -868,7 +868,9 @@ function PredictionMarketsSubTab({ deps, viewport }) {
           gap: 16,
           flexWrap: "wrap",
         }}>
-          <img src={POLY_LOGO_URL} alt="Polymarket" style={{ height: 20, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+          <div style={{ fontSize: 22, fontFamily: "var(--display)", color: "#fff", fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1 }}>
+            <span style={{ opacity: 0.7, marginRight: 6 }}>◈</span>Polymarket
+          </div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: isMobile ? 16 : 18, fontFamily: "var(--display)", color: "#fff", lineHeight: 1.2, marginBottom: 4 }}>
               {tx("markets.predictionHero", "Real-time probability markets")}
@@ -890,7 +892,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
       {!loading && error && items.length === 0 && (
         <EmptyState
           C={C}
-          title={tx("markets.predictionLoadErrorTitle", "Prediction markets unavailable")}
+          title={tx("markets.predictionLoadErrorTitle", "Markets unavailable")}
           message={error}
           action={(
             <UIButton C={C} onClick={() => loadPredictionMarkets(false)} size="md">
@@ -943,7 +945,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
 
             <div style={metricCardStyle}>
               <div style={{ fontSize: 10, color: C.inkFaint, letterSpacing: "0.09em", fontWeight: 700, textTransform: "uppercase", fontFamily: "var(--body)" }}>
-                {tx("markets.polyVolume24h", "Polymarket 24h Vol")}
+                {tx("markets.polyVolume24h", "24h Volume")}
               </div>
               <div style={{ fontSize: 28, fontFamily: "var(--display)", color: C.ink, lineHeight: 1 }}>
                 ${compactNumber(polyStats?.volume24h || 0)}
@@ -955,7 +957,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
 
             <div style={metricCardStyle}>
               <div style={{ fontSize: 10, color: C.inkFaint, letterSpacing: "0.09em", fontWeight: 700, textTransform: "uppercase", fontFamily: "var(--body)" }}>
-                {tx("markets.polyLiquidity", "Polymarket Liquidity")}
+                {tx("markets.polyLiquidity", "Liquidity")}
               </div>
               <div style={{ fontSize: 28, fontFamily: "var(--display)", color: C.ink, lineHeight: 1 }}>
                 ${compactNumber(polyStats?.liquidity || 0)}
@@ -1552,7 +1554,7 @@ const SUB_TABS = [
   { key: "sectors", label: "Sectors" },
   { key: "crypto", label: "Crypto" },
   { key: "economic", label: "Economic" },
-  { key: "prediction", label: "Prediction" },
+  { key: "prediction", label: "Polymarket" },
 ];
 
 
