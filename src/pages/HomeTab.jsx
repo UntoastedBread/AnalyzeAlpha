@@ -542,10 +542,25 @@ function HomeTab({
             markets={predictionMarkets}
             loading={predictionLoading}
             updatedAt={predictionUpdatedAt}
-            openAction={renderOpenAction(
-              () => onOpenDestination?.({ tab: "markets", subTab: "prediction" }),
-              "Open Polymarket"
-            )}
+            openAction={
+              <button
+                type="button"
+                onClick={() => onOpenDestination?.({ tab: "markets", subTab: "prediction" })}
+                aria-label="Open Polymarket"
+                title="Open Polymarket"
+                style={{
+                  width: 22, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  background: "#fff", border: "1px solid rgba(255,255,255,0.3)", color: POLY_NAVY, cursor: "pointer",
+                  padding: 0, lineHeight: 1, transition: "background 0.15s, color 0.15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.85)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h6v6" /><path d="M10 14L21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                </svg>
+              </button>
+            }
           />
         </LazySection>
       )}
@@ -574,25 +589,27 @@ function HomeTab({
         </HelpWrap>
       </LazySection>}
 
-      {/* Fear & Greed Index */}
-      {widgets.fearGreed && (
-        <FearGreedWidget C={C} t={t} data={fearGreed} Sparkline={Sparkline} />
-      )}
-
-      {/* Economic Snapshot */}
-      {widgets.economicSnapshot && (
-        <LazySection minHeight={120}>
-          <EconomicSnapshot
-            C={C}
-            t={t}
-            isMobile={isMobile}
-            Section={Section}
-            openAction={renderOpenAction(
-              () => onOpenDestination?.({ tab: "markets", subTab: "economic", focusKey: "upcoming-events" }),
-              "Open economic calendar"
-            )}
-          />
-        </LazySection>
+      {/* Fear & Greed + Economic Snapshot — side by side */}
+      {(widgets.fearGreed || widgets.economicSnapshot) && (
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : (widgets.fearGreed && widgets.economicSnapshot ? "3fr 2fr" : "1fr"), gap: 14, alignItems: "start" }}>
+          {widgets.fearGreed && (
+            <FearGreedWidget C={C} t={t} data={fearGreed} Sparkline={Sparkline} />
+          )}
+          {widgets.economicSnapshot && (
+            <LazySection minHeight={120}>
+              <EconomicSnapshot
+                C={C}
+                t={t}
+                isMobile={isMobile}
+                Section={Section}
+                openAction={renderOpenAction(
+                  () => onOpenDestination?.({ tab: "markets", subTab: "economic", focusKey: "upcoming-events" }),
+                  "Open economic calendar"
+                )}
+              />
+            </LazySection>
+          )}
+        </div>
       )}
 
       {/* Market Brief */}
@@ -665,7 +682,7 @@ function FearGreedWidget({ C, t, data, Sparkline }) {
   return (
     <div style={{ padding: "20px 24px", border: `1px solid ${C.rule}`, background: C.warmWhite }}>
       <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--body)", color: C.inkMuted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>
-        Fear & Greed Index
+        Crypto Fear & Greed Index
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
         {/* Emoji + label */}
@@ -842,7 +859,7 @@ function PredictionMarketsWidget({ C, t, isMobile, markets, loading, updatedAt, 
           padding: "14px 20px", display: "flex", alignItems: "center", gap: 16,
         }}>
           <div style={{ fontSize: 22, fontFamily: "var(--display)", color: "#fff", fontWeight: 700, letterSpacing: "-0.02em" }}>
-            <span style={{ opacity: 0.7, marginRight: 6 }}>◈</span>Polymarket
+            <svg width="20" height="20" viewBox="0 0 400 400" fill="none" style={{ marginRight: 6, verticalAlign: "middle", opacity: 0.9 }}><path d="M200 0L370.7 98.6V295.4L200 400L29.3 295.4V98.6L200 0Z" fill="#fff"/><path d="M200 80L310 143.5V270.5L200 340L90 270.5V143.5L200 80Z" fill="#2E5CFF"/></svg>Polymarket
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontFamily: "var(--body)" }}>Loading...</div>
         </div>
@@ -916,7 +933,7 @@ function PredictionMarketsWidget({ C, t, isMobile, markets, loading, updatedAt, 
         display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
       }}>
         <div style={{ fontSize: 22, fontFamily: "var(--display)", color: "#fff", fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1 }}>
-          <span style={{ opacity: 0.7, marginRight: 6 }}>◈</span>Polymarket
+          <svg width="20" height="20" viewBox="0 0 400 400" fill="none" style={{ marginRight: 6, verticalAlign: "middle", opacity: 0.9 }}><path d="M200 0L370.7 98.6V295.4L200 400L29.3 295.4V98.6L200 0Z" fill="#fff"/><path d="M200 80L310 143.5V270.5L200 340L90 270.5V143.5L200 80Z" fill="#2E5CFF"/></svg>Polymarket
         </div>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontSize: isMobile ? 16 : 18, fontFamily: "var(--display)", color: "#fff", lineHeight: 1.2, marginBottom: 4 }}>

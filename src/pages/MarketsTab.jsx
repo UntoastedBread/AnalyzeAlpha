@@ -936,7 +936,7 @@ function PredictionMarketsSubTab({ deps, viewport }) {
           flexWrap: "wrap",
         }}>
           <div style={{ fontSize: 22, fontFamily: "var(--display)", color: "#fff", fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1 }}>
-            <span style={{ opacity: 0.7, marginRight: 6 }}>◈</span>Polymarket
+            <svg width="20" height="20" viewBox="0 0 400 400" fill="none" style={{ marginRight: 6, verticalAlign: "middle", opacity: 0.9 }}><path d="M200 0L370.7 98.6V295.4L200 400L29.3 295.4V98.6L200 0Z" fill="#fff"/><path d="M200 80L310 143.5V270.5L200 340L90 270.5V143.5L200 80Z" fill="#2E5CFF"/></svg>Polymarket
           </div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: isMobile ? 16 : 18, fontFamily: "var(--display)", color: "#fff", lineHeight: 1.2, marginBottom: 4 }}>

@@ -1965,6 +1965,22 @@ function Section({ title, children, style, actions, help }) {
   );
 }
 
+function AnimatedDot({ cx, cy, fill, r = 4, index = 0, totalPoints = 1 }) {
+  if (cx == null || cy == null) return null;
+  const delay = (index / Math.max(1, totalPoints - 1)) * CHART_ANIM_MS;
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={0}
+      fill={fill}
+      style={{
+        animation: `dotPopIn 0.35s ease-out ${delay}ms forwards`,
+      }}
+    />
+  );
+}
+
 function OpenActionButton({ onClick, label = "Open" }) {
   return (
     <button
@@ -2733,10 +2749,12 @@ function MiniIntradayChart({ data, label, loading, onAnalyze, ticker, compact = 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
         <div>
           <span style={{ fontSize: compact ? 9 : 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600 }}>{displayLabel}</span>
-          <span style={{ fontSize: compact ? 22 : 30, fontFamily: "var(--display)", color: C.inkSoft, fontWeight: 600, marginLeft: 12 }}>{fmt(lastPrice)}</span>
+          <span style={{ fontSize: compact ? 22 : 30, fontFamily: "var(--display)", color, fontWeight: 600, marginLeft: 12 }}>
+            {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
+          </span>
         </div>
-        <span style={{ fontSize: compact ? 12 : 14, fontFamily: "var(--mono)", fontWeight: 800, color, background: changeBg, padding: compact ? "3px 6px" : "4px 8px", borderRadius: 10 }}>
-          {change >= 0 ? "+" : ""}{fmt(change)} ({changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%)
+        <span style={{ fontSize: compact ? 11 : 13, fontFamily: "var(--mono)", fontWeight: 600, color: C.inkSoft }}>
+          {fmt(lastPrice)}
         </span>
       </div>
       <ResponsiveContainer width="100%" height={compact ? 90 : 120}>
@@ -2881,7 +2899,11 @@ function MoverColumn({ title, stocks, allStocks, loading, onAnalyze }) {
   }
   return (
     <div style={{ padding: "16px 20px", background: C.warmWhite, border: `1px solid ${C.rule}`, minWidth: 0, width: "100%" }}>
-      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600, marginBottom: 12 }}>{title}</div>
+      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: C.inkMuted, fontFamily: "var(--body)", fontWeight: 600, marginBottom: 12 }}>
+        {title.toLowerCase().includes("gainer") && <span style={{ color: C.up, marginRight: 4 }}>▲</span>}
+        {title.toLowerCase().includes("loser") && <span style={{ color: C.down, marginRight: 4 }}>▼</span>}
+        {title}
+      </div>
       {(!display || display.length === 0) ? (
         <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: "var(--body)", padding: "12px 0" }}>{t("common.noData")}</div>
       ) : (
@@ -3037,10 +3059,10 @@ function NewsSection({ news, loading }) {
                   onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.background = C.warmWhite; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = C.paper; }}
                 >
-                  <span style={{ fontFamily: "var(--display)", fontSize: 52, lineHeight: 1, color: C.inkMuted }}>{">"}</span>
-                  <span style={{ fontSize: 10, fontFamily: "var(--body)", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.inkMuted }}>
-                    See more
+                  <span style={{ fontFamily: "var(--body)", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.inkMuted }}>
+                    SEE MORE
                   </span>
+                  <span style={{ fontSize: 18, color: C.inkMuted, marginTop: 4 }}>→</span>
                 </button>
               )}
             </div>
@@ -3281,7 +3303,7 @@ function SectorPerformanceCard({ onOpen }) {
             const opacity = 0.3 + 0.7 * Math.min(pct / barCap, 1);
             return (
               <div key={d.symbol} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: `1px solid ${C.ruleFaint}` }}>
-                <span style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, minWidth: 90, flexShrink: 0 }}>{labelFor(d.label, t)}</span>
+                <span style={{ fontSize: 10, fontFamily: "var(--body)", color: C.inkMuted, minWidth: 130, flexShrink: 0 }}>{labelFor(d.label, t)}</span>
                 <div style={{ flex: 1, height: 8, background: C.paper, borderRadius: 4, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${barW}%`, background: color, opacity, borderRadius: 4, transition: "width 0.3s" }} />
                 </div>
@@ -3336,7 +3358,10 @@ function YieldCurveCard({ onOpen }) {
               <XAxis dataKey="label" tick={{ fontSize: 10, fontFamily: "var(--mono)", fill: C.inkMuted }} axisLine={{ stroke: C.rule }} tickLine={false} />
               <YAxis domain={["auto", "auto"]} tick={{ fontSize: 10, fontFamily: "var(--mono)", fill: C.inkMuted }} axisLine={false} tickLine={false} width={30} tickFormatter={v => v.toFixed(1) + "%"} />
               <Tooltip contentStyle={{ background: C.warmWhite, border: `1px solid ${C.rule}`, fontSize: 11, fontFamily: "var(--mono)" }} formatter={v => [v.toFixed(2) + "%", t("home.yieldLabel")]} />
-              <Line type="monotone" dataKey="yield" stroke={lineColor} strokeWidth={2} dot={{ fill: lineColor, r: 4 }} label={{ position: "top", fontSize: 10, fontFamily: "var(--mono)", fill: C.ink, formatter: v => v.toFixed(2) + "%" }} />
+              <Line type="monotone" dataKey="yield" stroke={lineColor} strokeWidth={2}
+                dot={(props) => <AnimatedDot key={props.index} cx={props.cx} cy={props.cy} fill={lineColor} index={props.index} totalPoints={data.length} />}
+                isAnimationActive={true} animationDuration={CHART_ANIM_MS}
+                label={{ position: "top", fontSize: 10, fontFamily: "var(--mono)", fill: C.ink, formatter: v => v.toFixed(2) + "%" }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -3348,39 +3373,29 @@ function YieldCurveCard({ onOpen }) {
 function PortfolioTileCard({ data, onOpen }) {
   const { t } = useI18n();
   const changeColor = data.dayChangePct >= 0 ? C.up : C.down;
-  const changeText = t("home.todayChange", { pct: `${data.dayChangePct >= 0 ? "+" : ""}${data.dayChangePct.toFixed(2)}%` });
   return (
     <MiniCard
       title={t("home.portfolioSnapshot")}
       actions={onOpen ? <OpenActionButton onClick={onOpen} label="Open portfolio" /> : null}
     >
-      <div style={{ display: "grid", gap: 10 }}>
+      <div style={{ display: "grid", gap: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <div style={{ fontSize: 30, fontFamily: "var(--display)", color: C.ink }}>{fmtMoney(data.value)}</div>
-          <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700, color: changeColor }}>
-            {changeText}
+          <div style={{ fontFamily: "var(--mono)", fontSize: 22, fontWeight: 800, color: changeColor }}>
+            {data.dayChangePct >= 0 ? "+" : ""}{data.dayChangePct.toFixed(2)}%
           </div>
+          <div style={{ fontSize: 18, fontFamily: "var(--display)", color: C.ink }}>{fmtMoney(data.value)}</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>{t("home.returnYtd")}</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700, color: C.up }}>{data.ytdPct.toFixed(2)}%</div>
+            <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>{t("home.returnYtd")}</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 700, color: data.ytdPct >= 0 ? C.up : C.down }}>{data.ytdPct >= 0 ? "+" : ""}{data.ytdPct.toFixed(2)}%</div>
           </div>
           <div>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>{t("analysis.cash")}</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700 }}>{fmtMoney(data.cash)}</div>
+            <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>Capital Gains</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 700, color: (data.value * data.ytdPct / 100) >= 0 ? C.up : C.down }}>
+              {(data.value * data.ytdPct / 100) >= 0 ? "+" : ""}{fmtMoney(data.value * data.ytdPct / 100)}
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkFaint, fontFamily: "var(--body)", fontWeight: 700 }}>{t("account.risk")}</div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 14, fontWeight: 700 }}>{translateEnum(data.risk, t, "risk")}</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {data.top.map(t => (
-            <span key={t} style={{ fontSize: 11, fontFamily: "var(--mono)", padding: "3px 8px", border: `1px solid ${C.rule}`, color: C.inkMuted }}>
-              {t}
-            </span>
-          ))}
         </div>
       </div>
     </MiniCard>
@@ -3551,7 +3566,7 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
       <button onClick={() => setOpen(!open)} style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", padding: "0 0 10px 0", background: "none", border: "none", borderBottom: open ? `2px solid ${C.ink}` : "2px solid transparent", color: open ? C.ink : C.inkMuted, fontSize: 12, fontWeight: open ? 700 : 500, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)" }}>
         <span>{t("nav.tools")}</span>
         <span style={{ fontSize: 10, lineHeight: 1, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▾</span>
-        {toolCount > 0 && <span style={{ fontSize: 9, background: C.ink, color: C.cream, borderRadius: "50%", padding: "1px 5px", marginLeft: 2 }}>{toolCount}</span>}
+        {toolCount > 0 && <span style={{ fontSize: 9, background: C.ink, color: C.cream, borderRadius: "50%", width: 16, height: 16, padding: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 2 }}>{toolCount}</span>}
       </button>
       {menuPresence.mounted && (
         <div
@@ -4734,13 +4749,13 @@ function App() {
               );
             })}
           </div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: viewport.isMobile ? 12 : 16, width: "auto", justifyContent: viewport.isTablet ? "flex-start" : "flex-end", flexWrap: "nowrap", maxWidth: "100%" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: viewport.isMobile ? 12 : 16, width: "auto", justifyContent: viewport.isTablet ? "flex-start" : "flex-end", flexWrap: "nowrap", maxWidth: "100%", alignSelf: "stretch" }}>
             <button
               type="button"
               onClick={toggleTheme}
               className={`theme-toggle ${isDark ? "theme-toggle-dark" : "theme-toggle-light"}`}
               aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-              style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 0", marginBottom: -2, display: "inline-flex", alignItems: "center" }}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "0 0 10px 0", marginBottom: 0, display: "inline-flex", alignItems: "center" }}
             >
               <span className="theme-icon sun" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24">
@@ -5107,7 +5122,8 @@ function App() {
       </header>
 
       <main style={{ flex: 1, padding: viewport.isMobile ? "16px 14px" : "20px 24px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1, minWidth: 0 }} key={tab + (result?.ticker || "")}>
-        {/* Floating share button */}
+        {/* Floating share button — hidden on home */}
+        {tab !== "home" && (
         <div style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}>
           <button
             onClick={handleShare}
@@ -5126,6 +5142,7 @@ function App() {
             </div>
           )}
         </div>
+        )}
         {loading && <LoadingScreen ticker={ticker} isPro={isPro} chartType={resolvedChartType} />}
         {!loading && error && <ErrorScreen error={error.message} debugInfo={error.debug} onRetry={() => analyze()} />}
         {!loading && !error && tab === "home" && (

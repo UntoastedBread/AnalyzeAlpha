@@ -1,5 +1,11 @@
 /* Inline-heavy app styles */
 
+@keyframes dotPopIn {
+  0% { r: 0; opacity: 0; }
+  60% { r: 5; opacity: 1; }
+  100% { r: 4; opacity: 1; }
+}
+
 @keyframes menuPopIn {
   from { opacity: 0; transform: translateY(-6px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }

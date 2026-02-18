@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ComposedChart, ReferenceLine, ReferenceArea, Customized,
+  Tooltip, ResponsiveContainer, ComposedChart, ReferenceLine, ReferenceArea, Customized, Area,
   PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { ControlChip, MetricCard, GaugeBar, DataTable, EmptyState } from "../components/ui/primitives";
@@ -122,12 +122,19 @@ function AnalysisTab({
     if (!tail.length) return [];
     const last = tail[tail.length - 1].Close;
     const target = last * seededRange(peerSeed, 88, 1.1, 1.35);
+    const buffer = target * 0.07;
     return tail.map((d, i) => ({
       i,
       date: d.date,
       past: d.Close,
       target: i === tail.length - 1 ? target : null,
       targetLine: target,
+      zoneGreenUpper: target + buffer * 3,
+      zoneGreenLower: target + buffer,
+      zoneYellowUpper: target + buffer,
+      zoneYellowLower: target - buffer,
+      zoneRedUpper: target - buffer,
+      zoneRedLower: target - buffer * 3,
     }));
   }, [result?.data, peerSeed]);
 
@@ -252,8 +259,8 @@ function AnalysisTab({
       </div>
 
       {activeSubTab === "stock" && (
-        <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "240px 1fr", gap: isMobile ? 16 : 20 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 16 : 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "280px 1fr", gap: isMobile ? 18 : 24 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 18 : 24 }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
                 <span style={{ fontSize: 14, color: C.inkMuted, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{ticker}</span>
@@ -277,13 +284,13 @@ function AnalysisTab({
                     : "Mixed signals — no strong directional conviction."}
               </div>
               <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 12, fontFamily: "var(--body)" }}>
-                <span style={{ color: C.inkMuted }}>{t("analysis.confidence")} <strong style={{ color: C.ink }}>{fmtPct(rec.confidence * 100, 0)}</strong></span>
-                <span style={{ color: C.inkMuted }}>{t("analysis.score")} <strong style={{ color: C.ink }}>{fmt(rec.score)}</strong></span>
+                <span style={{ color: C.inkMuted }}>{t("analysis.confidence")} <strong style={{ color: rec.confidence >= 0.7 ? C.up : rec.confidence >= 0.4 ? C.hold : C.down }}>{fmtPct(rec.confidence * 100, 0)}</strong></span>
+                <span style={{ color: C.inkMuted }}>{t("analysis.score")} <strong style={{ color: rec.score > 0 ? C.up : rec.score < 0 ? C.down : C.hold }}>{fmt(rec.score)}</strong></span>
               </div>
               {liveModels?.anchor && (
                 <div style={{ marginTop: 10, padding: "8px 10px", background: C.paper, borderLeft: `3px solid ${valColor(liveModels.signal)}` }}>
                   <div style={{ fontSize: 9, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)" }}>{t("analysis.valuationAnchor")}</div>
-                  <div style={{ fontSize: 12, fontFamily: "var(--mono)", color: C.inkSoft, marginTop: 4 }}>
+                  <div style={{ fontSize: 12, fontFamily: "var(--mono)", color: valColor(liveModels.signal), marginTop: 4 }}>
                     {liveModels.signal} · ${fmt(liveModels.anchor)} {liveModels.upside != null && `(${liveModels.upside >= 0 ? "+" : ""}${fmtPct(liveModels.upside * 100, 1)})`}
                   </div>
                 </div>
@@ -304,48 +311,102 @@ function AnalysisTab({
               ))}
             </Section>
             <Section title={t("analysis.riskProfile")} help={{ title: t("help.riskProfile.title"), body: t("help.riskProfile.body") }}>
-              <Row label={t("analysis.riskLevel")} value={translateEnum(risk.riskLevel, t, "risk")} color={risk.riskLevel === "HIGH" ? C.down : risk.riskLevel === "MEDIUM" ? C.hold : C.up} />
-              <Row label={t("analysis.volatility")} value={fmtPct(risk.volatility)} />
-              <Row label={t("analysis.maxDrawdown")} value={fmtPct(risk.maxDrawdown)} color={C.down} />
-              <Row label={t("analysis.sharpe")} value={fmt(risk.sharpe)} color={risk.sharpe > 1 ? C.up : risk.sharpe > 0 ? C.hold : C.down} />
-              <Row label={t("analysis.sortino")} value={fmt(risk.sortino)} />
-              <Row label={t("analysis.var95")} value={fmtPct(risk.var95)} color={C.down} border={false} />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+                {/* Risk Level gauge */}
+                <div style={{ padding: "16px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, textAlign: "center" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)", marginBottom: 8 }}>{t("analysis.riskLevel")}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--mono)", color: risk.riskLevel === "HIGH" ? C.down : risk.riskLevel === "MEDIUM" ? C.hold : C.up }}>
+                    {translateEnum(risk.riskLevel, t, "risk")}
+                  </div>
+                  <div style={{ height: 6, borderRadius: 3, background: C.paper, marginTop: 8, overflow: "hidden" }}>
+                    <div style={{ height: "100%", borderRadius: 3, width: risk.riskLevel === "HIGH" ? "100%" : risk.riskLevel === "MEDIUM" ? "60%" : "30%", background: risk.riskLevel === "HIGH" ? C.down : risk.riskLevel === "MEDIUM" ? C.hold : C.up, transition: "width 0.4s" }} />
+                  </div>
+                </div>
+                {/* Volatility bar */}
+                <div style={{ padding: "16px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, textAlign: "center" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)", marginBottom: 8 }}>{t("analysis.volatility")}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--mono)", color: C.ink }}>{fmtPct(risk.volatility)}</div>
+                  <div style={{ height: 6, borderRadius: 3, background: C.paper, marginTop: 8, overflow: "hidden" }}>
+                    <div style={{ height: "100%", borderRadius: 3, width: `${Math.min(100, Math.abs(risk.volatility) * 200)}%`, background: `linear-gradient(90deg, ${C.hold}, ${C.down})`, transition: "width 0.4s" }} />
+                  </div>
+                </div>
+                {/* Max Drawdown */}
+                <div style={{ padding: "16px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, textAlign: "center" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)", marginBottom: 8 }}>{t("analysis.maxDrawdown")}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--mono)", color: C.down }}>{fmtPct(risk.maxDrawdown)}</div>
+                  <div style={{ height: 6, borderRadius: 3, background: C.paper, marginTop: 8, overflow: "hidden" }}>
+                    <div style={{ height: "100%", borderRadius: 3, width: `${Math.min(100, Math.abs(risk.maxDrawdown) * 200)}%`, background: C.down, transition: "width 0.4s" }} />
+                  </div>
+                </div>
+                {/* Sharpe */}
+                <div style={{ padding: "16px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, textAlign: "center" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)", marginBottom: 8 }}>{t("analysis.sharpe")}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--mono)", color: risk.sharpe > 1 ? C.up : risk.sharpe > 0 ? C.hold : C.down }}>{fmt(risk.sharpe)}</div>
+                  <div style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 6 }}>{risk.sharpe > 1 ? "Good risk-adjusted return" : risk.sharpe > 0 ? "Positive but modest" : "Poor risk-adjusted return"}</div>
+                </div>
+                {/* Sortino */}
+                <div style={{ padding: "16px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, textAlign: "center" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)", marginBottom: 8 }}>{t("analysis.sortino")}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--mono)", color: risk.sortino > 1 ? C.up : risk.sortino > 0 ? C.hold : C.down }}>{fmt(risk.sortino)}</div>
+                  <div style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 6 }}>Downside-focused risk metric</div>
+                </div>
+                {/* VaR 95% */}
+                <div style={{ padding: "16px 14px", background: C.warmWhite, border: `1px solid ${C.rule}`, textAlign: "center" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.inkFaint, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "var(--body)", marginBottom: 8 }}>{t("analysis.var95")}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--mono)", color: C.down }}>{fmtPct(risk.var95)}</div>
+                  <div style={{ height: 6, borderRadius: 3, background: C.paper, marginTop: 8, overflow: "hidden" }}>
+                    <div style={{ height: "100%", borderRadius: 3, width: `${Math.min(100, Math.abs(risk.var95) * 200)}%`, background: C.down, transition: "width 0.4s" }} />
+                  </div>
+                </div>
+              </div>
             </Section>
             <Section title={t("analysis.statSignals")} help={{ title: t("help.statSignals.title"), body: t("help.statSignals.body") }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
                 {[
-                  { key: "zscore", label: t("analysis.zscore"), desc: t("analysis.zscoreDesc"), value: statSignals.zscore.zscore, unit: "σ", range: [-3, 3] },
-                  { key: "momentum", label: t("analysis.momentum"), desc: t("analysis.momentumDesc"), value: statSignals.momentum.avgMomentum, unit: "%", range: [-10, 10] },
-                  { key: "volume", label: t("analysis.volume"), desc: t("analysis.volumeDesc"), value: statSignals.volume.volumeZscore, unit: "σ", range: [-3, 3] },
-                  { key: "aggregate", label: t("analysis.composite"), desc: t("analysis.compositeDesc"), value: statSignals.aggregate.score, unit: "", range: [-2, 2] },
-                ].map(({ key, label, desc, value, unit, range }) => {
+                  { key: "zscore", label: t("analysis.zscore"), desc: t("analysis.zscoreDesc"), value: statSignals.zscore.zscore, unit: "σ", range: [-3, 3],
+                    summary: (v) => v > 1.5 ? "Price is significantly above average — potentially overextended" : v < -1.5 ? "Price is significantly below average — potentially oversold" : "Price is near its historical average" },
+                  { key: "momentum", label: t("analysis.momentum"), desc: t("analysis.momentumDesc"), value: statSignals.momentum.avgMomentum, unit: "%", range: [-10, 10],
+                    summary: (v) => v > 3 ? "Strong upward momentum across timeframes" : v < -3 ? "Strong downward momentum across timeframes" : "Momentum is relatively flat" },
+                  { key: "volume", label: t("analysis.volume"), desc: t("analysis.volumeDesc"), value: statSignals.volume.volumeZscore, unit: "σ", range: [-3, 3],
+                    summary: (v) => v > 1 ? "Volume is above average — increased interest" : v < -1 ? "Volume is below average — low activity" : "Volume is near normal levels" },
+                  { key: "aggregate", label: t("analysis.composite"), desc: t("analysis.compositeDesc"), value: statSignals.aggregate.score, unit: "", range: [-2, 2],
+                    summary: (v) => v > 0.5 ? "Overall signals lean bullish" : v < -0.5 ? "Overall signals lean bearish" : "Signals are mixed — no strong direction" },
+                ].map(({ key, label, desc, value, unit, range, summary }) => {
                   const sig = statSignals[key];
                   const pct = Math.min(100, Math.max(0, ((value - range[0]) / (range[1] - range[0])) * 100));
                   const gaugeColor = sig.signal.includes("BUY") ? C.up : sig.signal.includes("SELL") ? C.down : C.hold;
                   return (
-                    <div key={key} style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <div key={key} style={{ padding: "20px 18px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                         <div>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, fontFamily: "var(--body)" }}>{label}</div>
-                          <div style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 1 }}>{desc}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, fontFamily: "var(--body)" }}>{label}</div>
+                          <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", marginTop: 2 }}>{desc}</div>
                         </div>
                         <Signal value={sig.signal} />
                       </div>
-                      <div style={{ position: "relative", height: 8, background: C.paper, borderRadius: 4, overflow: "hidden", marginBottom: 6 }}>
-                        <div style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, background: `linear-gradient(90deg, ${C.up}33, ${C.holdBg}, ${C.down}33)` }} />
-                        <div style={{ position: "absolute", left: `calc(${pct}% - 5px)`, top: -1, width: 10, height: 10, borderRadius: "50%", background: gaugeColor, border: `2px solid ${C.cream}`, boxShadow: `0 0 6px ${gaugeColor}44` }} />
+                      {/* Large value display */}
+                      <div style={{ fontSize: 28, fontWeight: 800, fontFamily: "var(--mono)", color: gaugeColor, marginBottom: 12 }}>
+                        {fmt(value, 2)}{unit}
                       </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: "var(--mono)" }}>
+                      {/* Gauge bar */}
+                      <div style={{ position: "relative", height: 10, background: C.paper, borderRadius: 5, overflow: "hidden", marginBottom: 8 }}>
+                        <div style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, background: `linear-gradient(90deg, ${C.up}33, ${C.holdBg}, ${C.down}33)` }} />
+                        <div style={{ position: "absolute", left: `calc(${pct}% - 6px)`, top: -1, width: 12, height: 12, borderRadius: "50%", background: gaugeColor, border: `2px solid ${C.cream}`, boxShadow: `0 0 8px ${gaugeColor}44`, transition: "left 0.4s" }} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: "var(--mono)", marginBottom: 10 }}>
                         <span style={{ color: C.up, fontWeight: 600 }}>{t("analysis.buy")}</span>
-                        <span style={{ color: C.inkSoft, fontWeight: 700 }}>{fmt(value, 2)}{unit}</span>
                         <span style={{ color: C.down, fontWeight: 600 }}>{t("analysis.sell")}</span>
                       </div>
+                      {/* Plain language summary */}
+                      <div style={{ fontSize: 11, color: C.inkMuted, fontFamily: "var(--body)", lineHeight: 1.5, padding: "8px 10px", background: C.paper, borderLeft: `3px solid ${gaugeColor}` }}>
+                        {summary(value)}
+                      </div>
                       {key === "momentum" && sig.byPeriod && (
-                        <div style={{ display: "flex", gap: 8, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}` }}>
+                        <div style={{ display: "flex", gap: 8, marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.ruleFaint}` }}>
                           {Object.entries(sig.byPeriod).map(([period, val]) => (
                             <div key={period} style={{ flex: 1, textAlign: "center" }}>
                               <div style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)" }}>{period}</div>
-                              <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--mono)", color: val >= 0 ? C.up : C.down }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--mono)", color: val >= 0 ? C.up : C.down }}>
                                 {val >= 0 ? "+" : ""}{fmt(val, 1)}%
                               </div>
                             </div>
@@ -353,20 +414,20 @@ function AnalysisTab({
                         </div>
                       )}
                       {key === "volume" && (
-                        <div style={{ display: "flex", gap: 12, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}`, fontSize: 10, fontFamily: "var(--mono)" }}>
+                        <div style={{ display: "flex", gap: 12, marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.ruleFaint}`, fontSize: 11, fontFamily: "var(--mono)" }}>
                           <div><span style={{ color: C.inkFaint }}>{t("analysis.current")} </span><span style={{ color: C.ink, fontWeight: 600 }}>{sig.currentVolume ? (sig.currentVolume / 1e6).toFixed(1) + "M" : "—"}</span></div>
                           <div><span style={{ color: C.inkFaint }}>{t("analysis.avg")} </span><span style={{ color: C.ink, fontWeight: 600 }}>{sig.avgVolume ? (sig.avgVolume / 1e6).toFixed(1) + "M" : "—"}</span></div>
                         </div>
                       )}
                       {key === "aggregate" && (
-                        <div style={{ display: "flex", gap: 8, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.ruleFaint}` }}>
-                          <div style={{ flex: 1, textAlign: "center", padding: "4px 0", background: C.paper, fontSize: 9, fontFamily: "var(--body)" }}>
+                        <div style={{ display: "flex", gap: 8, marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.ruleFaint}` }}>
+                          <div style={{ flex: 1, textAlign: "center", padding: "6px 0", background: C.paper, fontSize: 10, fontFamily: "var(--body)" }}>
                             <div style={{ color: C.inkFaint }}>{t("analysis.confidenceLabel")}</div>
-                            <div style={{ fontWeight: 700, color: C.ink, fontFamily: "var(--mono)", fontSize: 13 }}>{fmtPct(sig.confidence * 100, 0)}</div>
+                            <div style={{ fontWeight: 700, color: C.ink, fontFamily: "var(--mono)", fontSize: 15 }}>{fmtPct(sig.confidence * 100, 0)}</div>
                           </div>
-                          <div style={{ flex: 1, textAlign: "center", padding: "4px 0", background: C.paper, fontSize: 9, fontFamily: "var(--body)" }}>
+                          <div style={{ flex: 1, textAlign: "center", padding: "6px 0", background: C.paper, fontSize: 10, fontFamily: "var(--body)" }}>
                             <div style={{ color: C.inkFaint }}>{t("analysis.direction")}</div>
-                            <div style={{ fontWeight: 700, color: gaugeColor, fontFamily: "var(--mono)", fontSize: 11 }}>{sig.signal.replace("STRONG_", "").replace("_", " ")}</div>
+                            <div style={{ fontWeight: 700, color: gaugeColor, fontFamily: "var(--mono)", fontSize: 13 }}>{sig.signal.replace("STRONG_", "").replace("_", " ")}</div>
                           </div>
                         </div>
                       )}
@@ -527,19 +588,33 @@ function AnalysisTab({
                 help={{ title: t("help.analystTargets.title"), body: t("help.analystTargets.body") }}
               >
                 <div style={{ padding: "12px 14px", background: C.warmWhite, border: `1px solid ${C.rule}` }}>
-                  <ResponsiveContainer width="100%" height={220}>
+                  <ResponsiveContainer width="100%" height={240}>
                     <ComposedChart data={targetSeries} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                      <defs>
+                        <linearGradient id="zoneGreen" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#22C55E" stopOpacity={0.12} /><stop offset="100%" stopColor="#22C55E" stopOpacity={0.04} /></linearGradient>
+                        <linearGradient id="zoneYellow" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#EAB308" stopOpacity={0.10} /><stop offset="100%" stopColor="#EAB308" stopOpacity={0.04} /></linearGradient>
+                        <linearGradient id="zoneRed" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#EF4444" stopOpacity={0.04} /><stop offset="100%" stopColor="#EF4444" stopOpacity={0.12} /></linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                       <XAxis dataKey="i" hide />
                       <YAxis domain={["auto", "auto"]} tick={{ fill: C.inkMuted, fontSize: 10, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={55} />
+                      <Area dataKey="zoneGreenUpper" stroke="none" fill="url(#zoneGreen)" fillOpacity={1} dot={false} isAnimationActive={false} baseValue="dataMin" stackId="none" />
+                      <Area dataKey="zoneYellowUpper" stroke="none" fill="url(#zoneYellow)" fillOpacity={1} dot={false} isAnimationActive={false} baseValue="dataMin" stackId="none2" />
+                      <Area dataKey="zoneRedLower" stroke="none" fill="url(#zoneRed)" fillOpacity={1} dot={false} isAnimationActive={false} baseValue="dataMin" stackId="none3" />
                       <Line dataKey="past" stroke={C.ink} dot={false} strokeWidth={2} name={t("analysis.past12Months")} />
                       <Line dataKey="targetLine" stroke="#3B82F6" dot={false} strokeWidth={2} strokeDasharray="4 4" name={t("analysis.target12Month")} />
-                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} formatter={(v) => v != null ? `$${Number(v).toFixed(2)}` : "--"} />
+                      <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 12 }} formatter={(v, name) => {
+                        if (name === "past" || name === "targetLine") return v != null ? `$${Number(v).toFixed(2)}` : "--";
+                        return [null, null];
+                      }} />
                     </ComposedChart>
                   </ResponsiveContainer>
-                  <div style={{ display: "flex", gap: 14, marginTop: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint }}>
+                  <div style={{ display: "flex", gap: 14, marginTop: 8, fontSize: 10, fontFamily: "var(--mono)", color: C.inkFaint, flexWrap: "wrap" }}>
                     <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.ink, marginRight: 6 }} />{t("analysis.past12Months")}</span>
                     <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#3B82F6", marginRight: 6 }} />{t("analysis.target12Month")}</span>
+                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#22C55E33", border: "1px solid #22C55E", marginRight: 6 }} />Above target</span>
+                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#EAB30833", border: "1px solid #EAB308", marginRight: 6 }} />Near target</span>
+                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#EF444433", border: "1px solid #EF4444", marginRight: 6 }} />Below target</span>
                   </div>
                 </div>
               </Section>
@@ -557,10 +632,10 @@ function AnalysisTab({
                         <BarChart data={epsSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                           <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                           <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
-                          <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} />
+                          <YAxis domain={[(dm) => Math.min(0, dm * 1.1), (dm) => dm * 1.1]} tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={36} />
                           <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
                             formatter={(v) => [`$${fmt(v, 2)}`, t("analysis.eps")]} />
-                          <Bar dataKey="eps" fill="#2563EB" radius={[2, 2, 0, 0]} barSize={36} />
+                          <Bar dataKey="eps" fill="#7C3AED" radius={[2, 2, 0, 0]} barSize={36} />
                         </BarChart>
                       </ResponsiveContainer>
                     ) : (
@@ -574,10 +649,10 @@ function AnalysisTab({
                     <BarChart data={finSeries} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="2 4" stroke={C.ruleFaint} vertical={false} />
                       <XAxis dataKey="period" tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={{ stroke: C.rule }} tickLine={false} />
-                      <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${fmt(v, 0)}B`} />
+                      <YAxis domain={[(dm) => dm * 0.85, (dm) => dm * 1.1]} tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${fmt(v, 0)}B`} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
                         formatter={(v) => [`$${fmt(v, 2)}B`, t("analysis.revenue")]} />
-                      <Bar dataKey="revenue" fill="#2563EB" radius={[2, 2, 0, 0]} barSize={36} />
+                      <Bar dataKey="revenue" fill="#166534" radius={[2, 2, 0, 0]} barSize={36} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -591,7 +666,7 @@ function AnalysisTab({
                       <YAxis tick={{ fill: C.inkMuted, fontSize: 9, fontFamily: "var(--mono)" }} axisLine={false} tickLine={false} width={32} tickFormatter={(v) => `${fmt(v, 0)}%`} />
                       <Tooltip contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, fontFamily: "var(--mono)", fontSize: 10 }}
                         formatter={(v) => [`${fmt(v, 1)}%`, t("analysis.netMargin")]} />
-                      <Bar dataKey="netMargin" fill="#2563EB" radius={[2, 2, 0, 0]} barSize={36} />
+                      <Bar dataKey="netMargin" fill="#4ADE80" radius={[2, 2, 0, 0]} barSize={36} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
