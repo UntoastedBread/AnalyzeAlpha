@@ -117,7 +117,7 @@
 
 .theme-toggle-light .moon {
   opacity: 0;
-  transform: rotate(90deg) scale(0.55);
+  transform: rotate(90deg) scale(0.55) translateY(1px);
 }
 
 .theme-toggle-light .sun {
@@ -132,5 +132,5 @@
 
 .theme-toggle-dark .moon {
   opacity: 1;
-  transform: rotate(0deg) scale(1);
+  transform: rotate(0deg) scale(1) translateY(1px);
 }
