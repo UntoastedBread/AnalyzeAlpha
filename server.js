@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const https = require('https');
 const { fetchPredictionMarkets } = require('./api/_predictionCore');
 
@@ -6,6 +7,7 @@ const app = express();
 
 const DEFAULT_ALLOWED_ORIGINS = new Set([
   'https://analyze-alpha.vercel.app',
+  'https://analyzealpha.duckdns.org',
   'http://localhost:3000',
 ]);
 const ALLOWED_RANGES = new Set(['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']);
@@ -819,10 +821,16 @@ app.get('/api/holders/:ticker', (req, res) => {
   });
 });
 
-const PORT = 3001;
+// ── Static file serving & SPA fallback (production) ─────
+const distPath = path.join(__dirname, 'dist');
+app.use(express.static(distPath));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
+});
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`\n  ┌─────────────────────────────────────┐`);
-  console.log(`  │  Yahoo Finance proxy on :${PORT}        │`);
-  console.log(`  │  React app will proxy /api/* here   │`);
+  console.log(`  │  AnalyzeAlpha server on :${PORT}        │`);
   console.log(`  └─────────────────────────────────────┘\n`);
 });
