@@ -130,27 +130,26 @@ function ChartsTab({
     });
   }, [data, chartLivePrice, interval, result?.interval]);
 
-  // Computed indicators
+  // Computed indicators — only run expensive passes when the indicator is actually on
   const enriched = useMemo(() => {
     if (!cd.length) return cd;
-    const ema12 = computeEMA(cd, 12);
-    const ema26 = computeEMA(cd, 26);
-    const atr = computeATR(cd);
-    // VWAP (cumulative)
+    const ema12 = show.ema ? computeEMA(cd, 12) : null;
+    const ema26 = show.ema ? computeEMA(cd, 26) : null;
+    const atr   = show.atr ? computeATR(cd)      : null;
     let cumVP = 0, cumV = 0;
     return cd.map((d, i) => {
-      const tp = (d.h || d.c) && (d.l || d.c) ? ((d.h || d.c) + (d.l || d.c) + d.c) / 3 : d.c;
-      cumVP += tp * (d.v || 0);
-      cumV += (d.v || 0);
-      return {
-        ...d,
-        ema12: ema12[i],
-        ema26: ema26[i],
-        atr: atr[i],
-        vwap: cumV > 0 ? cumVP / cumV : null,
-      };
+      const entry = { ...d };
+      if (show.ema)  { entry.ema12 = ema12[i]; entry.ema26 = ema26[i]; }
+      if (show.atr)  { entry.atr   = atr[i]; }
+      if (show.vwap) {
+        const tp = ((d.h || d.c) + (d.l || d.c) + d.c) / 3;
+        cumVP += tp * (d.v || 0);
+        cumV  += (d.v || 0);
+        entry.vwap = cumV > 0 ? cumVP / cumV : null;
+      }
+      return entry;
     });
-  }, [cd]);
+  }, [cd, show.ema, show.atr, show.vwap]);
 
   const btn = (on) => ({ padding: "5px 14px", border: `1px solid ${on ? C.ink : C.rule}`, background: on ? C.ink : "transparent", color: on ? C.cream : C.inkMuted, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.04em" });
   const h = show.rsi || show.macd || show.stoch || show.atr ? 300 : 400;
@@ -259,52 +258,36 @@ function ChartsTab({
     <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 18 : 16 }}>
       {/* ── Toolbar ────────────────────────────── */}
       <HelpWrap help={{ title: t("help.chartsControls.title"), body: t("help.chartsControls.body") }} block>
-        <div style={{ display: "grid", gap: 10, borderBottom: `1px solid ${C.rule}`, paddingBottom: 12 }}>
-          {/* Row 1: Indicators + Settings */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            <button onClick={() => setShowIndicatorPanel(p => !p)} style={toolBtn(showIndicatorPanel)} title="Indicator Panel">
-              <span style={{ marginRight: 4 }}>📊</span> Indicators
-            </button>
-            <span style={{ width: 1, height: 18, background: C.ruleFaint, margin: "0 2px" }} />
-            {[["sma", t("charts.movingAvg")], ["ema", "EMA"], ["bb", t("charts.bollinger")], ["vwap", "VWAP"]].map(([k, l]) => (
-              <ControlChip key={k} C={C} active={show[k]} onClick={() => toggle(k)}>{l}</ControlChip>
-            ))}
-            <span style={{ width: 1, height: 18, background: C.ruleFaint, margin: "0 2px" }} />
-            {[["vol", t("charts.volume")], ["rsi", t("charts.rsi")], ["macd", t("charts.macd")], ["stoch", t("charts.stochastic")], ["atr", "ATR"]].map(([k, l]) => (
-              <ControlChip key={k} C={C} active={show[k]} onClick={() => toggle(k)}>{l}</ControlChip>
-            ))}
-          </div>
-          {/* Row 2: Chart type + Period + Drawing tools + Settings */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, borderBottom: `1px solid ${C.rule}`, paddingBottom: 10 }}>
+          {/* Single compact row */}
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
             <ControlChip C={C} active={activeChartType === "line"} onClick={() => onChartTypeChange?.("line")}>{t("common.line")}</ControlChip>
             <ControlChip C={C} active={activeChartType === "candles"} onClick={() => onChartTypeChange?.("candles")}>{t("common.candles")}</ControlChip>
             {onReanalyze && (
               <>
-                <span style={{ width: 1, height: 18, background: C.ruleFaint, margin: "0 2px" }} />
+                <span style={{ width: 1, height: 16, background: C.ruleFaint, margin: "0 2px" }} />
                 {[["1d","1D"],["5d","5D"],["1mo","1M"],["3mo","3M"],["6mo","6M"],["1y","1Y"],["2y","2Y"]].map(([v,l]) => (
                   <ControlChip key={v} C={C} active={(period || "1y") === v} onClick={() => onReanalyze(ticker, v, v === "1d" || v === "5d" ? "5m" : "1d")}>{l}</ControlChip>
                 ))}
               </>
             )}
-            <span style={{ width: 1, height: 18, background: C.ruleFaint, margin: "0 4px" }} />
-            {/* Drawing tools */}
-            <button onClick={() => { setDrawingMode(drawingMode === "hline" ? null : "hline"); setMeasureStart(null); setMeasureEnd(null); }} style={toolBtn(drawingMode === "hline")} title="Horizontal Line">
-              ─ Line
+            <span style={{ width: 1, height: 16, background: C.ruleFaint, margin: "0 2px" }} />
+            <button
+              onClick={() => setShowIndicatorPanel(p => !p)}
+              style={toolBtn(showIndicatorPanel)}
+              title="Indicators"
+            >
+              {(() => { const n = Object.values(show).filter(Boolean).length; return n ? `Indicators (${n})` : "Indicators"; })()}
             </button>
-            <button onClick={() => { setDrawingMode(drawingMode === "measure" ? null : "measure"); setMeasureStart(null); setMeasureEnd(null); }} style={toolBtn(drawingMode === "measure")} title="Measure Tool">
-              📏 Measure
-            </button>
-            <button onClick={() => setShowSettings(p => !p)} style={toolBtn(showSettings)} title="Chart Settings">
-              ⚙
-            </button>
-            <button onClick={() => setShowCompare(p => !p)} style={toolBtn(showCompare)} title="Compare Ticker">
-              Compare
-            </button>
+            <button onClick={() => setShowSettings(p => !p)} style={toolBtn(showSettings)} title="Chart settings">⚙</button>
+            <button onClick={() => { setDrawingMode(drawingMode === "hline" ? null : "hline"); setMeasureStart(null); setMeasureEnd(null); }} style={toolBtn(drawingMode === "hline")} title="Horizontal line">─</button>
+            <button onClick={() => { setDrawingMode(drawingMode === "measure" ? null : "measure"); setMeasureStart(null); setMeasureEnd(null); }} style={toolBtn(drawingMode === "measure")} title="Measure">📏</button>
+            <button onClick={() => setShowCompare(p => !p)} style={toolBtn(showCompare)} title="Compare ticker">≈</button>
           </div>
           {/* Drawing mode hint */}
           {drawingMode && (
             <div style={{ fontSize: 10, color: C.accent, fontFamily: "var(--body)", fontWeight: 600 }}>
-              {drawingMode === "hline" ? "Click on chart to place horizontal line" : "Click start point, then end point to measure"}
+              {drawingMode === "hline" ? "Click chart to place a horizontal line" : "Click a start point, then an end point to measure"}
               <button onClick={() => { setDrawingMode(null); setMeasureStart(null); setMeasureEnd(null); }} style={{ marginLeft: 8, background: "none", border: "none", color: C.down, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>Cancel</button>
             </div>
           )}

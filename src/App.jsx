@@ -2194,7 +2194,9 @@ function CandlestickSeries({ data, xAxisMap, yAxisMap }) {
     <g>
       {(data || []).map((d, i) => {
         if (d == null || d.o == null || d.h == null || d.l == null || d.c == null) return null;
-        const x = xScale(d.n) + band / 2;
+        const xRaw = xScale(d.n);
+        if (xRaw == null || !isFinite(xRaw)) return null;
+        const x = xRaw + band / 2;
         const open = d.o, close = d.c, high = d.h, low = d.l;
         const color = close >= open ? C.up : C.down;
         const bodyTop = yScale(Math.max(open, close));
