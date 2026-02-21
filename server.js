@@ -39,7 +39,6 @@ const NEWS_IMAGE_AI_MARKERS = [
 ];
 const RSS_NEWS_SOURCES = [
   { url: 'https://www.investing.com/rss/news_25.rss', defaultSource: 'Investing.com' },
-  { url: 'https://finance.yahoo.com/news/rssindex', defaultSource: 'Yahoo Finance' },
 ];
 
 function getAllowedOrigins() {
@@ -193,7 +192,7 @@ function extractRssItems(xml, defaultSource) {
 function fetchRssXml(url) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
-    if (!['investing.com', 'yahoo.com'].some(domain => parsed.hostname.endsWith(domain))) {
+    if (!['investing.com'].some(domain => parsed.hostname.endsWith(domain))) {
       reject(new Error('Blocked hostname'));
       return;
     }

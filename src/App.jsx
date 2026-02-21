@@ -2954,9 +2954,50 @@ function timeAgo(dateStr, t) {
   } catch { return ""; }
 }
 
+function TickerBadge({ sym, quote }) {
+  if (!quote) return null;
+  const price = quote.price;
+  const closes = quote.spark || [];
+  const weekAgoClose = closes.length >= 5 ? closes[closes.length - 5] : closes[0];
+  const weeklyPct = weekAgoClose ? ((price - weekAgoClose) / weekAgoClose) * 100 : 0;
+  const isUp = weeklyPct >= 0;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "2px 7px", fontSize: 10, fontFamily: "var(--mono)",
+      background: isUp ? "rgba(34,139,34,0.08)" : "rgba(200,40,40,0.08)",
+      color: isUp ? "#1a7a1a" : "#b22222",
+      border: `1px solid ${isUp ? "rgba(34,139,34,0.18)" : "rgba(200,40,40,0.18)"}`,
+      letterSpacing: "0.02em", whiteSpace: "nowrap",
+    }}>
+      <span style={{ fontWeight: 700 }}>{sym}</span>
+      <span>${price < 1 ? price.toFixed(4) : price.toFixed(2)}</span>
+      <span>{isUp ? "+" : ""}{weeklyPct.toFixed(1)}%</span>
+    </span>
+  );
+}
+
 function NewsSection({ news, loading }) {
   const { t } = useI18n();
   const [showPopup, setShowPopup] = useState(false);
+  const [tickerQuotes, setTickerQuotes] = useState({});
+  useEffect(() => {
+    if (!news || news.length === 0) return;
+    const allTickers = [...new Set(news.flatMap(n => n.tickers || []))];
+    if (allTickers.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const quotes = {};
+      await Promise.allSettled(allTickers.map(async (sym) => {
+        try {
+          const q = await fetchQuickQuote(sym);
+          if (!cancelled) quotes[sym] = q;
+        } catch { /* skip */ }
+      }));
+      if (!cancelled) setTickerQuotes(quotes);
+    })();
+    return () => { cancelled = true; };
+  }, [news]);
   if (loading) {
     return (
       <div style={{ display: "grid", gap: 1 }}>
@@ -2998,7 +3039,7 @@ function NewsSection({ news, loading }) {
     <div style={{ display: "grid", gap: 14 }}>
       <HelpWrap help={{ title: t("help.newsHero.title"), body: t("help.newsHero.body") }} block>
         <a href={hero.link || "#"} target="_blank" rel="noopener noreferrer"
-          style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", minHeight: 260, background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 16, textDecoration: "none", color: C.ink, overflow: "hidden" }}>
+          style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", minHeight: 260, background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 0, textDecoration: "none", color: C.ink, overflow: "hidden" }}>
           <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 14 }}>
             <div style={{ fontSize: 10, fontFamily: "var(--mono)", letterSpacing: "0.24em", textTransform: "uppercase", color: C.inkFaint }}>{t("news.topStory")}</div>
             <div style={{ fontSize: 28, fontFamily: "var(--display)", lineHeight: 1.2, color: C.inkSoft }}>{heroTitle}</div>
@@ -3010,6 +3051,11 @@ function NewsSection({ news, loading }) {
               <span style={{ color: C.ruleFaint }}>·</span>
               <span style={{ fontWeight: 600 }}>{heroSource}</span>
             </div>
+            {(hero.tickers || []).length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {hero.tickers.map(sym => <TickerBadge key={sym} sym={sym} quote={tickerQuotes[sym]} />)}
+              </div>
+            )}
           </div>
           <div style={{ position: "relative", background: C.paper }}>
             <img src={heroImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} onError={e => {
@@ -3029,7 +3075,7 @@ function NewsSection({ news, loading }) {
                 const cardSource = n.sourceKey ? t(n.sourceKey) : n.source || t("news.sourceYahoo");
                 return (
                   <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
-                    style={{ display: "grid", gridTemplateRows: "120px auto", background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 14, textDecoration: "none", color: C.ink, overflow: "hidden", transition: "transform 0.15s" }}
+                    style={{ display: "grid", gridTemplateRows: "120px auto", background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 0, textDecoration: "none", color: C.ink, overflow: "hidden", transition: "transform 0.15s" }}
                     onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
                     onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}>
                     <div style={{ position: "relative", background: C.paper }}>
@@ -3047,6 +3093,11 @@ function NewsSection({ news, loading }) {
                           <span>{timeAgo(n.pubDate, t)}</span>
                         </>}
                       </div>
+                      {(n.tickers || []).length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          {n.tickers.map(sym => <TickerBadge key={sym} sym={sym} quote={tickerQuotes[sym]} />)}
+                        </div>
+                      )}
                     </div>
                   </a>
                 );
@@ -3055,14 +3106,13 @@ function NewsSection({ news, loading }) {
                 <button
                   type="button"
                   onClick={() => setShowPopup(true)}
-                  style={{ display: "grid", gridTemplateRows: "1fr auto", alignItems: "center", justifyItems: "center", background: C.paper, border: `1px solid ${C.rule}`, borderRadius: 14, color: C.ink, cursor: "pointer", textAlign: "center", transition: "transform 0.15s, background 0.15s", minHeight: 214, padding: "12px 10px" }}
+                  style={{ display: "grid", gridTemplateRows: "1fr", alignItems: "center", justifyItems: "center", background: C.paper, border: `1px solid ${C.rule}`, borderRadius: 0, color: C.ink, cursor: "pointer", textAlign: "center", transition: "transform 0.15s, background 0.15s", minHeight: 214, padding: "12px 10px" }}
                   onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.background = C.warmWhite; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = C.paper; }}
                 >
                   <span style={{ fontFamily: "var(--body)", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.inkMuted }}>
                     SEE MORE
                   </span>
-                  <span style={{ fontSize: 18, color: C.inkMuted, marginTop: 4 }}>→</span>
                 </button>
               )}
             </div>

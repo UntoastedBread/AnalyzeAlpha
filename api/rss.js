@@ -30,8 +30,28 @@ const NEWS_IMAGE_AI_MARKERS = [
 ];
 const RSS_NEWS_SOURCES = [
   { url: 'https://www.investing.com/rss/news_25.rss', defaultSource: 'Investing.com' },
-  { url: 'https://finance.yahoo.com/news/rssindex', defaultSource: 'Yahoo Finance' },
 ];
+const TICKER_MAP = {
+  'apple': 'AAPL', 'microsoft': 'MSFT', 'google': 'GOOGL', 'alphabet': 'GOOGL',
+  'amazon': 'AMZN', 'meta': 'META', 'facebook': 'META', 'tesla': 'TSLA',
+  'nvidia': 'NVDA', 'netflix': 'NFLX', 'amd': 'AMD', 'intel': 'INTC',
+  'disney': 'DIS', 'walmart': 'WMT', 'costco': 'COST', 'boeing': 'BA',
+  'jpmorgan': 'JPM', 'goldman': 'GS', 'morgan stanley': 'MS',
+  'berkshire': 'BRK-B', 'salesforce': 'CRM', 'adobe': 'ADBE',
+  'paypal': 'PYPL', 'uber': 'UBER', 'airbnb': 'ABNB', 'spotify': 'SPOT',
+  'snapchat': 'SNAP', 'snap': 'SNAP', 'palantir': 'PLTR', 'coinbase': 'COIN',
+  'robinhood': 'HOOD', 'shopify': 'SHOP', 'snowflake': 'SNOW',
+  'crowdstrike': 'CRWD', 'datadog': 'DDOG', 'pinterest': 'PINS',
+  'roku': 'ROKU', 'twilio': 'TWLO', 'zoom': 'ZM',
+  'broadcom': 'AVGO', 'qualcomm': 'QCOM', 'micron': 'MU',
+  'target': 'TGT', 'home depot': 'HD', 'starbucks': 'SBUX',
+  'chipotle': 'CMG', 'nike': 'NKE', 'coca-cola': 'KO', 'pepsi': 'PEP',
+  'pfizer': 'PFE', 'moderna': 'MRNA', 'johnson & johnson': 'JNJ',
+  'eli lilly': 'LLY', 'exxon': 'XOM', 'chevron': 'CVX',
+  'rivian': 'RIVN', 'lucid': 'LCID', 'nio': 'NIO',
+  'sofi': 'SOFI', 'draftkings': 'DKNG', 'roblox': 'RBLX',
+  'unity': 'U', 'block': 'XYZ', 'square': 'XYZ',
+};
 const rateBuckets = new Map();
 
 function getAllowedOrigins() {
@@ -135,6 +155,29 @@ function buildTitleImageUrl(title) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
+function extractTickers(title) {
+  const tickers = [];
+  const seen = new Set();
+  const text = String(title || '');
+  // Match $TICKER patterns
+  const cashtags = text.match(/\$([A-Z]{1,5})\b/g);
+  if (cashtags) {
+    for (const tag of cashtags) {
+      const sym = tag.slice(1);
+      if (!seen.has(sym)) { seen.add(sym); tickers.push(sym); }
+    }
+  }
+  // Match company names
+  const lower = text.toLowerCase();
+  for (const [name, sym] of Object.entries(TICKER_MAP)) {
+    if (lower.includes(name) && !seen.has(sym)) {
+      seen.add(sym);
+      tickers.push(sym);
+    }
+  }
+  return tickers.slice(0, 3);
+}
+
 function isLikelyAiImageUrl(url) {
   if (!url || typeof url !== 'string') return false;
   return NEWS_IMAGE_AI_MARKERS.some((pattern) => pattern.test(url));
@@ -165,6 +208,7 @@ function extractRssItems(xml, defaultSource) {
       ? rawImage
       : buildTitleImageUrl(title || description || source);
     if (!title && !link) continue;
+    const tickers = extractTickers(title);
     items.push({
       title,
       link,
@@ -172,6 +216,7 @@ function extractRssItems(xml, defaultSource) {
       description,
       source,
       image,
+      tickers,
     });
   }
   return items;
@@ -180,7 +225,7 @@ function extractRssItems(xml, defaultSource) {
 function fetchRssXml(url) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
-    if (!['investing.com', 'yahoo.com'].some((domain) => parsed.hostname.endsWith(domain))) {
+    if (!['investing.com'].some((domain) => parsed.hostname.endsWith(domain))) {
       reject(new Error('Blocked hostname'));
       return;
     }
