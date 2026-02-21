@@ -4772,10 +4772,10 @@ function App() {
               onClick={toggleTheme}
               className={`theme-toggle ${isDark ? "theme-toggle-dark" : "theme-toggle-light"}`}
               aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-              style={{ background: "none", border: "none", borderBottom: "2px solid transparent", cursor: "pointer", padding: "0 0 3px 0", marginBottom: 0, display: "inline-flex", alignItems: "center" }}
+              style={{ ...utilityTabStyle(false), display: "inline-flex", alignItems: "center", lineHeight: 0 }}
             >
-              <span className="theme-icon sun" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24">
+              <span className="theme-icon sun" aria-hidden="true" style={{ display: "inline-flex" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24">
                   <g stroke={C.inkMuted} strokeWidth="1.6" strokeLinecap="round">
                     <line x1="12" y1="2" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="22" />
                     <line x1="2" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="22" y2="12" />
@@ -4785,8 +4785,8 @@ function App() {
                   <circle cx="12" cy="12" r="3" fill={C.inkMuted} />
                 </svg>
               </span>
-              <span className="theme-icon moon" aria-hidden="true" style={{ display: "inline-flex", transform: "translateY(-1px)" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24">
+              <span className="theme-icon moon" aria-hidden="true" style={{ display: "inline-flex" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24">
                   <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5Z" fill="none" stroke={C.inkMuted} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </span>
