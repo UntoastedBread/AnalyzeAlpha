@@ -3039,7 +3039,7 @@ function NewsSection({ news, loading }) {
     <div style={{ display: "grid", gap: 14 }}>
       <HelpWrap help={{ title: t("help.newsHero.title"), body: t("help.newsHero.body") }} block>
         <a href={hero.link || "#"} target="_blank" rel="noopener noreferrer"
-          style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", minHeight: 260, background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 0, textDecoration: "none", color: C.ink, overflow: "hidden" }}>
+          style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", minHeight: 260, background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 16, textDecoration: "none", color: C.ink, overflow: "hidden" }}>
           <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 14 }}>
             <div style={{ fontSize: 10, fontFamily: "var(--mono)", letterSpacing: "0.24em", textTransform: "uppercase", color: C.inkFaint }}>{t("news.topStory")}</div>
             <div style={{ fontSize: 28, fontFamily: "var(--display)", lineHeight: 1.2, color: C.inkSoft }}>{heroTitle}</div>
@@ -3075,7 +3075,7 @@ function NewsSection({ news, loading }) {
                 const cardSource = n.sourceKey ? t(n.sourceKey) : n.source || t("news.sourceYahoo");
                 return (
                   <a key={i} href={n.link || "#"} target="_blank" rel="noopener noreferrer"
-                    style={{ display: "grid", gridTemplateRows: "120px auto", background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 0, textDecoration: "none", color: C.ink, overflow: "hidden", transition: "transform 0.15s" }}
+                    style={{ display: "grid", gridTemplateRows: "120px auto", background: C.warmWhite, border: `1px solid ${C.rule}`, borderRadius: 14, textDecoration: "none", color: C.ink, overflow: "hidden", transition: "transform 0.15s" }}
                     onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
                     onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}>
                     <div style={{ position: "relative", background: C.paper }}>
@@ -3106,7 +3106,7 @@ function NewsSection({ news, loading }) {
                 <button
                   type="button"
                   onClick={() => setShowPopup(true)}
-                  style={{ display: "grid", gridTemplateRows: "1fr", alignItems: "center", justifyItems: "center", background: C.paper, border: `1px solid ${C.rule}`, borderRadius: 0, color: C.ink, cursor: "pointer", textAlign: "center", transition: "transform 0.15s, background 0.15s", minHeight: 214, padding: "12px 10px" }}
+                  style={{ display: "grid", gridTemplateRows: "1fr", alignItems: "center", justifyItems: "center", background: C.paper, border: `1px solid ${C.rule}`, borderRadius: 14, color: C.ink, cursor: "pointer", textAlign: "center", transition: "transform 0.15s, background 0.15s", minHeight: 214, padding: "12px 10px" }}
                   onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.background = C.warmWhite; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = C.paper; }}
                 >
