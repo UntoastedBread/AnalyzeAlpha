@@ -4772,7 +4772,7 @@ function App() {
               onClick={toggleTheme}
               className={`theme-toggle ${isDark ? "theme-toggle-dark" : "theme-toggle-light"}`}
               aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-              style={{ background: "none", border: "none", cursor: "pointer", padding: "0 0 10px 0", marginBottom: 0, display: "inline-flex", alignItems: "center" }}
+              style={{ background: "none", border: "none", borderBottom: "2px solid transparent", cursor: "pointer", padding: "0 0 10px 0", marginBottom: 0, display: "inline-flex", alignItems: "center", transform: "translateY(2px)" }}
             >
               <span className="theme-icon sun" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24">
