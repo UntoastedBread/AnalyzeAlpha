@@ -4682,16 +4682,24 @@ function App() {
                 style={{ width: viewport.isMobile ? 140 : 200, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", color: C.ink, fontSize: 12, fontFamily: "var(--body)", outline: "none" }}
                 onKeyDown={e => {
                   if (e.key === "Enter") {
-                    const sym = searchQuery.trim().toUpperCase();
-                    if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); }
+                    if (searchResults.length > 0) {
+                      analyze(searchResults[0].symbol); setSearchQuery(""); setShowSearchDropdown(false);
+                    } else if (searchQuery.trim()) {
+                      setShowSearchDropdown(true);
+                    }
                   }
                   if (e.key === "Escape") setShowSearchDropdown(false);
                 }}
                 onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
               />
             </HelpWrap>
-            {showSearchDropdown && searchResults.length > 0 && (
+            {showSearchDropdown && searchQuery.trim().length > 0 && (
               <div className="menu-pop" style={{ position: "absolute", top: "100%", left: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
+                {searchResults.length === 0 && (
+                  <div style={{ padding: "14px 16px", fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", textAlign: "center" }}>
+                    No results found for "{searchQuery.trim()}"
+                  </div>
+                )}
                 {searchResults.map((r) => (
                   <button key={r.symbol} onClick={() => { analyze(r.symbol); setSearchQuery(""); setShowSearchDropdown(false); }}
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 14px", background: "transparent", border: "none", borderBottom: `1px solid ${C.ruleFaint}`, cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
@@ -4718,7 +4726,7 @@ function App() {
                 body: t("help.analyze.body"),
               }}
             >
-              <button onClick={() => { const sym = searchQuery.trim().toUpperCase(); if (sym) { analyze(sym); setSearchQuery(""); setShowSearchDropdown(false); } }} disabled={loading || !searchQuery.trim()}
+              <button onClick={() => { if (searchResults.length > 0) { analyze(searchResults[0].symbol); setSearchQuery(""); setShowSearchDropdown(false); } else if (searchQuery.trim()) { setShowSearchDropdown(true); } }} disabled={loading || !searchQuery.trim() || searchResults.length === 0}
                 style={{ padding: viewport.isMobile ? "7px 12px" : "7px 20px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: loading ? "wait" : "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
                 {loading ? t("search.running") : t("search.analyze")}
               </button>
