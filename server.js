@@ -8,6 +8,7 @@ const app = express();
 const DEFAULT_ALLOWED_ORIGINS = new Set([
   'https://analyze-alpha.vercel.app',
   'https://analyzealpha.duckdns.org',
+  'http://192.168.1.81',
   'http://localhost:3000',
 ]);
 const ALLOWED_RANGES = new Set(['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']);
