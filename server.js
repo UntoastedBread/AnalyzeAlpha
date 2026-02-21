@@ -19,6 +19,10 @@ const MAX_MODULES_COUNT = 8;
 const MAX_MODULES_LEN = 160;
 const MAX_BYTES = 2 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 8000;
+const CACHE_TTL_MS = 30 * 1000;       // 30s for chart data
+const CACHE_TTL_RSS_MS = 5 * 60 * 1000; // 5 min for RSS
+const CACHE_TTL_PRED_MS = 60 * 1000;  // 60s for predictions
+const apiCache = new Map();
 const rateBuckets = new Map();
 const NEWS_IMAGE_BASE_TAGS = ['finance', 'stock-market', 'business', 'wall-street'];
 const NEWS_IMAGE_STOP_WORDS = new Set([
@@ -89,6 +93,24 @@ function isRateLimited(ip) {
 function normalizeParam(param) {
   if (Array.isArray(param)) return param[0];
   return param;
+}
+
+function cacheGet(key) {
+  const entry = apiCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > entry.ttl) { apiCache.delete(key); return null; }
+  return entry;
+}
+
+function cacheSet(key, status, data, ttl) {
+  apiCache.set(key, { status, data, ts: Date.now(), ttl });
+  // Evict old entries periodically
+  if (apiCache.size > 500) {
+    const now = Date.now();
+    for (const [k, v] of apiCache) {
+      if (now - v.ts > v.ttl) apiCache.delete(k);
+    }
+  }
 }
 
 function hashText(text) {
@@ -262,6 +284,14 @@ app.get('/api/chart/:ticker', (req, res) => {
   if (!ALLOWED_INTERVALS.has(interval)) {
     return res.status(400).json({ error: 'Invalid interval' });
   }
+  const cacheKey = `chart:${ticker}:${range}:${interval}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('X-Cache', 'HIT');
+    return res.status(cached.status).send(cached.data);
+  }
+
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}&includePrePost=false`;
 
   console.log(`[Proxy] Fetching: ${ticker} range=${range}`);
@@ -291,7 +321,9 @@ app.get('/api/chart/:ticker', (req, res) => {
     apiRes.on('end', () => {
       if (responded) return;
       try {
+        if (apiRes.statusCode === 200) cacheSet(cacheKey, 200, data, CACHE_TTL_MS);
         res.setHeader('Content-Type', 'application/json');
+        res.setHeader('X-Cache', 'MISS');
         res.status(apiRes.statusCode).send(data);
         console.log(`[Proxy] ✓ ${ticker} — ${apiRes.statusCode}`);
       } catch (e) {
@@ -312,6 +344,13 @@ app.get('/api/search', (req, res) => {
   const q = normalizeParam(req.query.q);
   if (!q) return res.status(400).json({ error: 'Missing q parameter' });
   if (q.length > 64) return res.status(400).json({ error: 'Query too long' });
+
+  const cacheKey = `search:${q.toLowerCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) {
+    res.setHeader('X-Cache', 'HIT');
+    return res.status(200).json(cached.data);
+  }
 
   const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0`;
   console.log(`[Proxy] Search: ${q}`);
@@ -349,6 +388,8 @@ app.get('/api/search', (req, res) => {
           exchDisp: q.exchDisp,
           typeDisp: q.typeDisp,
         }));
+        cacheSet(cacheKey, 200, { quotes }, CACHE_TTL_MS);
+        res.setHeader('X-Cache', 'MISS');
         res.json({ quotes });
         console.log(`[Proxy] ✓ Search "${q}" — ${quotes.length} results`);
       } catch (e) {
@@ -366,6 +407,11 @@ app.get('/api/search', (req, res) => {
 });
 
 app.get('/api/rss', async (req, res) => {
+  const cached = cacheGet('rss');
+  if (cached) {
+    res.setHeader('X-Cache', 'HIT');
+    return res.status(200).json(cached.data);
+  }
   try {
     const combined = [];
     for (const source of RSS_NEWS_SOURCES) {
@@ -399,6 +445,8 @@ app.get('/api/rss', async (req, res) => {
       deduped.push(rest);
       if (deduped.length >= 40) break;
     }
+    cacheSet('rss', 200, { items: deduped }, CACHE_TTL_RSS_MS);
+    res.setHeader('X-Cache', 'MISS');
     return res.json({ items: deduped });
   } catch (e) {
     console.error(`[Proxy] ✗ RSS — ${e.message}`);
@@ -407,9 +455,16 @@ app.get('/api/rss', async (req, res) => {
 });
 
 app.get('/api/prediction', async (req, res) => {
+  const cached = cacheGet('prediction');
+  if (cached) {
+    res.setHeader('X-Cache', 'HIT');
+    return res.status(200).json(cached.data);
+  }
   try {
     const payload = await fetchPredictionMarkets();
+    cacheSet('prediction', 200, payload, CACHE_TTL_PRED_MS);
     res.setHeader('Cache-Control', 'public, max-age=20, s-maxage=40, stale-while-revalidate=120');
+    res.setHeader('X-Cache', 'MISS');
     return res.json(payload);
   } catch (e) {
     console.error(`[Proxy] ✗ Prediction markets — ${e.message}`);
