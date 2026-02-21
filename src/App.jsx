@@ -3943,6 +3943,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const searchTimerRef = useRef(null);
   const searchRef = useRef(null);
   const accountMenuRef = useRef(null);
@@ -4151,13 +4152,15 @@ function App() {
 
   // Debounced search
   useEffect(() => {
-    if (!searchQuery || searchQuery.length < 1) { setSearchResults([]); return; }
+    if (!searchQuery || searchQuery.length < 1) { setSearchResults([]); setSearchLoading(false); return; }
+    setSearchLoading(true);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(async () => {
       const results = await fetchSearch(searchQuery);
       setSearchResults(results);
+      setSearchLoading(false);
       setShowSearchDropdown(true);
-    }, 300);
+    }, 350);
     return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
   }, [searchQuery]);
 
@@ -4695,7 +4698,13 @@ function App() {
             </HelpWrap>
             {showSearchDropdown && searchQuery.trim().length > 0 && (
               <div className="menu-pop" style={{ position: "absolute", top: "100%", left: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
-                {searchResults.length === 0 && (
+                {searchLoading && (
+                  <div style={{ padding: "14px 16px", fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    <span className="search-spinner" style={{ display: "inline-block", width: 14, height: 14, border: `2px solid ${C.rule}`, borderTop: `2px solid ${C.ink}`, borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+                    Searching...
+                  </div>
+                )}
+                {!searchLoading && searchResults.length === 0 && (
                   <div style={{ padding: "14px 16px", fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", textAlign: "center" }}>
                     No results found for "{searchQuery.trim()}"
                   </div>
