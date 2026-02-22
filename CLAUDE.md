@@ -2,6 +2,18 @@
 
 This file provides context for AI assistants working on the AnalyzeAlpha codebase.
 
+## Git Workflow for AI Assistants
+
+After completing any change, commit and push directly to the current branch:
+
+```bash
+git add <files>
+git commit -m "Short description of what changed and why"
+git push
+```
+
+There is no need to wait for explicit permission to push — committing and pushing completed work is the expected workflow.
+
 ## Project Overview
 
 AnalyzeAlpha (`package.json` name: `stock-analyzer-pro`, v0.3.12) is a quantitative stock analysis platform. It fetches live data from the Yahoo Finance public API (no API key required) and computes all analysis client-side. It is live at [analyze-alpha.vercel.app](https://analyze-alpha.vercel.app).
