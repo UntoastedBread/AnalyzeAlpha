@@ -242,7 +242,7 @@ function AnalysisTab({
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 18, borderBottom: `1px solid ${C.rule}`, paddingBottom: 8, marginBottom: 18, overflowX: "auto" }}>
+      <div className="hide-scrollbar" style={{ display: "flex", gap: 18, borderBottom: `1px solid ${C.rule}`, paddingBottom: 8, marginBottom: 18, overflowX: "auto" }}>
         <button onClick={() => setActiveSubTab("stock")} style={subTabStyle("stock")}>{t("analysis.stockTab")}</button>
         <button onClick={() => setActiveSubTab("financials")} style={subTabStyle("financials", !isPro)}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>

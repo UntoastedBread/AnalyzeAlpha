@@ -82,6 +82,27 @@ select option { background: #FAF7F2; color: #1A1612; }
   animation: tickerScroll 30s linear infinite;
 }
 
+/* Hide scrollbars on overflow-x scroll containers */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile dropdown: clamp width to viewport */
+.mobile-dropdown {
+  max-width: calc(100vw - 28px);
+}
+
+/* Prevent horizontal scroll on mobile */
+@media (max-width: 767px) {
+  body {
+    overflow-x: hidden;
+  }
+}
+
 @keyframes overlayFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

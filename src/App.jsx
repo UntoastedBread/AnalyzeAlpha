@@ -3622,7 +3622,7 @@ function LiteTools({ onAnalyze, watchlist = [], alerts = [], onAddWatchlist, onR
       </button>
       {menuPresence.mounted && (
         <div
-          className={`menu-pop menu-pop-rightOrigin${menuPresence.phase === "closing" ? " menu-pop-exit" : ""}`}
+          className={`menu-pop menu-pop-rightOrigin mobile-dropdown${menuPresence.phase === "closing" ? " menu-pop-exit" : ""}`}
           style={{ position: "absolute", top: "100%", right: 0, width: 380, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.08)", zIndex: 2100, padding: 16, maxHeight: 480, overflowY: "auto", pointerEvents: menuPresence.phase === "open" ? "auto" : "none" }}
         >
           <div style={{ display: "flex", gap: 12, borderBottom: `1px solid ${C.rule}`, marginBottom: 12, paddingBottom: 8 }}>
@@ -4717,7 +4717,7 @@ function App() {
       <HelpContext.Provider value={{ enabled: helpMode, show: showHelp, hide: hideHelp }}>
         <div className="app-shell" style={{ fontFamily: "var(--body)", background: C.cream, color: C.ink, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", width: "min(1200px, 100%)", marginInline: "auto", filter: `${colorBlindFilter(a11y.colorBlind)} ${a11y.highContrast ? "contrast(1.14)" : ""}`.trim() }}>
       <header style={{ padding: viewport.isMobile ? "12px 14px 0" : "16px 24px 0", borderBottom: `1px solid ${C.rule}`, position: "relative", zIndex: 2000 }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
             <a onClick={() => { setTab("home"); window.history.pushState({}, "", "/"); }} style={{ cursor: "pointer", textDecoration: "none" }}><BrandMark size={22} pro={isPro} /></a>
             <span style={{ width: 1, height: 14, background: C.rule, display: "inline-block", margin: "0 2px" }} />
@@ -4734,7 +4734,7 @@ function App() {
               }}
             >
               <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }} placeholder={t("search.placeholder")}
-                style={{ width: viewport.isMobile ? 140 : 200, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", color: C.ink, fontSize: 12, fontFamily: "var(--body)", outline: "none" }}
+                style={{ width: viewport.isMobile ? 130 : 200, minWidth: 0, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", color: C.ink, fontSize: 12, fontFamily: "var(--body)", outline: "none" }}
                 onKeyDown={e => {
                   if (e.key === "Enter") {
                     if (searchResults.length > 0) {
@@ -4749,7 +4749,7 @@ function App() {
               />
             </HelpWrap>
             {showSearchDropdown && searchQuery.trim().length > 0 && (
-              <div className="menu-pop" style={{ position: "absolute", top: "100%", left: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
+              <div className="menu-pop mobile-dropdown" style={{ position: "absolute", top: "100%", left: "auto", right: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
                 {searchLoading && (
                   <div style={{ padding: "14px 16px", fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                     <span className="search-spinner" style={{ display: "inline-block", width: 14, height: 14, border: `2px solid ${C.rule}`, borderTop: `2px solid ${C.ink}`, borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
@@ -4795,7 +4795,7 @@ function App() {
           </div>
         </div>
         <nav style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexDirection: viewport.isTablet ? "column" : "row", gap: viewport.isTablet ? 10 : 0 }}>
-          <div style={{ display: "flex", flexWrap: "nowrap", width: "100%", overflowX: "auto" }}>
+          <div className="hide-scrollbar" style={{ display: "flex", flexWrap: "nowrap", width: "100%", overflowX: "auto" }}>
             {[
               { key: "home", label: t("nav.home") },
               { key: "analysis", label: t("nav.analysis") },
@@ -4818,7 +4818,7 @@ function App() {
               );
             })}
           </div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: viewport.isMobile ? 12 : 16, width: "auto", justifyContent: viewport.isTablet ? "flex-start" : "flex-end", flexWrap: "nowrap", maxWidth: "100%", alignSelf: "stretch" }}>
+          <div className="hide-scrollbar" style={{ display: "flex", alignItems: "flex-end", gap: viewport.isMobile ? 10 : 16, width: "auto", justifyContent: viewport.isTablet ? "flex-start" : "flex-end", flexWrap: "nowrap", overflowX: "auto", maxWidth: "100%", alignSelf: "stretch" }}>
             <button
               type="button"
               onClick={toggleTheme}
@@ -4898,7 +4898,7 @@ function App() {
                   </button>
                 </HelpWrap>
                 {accountMenuPresence.mounted && (
-                <div className={`menu-pop menu-pop-rightOrigin${accountMenuPresence.phase === "closing" ? " menu-pop-exit" : ""}`} style={{
+                <div className={`menu-pop menu-pop-rightOrigin mobile-dropdown${accountMenuPresence.phase === "closing" ? " menu-pop-exit" : ""}`} style={{
                   position: "absolute",
                   right: 0,
                   top: "100%",
@@ -5191,8 +5191,8 @@ function App() {
       </header>
 
       <main style={{ flex: 1, padding: viewport.isMobile ? "16px 14px" : "20px 24px", overflowY: "auto", animation: "fadeIn 0.3s ease", position: "relative", zIndex: 1, minWidth: 0 }} key={tab + (result?.ticker || "")}>
-        {/* Floating share button — hidden on home */}
-        {tab !== "home" && (
+        {/* Floating share button — hidden on home and on mobile */}
+        {tab !== "home" && !viewport.isMobile && (
         <div style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}>
           <button
             onClick={handleShare}
@@ -5370,7 +5370,7 @@ function App() {
       </footer>
 
       {helpMode && (
-        <div style={{ position: "fixed", right: 16, bottom: 16, width: 280, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.12)", padding: 12, zIndex: 5500 }}>
+        <div style={{ position: "fixed", right: 16, bottom: 16, width: "min(280px, calc(100vw - 32px))", background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.12)", padding: 12, zIndex: 5500 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>
             {t("help.title")}
           </div>

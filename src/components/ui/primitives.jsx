@@ -115,7 +115,7 @@ export function TableCell({ align = "right", style, children }) {
 
 export function TabGroup({ C, tabs, active, onChange, style }) {
   return (
-    <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.rule}`, marginBottom: 16, overflowX: "auto", ...style }}>
+    <div className="hide-scrollbar" style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.rule}`, marginBottom: 16, overflowX: "auto", ...style }}>
       {tabs.map(({ key, label, pro }) => (
         <button
           key={key}
@@ -282,7 +282,7 @@ export function FloatingPanel({ C, open, onClose, title, children, style }) {
       position: "fixed",
       bottom: 80,
       right: 20,
-      width: 360,
+      width: "min(360px, calc(100vw - 40px))",
       maxHeight: "60vh",
       background: C.cream,
       border: `1px solid ${C.rule}`,

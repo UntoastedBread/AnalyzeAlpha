@@ -152,7 +152,7 @@ function ChartsTab({
   }, [cd, show.ema, show.atr, show.vwap]);
 
   const btn = (on) => ({ padding: "5px 14px", border: `1px solid ${on ? C.ink : C.rule}`, background: on ? C.ink : "transparent", color: on ? C.cream : C.inkMuted, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.04em" });
-  const h = show.rsi || show.macd || show.stoch || show.atr ? 300 : 400;
+  const h = isMobile ? (show.rsi || show.macd || show.stoch || show.atr ? 220 : 280) : (show.rsi || show.macd || show.stoch || show.atr ? 300 : 400);
   const expandBtn = { padding: "4px 10px", border: `1px solid ${C.rule}`, background: "transparent", color: C.inkMuted, fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase" };
   const toolBtn = (active) => ({
     padding: "4px 8px", border: `1px solid ${active ? C.ink : C.rule}`,
