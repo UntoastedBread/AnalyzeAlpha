@@ -134,3 +134,18 @@
   opacity: 1;
   transform: rotate(0deg) scale(1) translateY(1px);
 }
+
+/* Button hover states — avoids onMouseEnter/Leave handlers */
+.btn-primary { transition: opacity 0.15s, background 0.15s; }
+.btn-primary:hover:not(:disabled) { opacity: 0.85; }
+.btn-secondary { transition: opacity 0.15s, background 0.15s; }
+.btn-secondary:hover:not(:disabled) { background: var(--hover-bg, #EDE8DF); }
+.btn-ghost { transition: color 0.15s; }
+.btn-ghost:hover:not(:disabled) { color: var(--ink, #1A1612); }
+
+/* Search spinner — reuses spin keyframe */
+.search-spinner {
+  display: inline-block;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}

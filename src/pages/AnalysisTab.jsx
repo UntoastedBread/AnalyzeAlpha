@@ -203,7 +203,7 @@ function AnalysisTab({
     borderBottom: activeSubTab === t ? `2px solid ${C.ink}` : "2px solid transparent",
     color: activeSubTab === t ? C.ink : locked ? C.inkFaint : C.inkMuted, fontSize: 11, fontWeight: activeSubTab === t ? 700 : 500,
     cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)",
-    opacity: locked ? 0.7 : 1,
+    opacity: locked ? 0.7 : 1, transition: "color 0.15s, border-color 0.15s",
   });
   const chartToggle = (on) => ({
     padding: "4px 10px",
@@ -271,7 +271,7 @@ function AnalysisTab({
                 {change >= 0 ? "+" : ""}{fmt(change)} ({change >= 0 ? "+" : ""}{fmt(pctChange, 2)}%)
               </div>
             </div>
-            <div style={{ padding: "16px 0", borderTop: `2px solid ${C.ink}`, borderBottom: `1px solid ${C.rule}` }}>
+            <div style={{ padding: "14px 14px 14px 12px", borderTop: `2px solid ${C.ink}`, borderBottom: `1px solid ${C.rule}`, borderLeft: `3px solid ${recColor(rec.action)}` }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8, fontFamily: "var(--body)" }}>{t("analysis.verdict")}</div>
               <div style={{ fontSize: 28, fontWeight: 700, color: recColor(rec.action), fontFamily: "var(--display)", lineHeight: 1 }}>
                 {translateEnum(rec.action, t, "signal")}
@@ -490,6 +490,7 @@ function AnalysisTab({
               <button onClick={() => setRangeInfo(null)} style={{ marginLeft: "auto", background: "transparent", border: "none", color: C.inkFaint, cursor: "pointer", fontSize: 11 }}>×</button>
             </div>
           )}
+          <div style={{ border: `1px solid ${C.ruleFaint}` }}>
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
               onMouseDown={(e) => { if (e && e.activeLabel) setDragStart(e.activeLabel); }}
@@ -529,6 +530,7 @@ function AnalysisTab({
               )}
             </ComposedChart>
           </ResponsiveContainer>
+          </div>
           </Section>
         </HelpWrap>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 16 : 24 }}>

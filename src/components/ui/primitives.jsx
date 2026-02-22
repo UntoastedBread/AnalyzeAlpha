@@ -12,6 +12,7 @@ export function UIButton({
   size = "md",
   disabled = false,
   style,
+  className,
   children,
   ...rest
 }) {
@@ -25,8 +26,10 @@ export function UIButton({
     textTransform: "uppercase",
     fontWeight: 700,
     opacity: disabled ? 0.5 : 1,
+    transition: "opacity 0.15s, background 0.15s",
   };
 
+  const variantClassMap = { primary: "btn-primary", secondary: "btn-secondary", ghost: "btn-ghost" };
   const variants = {
     primary: {
       background: C.ink,
@@ -48,8 +51,11 @@ export function UIButton({
     },
   };
 
+  const variantClass = variantClassMap[variant] || "btn-primary";
+  const combinedClass = [variantClass, className].filter(Boolean).join(" ");
+
   return (
-    <button {...rest} disabled={disabled} style={{ ...base, ...(variants[variant] || variants.primary), ...style }}>
+    <button {...rest} disabled={disabled} className={combinedClass} style={{ ...base, ...(variants[variant] || variants.primary), ...style }}>
       {children}
     </button>
   );
@@ -72,8 +78,11 @@ export function ControlChip({ C, active = false, onClick, children, style, ...re
         fontFamily: "var(--body)",
         letterSpacing: "0.06em",
         textTransform: "uppercase",
+        transition: "background 0.15s, border-color 0.15s, color 0.15s",
         ...style,
       }}
+      onMouseEnter={e => { if (!active) { e.currentTarget.style.background = C.paper; e.currentTarget.style.borderColor = C.rule; } }}
+      onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = C.rule; } }}
     >
       {children}
     </button>
@@ -84,6 +93,7 @@ export function TableHeadCell({ C, align = "right", onClick, active = false, chi
   return (
     <th
       onClick={onClick}
+      title={onClick ? "Sort by this column" : undefined}
       style={{
         padding: "8px 10px",
         textAlign: align,
@@ -97,8 +107,11 @@ export function TableHeadCell({ C, align = "right", onClick, active = false, chi
         borderBottom: `2px solid ${C.ink}`,
         whiteSpace: "nowrap",
         userSelect: "none",
+        transition: "color 0.15s, background 0.15s",
         ...style,
       }}
+      onMouseEnter={e => { if (onClick) e.currentTarget.style.background = C.paper; }}
+      onMouseLeave={e => { if (onClick) e.currentTarget.style.background = "transparent"; }}
     >
       {children}
     </th>
@@ -197,7 +210,28 @@ export function DataTable({ C, columns, rows, sortCol, sortDir, onSort, striped 
   );
 }
 
-export function MetricCard({ C, label, value, change, suffix, style }) {
+export function TextInput({ C, style, ...rest }) {
+  return (
+    <input
+      style={{
+        background: "transparent",
+        border: `1px solid ${C.rule}`,
+        padding: "6px 10px",
+        color: C.ink,
+        fontSize: 12,
+        fontFamily: "var(--body)",
+        outline: "none",
+        transition: "border-color 0.15s",
+        ...style,
+      }}
+      onFocus={e => { e.currentTarget.style.borderColor = C.ink; }}
+      onBlur={e => { e.currentTarget.style.borderColor = C.rule; }}
+      {...rest}
+    />
+  );
+}
+
+export function MetricCard({ C, label, value, change, suffix, accent, style }) {
   const changeColor = change > 0 ? C.up : change < 0 ? C.down : C.inkMuted;
   return (
     <div style={{
@@ -205,6 +239,7 @@ export function MetricCard({ C, label, value, change, suffix, style }) {
       border: `1px solid ${C.rule}`,
       background: C.warmWhite,
       minWidth: 120,
+      borderLeft: accent ? `3px solid ${accent}` : `1px solid ${C.rule}`,
       ...style,
     }}>
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 6 }}>

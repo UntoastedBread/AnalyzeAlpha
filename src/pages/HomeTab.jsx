@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { ControlChip } from "../components/ui/primitives";
 
 // ─── Prediction Markets helpers (shared with MarketsTab) ───
 function compactNumber(value) {
@@ -412,20 +413,16 @@ function HomeTab({
               { key: "economicSnapshot", label: "Economic Snapshot" },
               { key: "changelog", label: "Changelog" },
             ].map(w => (
-              <button
+              <ControlChip
                 key={w.key}
+                C={C}
+                active={!!widgets[w.key]}
                 onClick={() => toggleWidget(w.key)}
-                style={{
-                  padding: "6px 12px", border: `1px solid ${widgets[w.key] ? C.ink : C.rule}`,
-                  background: widgets[w.key] ? C.ink : "transparent",
-                  color: widgets[w.key] ? C.cream : C.inkMuted,
-                  fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "var(--body)", letterSpacing: "0.06em",
-                  display: "inline-flex", alignItems: "center", gap: 5, transition: "all 0.15s",
-                }}
+                style={{ fontSize: 10, display: "inline-flex", alignItems: "center", gap: 5 }}
               >
                 <span style={{ fontSize: 11, lineHeight: 1 }}>{widgets[w.key] ? "✓" : "○"}</span>
                 {w.label}
-              </button>
+              </ControlChip>
             ))}
           </div>
         </div>

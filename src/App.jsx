@@ -1949,7 +1949,7 @@ function Section({ title, children, style, actions, help }) {
   const content = (
     <div style={baseStyle}>
       {title && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "var(--body)", paddingBottom: 8, borderBottom: `2px solid ${C.ink}`, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "var(--body)", paddingBottom: 8, borderBottom: `2px solid ${C.ink}`, marginBottom: 12 }}>
           <span>{title}</span>
           {actions && <div style={{ display: "flex", alignItems: "center", gap: 6 }}>{actions}</div>}
         </div>
@@ -4120,6 +4120,9 @@ function App() {
     const root = document.documentElement;
     root.dataset.theme = theme;
     root.style.setProperty("--app-bg", C.cream);
+    root.style.setProperty("--ink", C.ink);
+    root.style.setProperty("--hover-bg", C.paper);
+    root.style.setProperty("--placeholder-color", C.inkFaint);
     root.style.setProperty("--scroll-track", C.warmWhite);
     root.style.setProperty("--scroll-thumb", C.rule);
     root.style.setProperty("--toast-bg", isDark ? "rgba(12,10,8,0.92)" : "rgba(26,22,18,0.92)");
@@ -4602,6 +4605,7 @@ function App() {
     fontWeight: tab === t ? 700 : 500, cursor: "pointer",
     textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "var(--body)",
     opacity: locked ? 0.7 : 1,
+    transition: "color 0.15s, border-color 0.15s",
   });
   const utilityTabStyle = (on) => ({
     padding: "0 0 10px 0",
@@ -4616,6 +4620,7 @@ function App() {
     letterSpacing: "0.12em",
     fontFamily: "var(--body)",
     whiteSpace: "nowrap",
+    transition: "color 0.15s, border-color 0.15s",
   });
   const openCharts = useCallback((intent) => {
     if (intent?.mode) setChartSelection(normalizeChartMode(intent.mode));
@@ -4721,7 +4726,7 @@ function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
             <a onClick={() => { setTab("home"); window.history.pushState({}, "", "/"); }} style={{ cursor: "pointer", textDecoration: "none" }}><BrandMark size={22} pro={isPro} /></a>
             <span style={{ width: 1, height: 14, background: C.rule, display: "inline-block", margin: "0 2px" }} />
-            <span style={{ fontSize: 9, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>{t("tagline.quant")}</span>
+            <span style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--body)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>{t("tagline.quant")}</span>
           </div>
           <div ref={searchRef} style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
             <HelpWrap
@@ -4734,7 +4739,7 @@ function App() {
               }}
             >
               <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }} placeholder={t("search.placeholder")}
-                style={{ width: viewport.isMobile ? 130 : 200, minWidth: 0, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", color: C.ink, fontSize: 12, fontFamily: "var(--body)", outline: "none" }}
+                style={{ width: viewport.isMobile ? 130 : 200, minWidth: 0, background: "transparent", border: `1px solid ${C.rule}`, padding: "6px 10px", color: C.ink, fontSize: 12, fontFamily: "var(--body)", outline: "none", borderRadius: 0, transition: "border-color 0.15s" }}
                 onKeyDown={e => {
                   if (e.key === "Enter") {
                     if (searchResults.length > 0) {
@@ -4745,14 +4750,15 @@ function App() {
                   }
                   if (e.key === "Escape") setShowSearchDropdown(false);
                 }}
-                onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
+                onFocus={e => { e.currentTarget.style.borderColor = C.ink; if (searchResults.length > 0) setShowSearchDropdown(true); }}
+                onBlur={e => { e.currentTarget.style.borderColor = C.rule; }}
               />
             </HelpWrap>
             {showSearchDropdown && searchQuery.trim().length > 0 && (
-              <div className="menu-pop mobile-dropdown" style={{ position: "absolute", top: "100%", left: "auto", right: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, boxShadow: "4px 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
+              <div className="menu-pop mobile-dropdown" style={{ position: "absolute", top: "100%", left: "auto", right: 0, width: 340, background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 0, boxShadow: "0 8px 24px rgba(0,0,0,0.1)", zIndex: 200, maxHeight: 320, overflowY: "auto" }}>
                 {searchLoading && (
                   <div style={{ padding: "14px 16px", fontSize: 12, color: C.inkMuted, fontFamily: "var(--body)", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                    <span className="search-spinner" style={{ display: "inline-block", width: 14, height: 14, border: `2px solid ${C.rule}`, borderTop: `2px solid ${C.ink}`, borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+                    <span className="search-spinner" style={{ width: 14, height: 14, border: `2px solid ${C.rule}`, borderTop: `2px solid ${C.ink}` }} />
                     Searching...
                   </div>
                 )}
@@ -4788,6 +4794,7 @@ function App() {
               }}
             >
               <button onClick={() => { if (searchResults.length > 0) { analyze(searchResults[0].symbol); setSearchQuery(""); setShowSearchDropdown(false); } else if (searchQuery.trim()) { setShowSearchDropdown(true); } }} disabled={loading || !searchQuery.trim() || searchResults.length === 0}
+                className="btn-primary"
                 style={{ padding: viewport.isMobile ? "7px 12px" : "7px 20px", background: C.ink, color: C.cream, border: "none", fontWeight: 700, fontSize: 11, cursor: loading ? "wait" : "pointer", fontFamily: "var(--body)", letterSpacing: "0.1em", textTransform: "uppercase", opacity: loading ? 0.5 : 1 }}>
                 {loading ? t("search.running") : t("search.analyze")}
               </button>
@@ -4808,7 +4815,7 @@ function App() {
               const locked = !!pro && !isPro;
               return (
                 <HelpWrap key={key} help={navHelp[key]}>
-                  <button onClick={() => setTab(key)} style={tabStyle(key, locked)}>
+                  <button onClick={() => setTab(key)} className="nav-tab" style={tabStyle(key, locked)}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <span>{label}</span>
                       {locked && <ProTag small />}
