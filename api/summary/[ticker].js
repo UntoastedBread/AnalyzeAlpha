@@ -6,8 +6,6 @@ const DEFAULT_ALLOWED_ORIGINS = new Set([
 ]);
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX = 120;
-const MAX_MODULES_COUNT = 8;
-const MAX_MODULES_LEN = 160;
 const MAX_BYTES = 2 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 8000;
 const rateBuckets = new Map();
@@ -59,6 +57,44 @@ function normalizeParam(param) {
   return param;
 }
 
+function wrap(v) {
+  return { raw: v != null && Number.isFinite(v) ? v : null };
+}
+
+// Map flat v7 quote fields into the nested quoteSummary shape the iOS app expects
+function mapQuoteToSummary(q) {
+  return {
+    quoteSummary: {
+      result: [
+        {
+          price: {
+            shortName: q.shortName || q.longName || null,
+            regularMarketPrice: wrap(q.regularMarketPrice),
+            regularMarketChange: wrap(q.regularMarketChange),
+            regularMarketChangePercent: wrap(q.regularMarketChangePercent),
+            regularMarketVolume: wrap(q.regularMarketVolume),
+            regularMarketDayHigh: wrap(q.regularMarketDayHigh),
+            regularMarketDayLow: wrap(q.regularMarketDayLow),
+            regularMarketOpen: wrap(q.regularMarketOpen),
+            regularMarketPreviousClose: wrap(q.regularMarketPreviousClose),
+            marketCap: wrap(q.marketCap),
+          },
+          financialData: {
+            currentPrice: wrap(q.regularMarketPrice),
+            targetHighPrice: wrap(null),
+            targetLowPrice: wrap(null),
+            recommendationKey: null,
+          },
+          summaryDetail: {
+            fiftyTwoWeekHigh: wrap(q.fiftyTwoWeekHigh),
+            fiftyTwoWeekLow: wrap(q.fiftyTwoWeekLow),
+          },
+        },
+      ],
+    },
+  };
+}
+
 module.exports = (req, res) => {
   setCors(req, res);
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -77,23 +113,11 @@ module.exports = (req, res) => {
   }
 
   const tickerRaw = normalizeParam(req.query.ticker);
-  const modules = normalizeParam(req.query.modules) || 'price,financialData,defaultKeyStatistics,summaryDetail';
-
   if (!tickerRaw || !/^[A-Za-z0-9=^.\-]{1,12}$/.test(tickerRaw)) {
     return res.status(400).json({ error: 'Invalid ticker' });
   }
-  if (!/^[A-Za-z0-9,]+$/.test(modules)) {
-    return res.status(400).json({ error: 'Invalid modules' });
-  }
-  if (modules.length > MAX_MODULES_LEN) {
-    return res.status(400).json({ error: 'Modules too long' });
-  }
-  const moduleList = modules.split(',').filter(Boolean);
-  if (!moduleList.length || moduleList.length > MAX_MODULES_COUNT) {
-    return res.status(400).json({ error: 'Too many modules' });
-  }
 
-  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(tickerRaw)}?modules=${modules}`;
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(tickerRaw)}`;
 
   let responded = false;
   const fail = (status, message) => {
@@ -120,11 +144,17 @@ module.exports = (req, res) => {
     apiRes.on('end', () => {
       if (responded) return;
       try {
+        const json = JSON.parse(data);
+        const quote = json?.quoteResponse?.result?.[0];
+        if (!quote) {
+          return fail(404, 'Ticker not found');
+        }
+        const shaped = mapQuoteToSummary(quote);
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=30');
-        res.status(apiRes.statusCode).send(data);
+        res.status(200).json(shaped);
       } catch (e) {
-        fail(500, e.message);
+        fail(502, 'Failed to parse upstream response');
       }
     });
   });

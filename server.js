@@ -479,24 +479,58 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true });
 });
 
+function wrapVal(v) {
+  return { raw: v != null && Number.isFinite(v) ? v : null };
+}
+
+function mapQuoteToSummary(q) {
+  return {
+    quoteSummary: {
+      result: [
+        {
+          price: {
+            shortName: q.shortName || q.longName || null,
+            regularMarketPrice: wrapVal(q.regularMarketPrice),
+            regularMarketChange: wrapVal(q.regularMarketChange),
+            regularMarketChangePercent: wrapVal(q.regularMarketChangePercent),
+            regularMarketVolume: wrapVal(q.regularMarketVolume),
+            regularMarketDayHigh: wrapVal(q.regularMarketDayHigh),
+            regularMarketDayLow: wrapVal(q.regularMarketDayLow),
+            regularMarketOpen: wrapVal(q.regularMarketOpen),
+            regularMarketPreviousClose: wrapVal(q.regularMarketPreviousClose),
+            marketCap: wrapVal(q.marketCap),
+          },
+          financialData: {
+            currentPrice: wrapVal(q.regularMarketPrice),
+            targetHighPrice: wrapVal(null),
+            targetLowPrice: wrapVal(null),
+            recommendationKey: null,
+          },
+          summaryDetail: {
+            fiftyTwoWeekHigh: wrapVal(q.fiftyTwoWeekHigh),
+            fiftyTwoWeekLow: wrapVal(q.fiftyTwoWeekLow),
+          },
+        },
+      ],
+    },
+  };
+}
+
 app.get('/api/summary/:ticker', (req, res) => {
   const ticker = normalizeParam(req.params.ticker);
-  const modules = normalizeParam(req.query.modules) || 'price,financialData,defaultKeyStatistics,summaryDetail';
   if (!/^[A-Za-z0-9=^.\-]{1,12}$/.test(ticker)) {
     return res.status(400).json({ error: 'Invalid ticker' });
   }
-  if (!/^[A-Za-z0-9,]+$/.test(modules)) {
-    return res.status(400).json({ error: 'Invalid modules' });
+
+  const cacheKey = `summary:${ticker.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) {
+    res.setHeader('X-Cache', 'HIT');
+    return res.status(200).json(cached.data);
   }
-  if (modules.length > MAX_MODULES_LEN) {
-    return res.status(400).json({ error: 'Modules too long' });
-  }
-  const moduleList = modules.split(',').filter(Boolean);
-  if (!moduleList.length || moduleList.length > MAX_MODULES_COUNT) {
-    return res.status(400).json({ error: 'Too many modules' });
-  }
-  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}`;
-  console.log(`[Proxy] Summary: ${ticker} modules=${modules}`);
+
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(ticker)}`;
+  console.log(`[Proxy] Summary (v7 quote): ${ticker}`);
 
   let responded = false;
   const fail = (status, message) => {
@@ -523,12 +557,20 @@ app.get('/api/summary/:ticker', (req, res) => {
     apiRes.on('end', () => {
       if (responded) return;
       try {
+        const json = JSON.parse(data);
+        const quote = json?.quoteResponse?.result?.[0];
+        if (!quote) {
+          return fail(404, 'Ticker not found');
+        }
+        const shaped = mapQuoteToSummary(quote);
+        cacheSet(cacheKey, 200, shaped, CACHE_TTL_MS);
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=30');
-        res.status(apiRes.statusCode).send(data);
-        console.log(`[Proxy] ✓ Summary ${ticker} — ${apiRes.statusCode}`);
+        res.setHeader('X-Cache', 'MISS');
+        res.status(200).json(shaped);
+        console.log(`[Proxy] ✓ Summary ${ticker} — 200`);
       } catch (e) {
-        fail(500, e.message);
+        fail(502, 'Failed to parse upstream response');
       }
     });
   }).on('error', (e) => {
