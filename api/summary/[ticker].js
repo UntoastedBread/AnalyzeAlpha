@@ -61,33 +61,40 @@ function wrap(v) {
   return { raw: v != null && Number.isFinite(v) ? v : null };
 }
 
-// Map flat v7 quote fields into the nested quoteSummary shape the iOS app expects
-function mapQuoteToSummary(q) {
+// Map v8 chart meta fields into the nested quoteSummary shape the iOS app expects.
+// v7/finance/quote is now blocked by Yahoo ("Unauthorized"), so we use v8/finance/chart
+// with range=1d&interval=1d and extract quote data from the meta object.
+function mapChartMetaToSummary(meta) {
+  const price = meta.regularMarketPrice;
+  const prevClose = meta.chartPreviousClose ?? meta.previousClose;
+  const change = (price != null && prevClose != null) ? price - prevClose : null;
+  const changePct = (change != null && prevClose) ? (change / prevClose) * 100 : null;
+
   return {
     quoteSummary: {
       result: [
         {
           price: {
-            shortName: q.shortName || q.longName || null,
-            regularMarketPrice: wrap(q.regularMarketPrice),
-            regularMarketChange: wrap(q.regularMarketChange),
-            regularMarketChangePercent: wrap(q.regularMarketChangePercent),
-            regularMarketVolume: wrap(q.regularMarketVolume),
-            regularMarketDayHigh: wrap(q.regularMarketDayHigh),
-            regularMarketDayLow: wrap(q.regularMarketDayLow),
-            regularMarketOpen: wrap(q.regularMarketOpen),
-            regularMarketPreviousClose: wrap(q.regularMarketPreviousClose),
-            marketCap: wrap(q.marketCap),
+            shortName: meta.shortName || meta.longName || null,
+            regularMarketPrice: wrap(price),
+            regularMarketChange: wrap(change),
+            regularMarketChangePercent: wrap(changePct),
+            regularMarketVolume: wrap(meta.regularMarketVolume),
+            regularMarketDayHigh: wrap(meta.regularMarketDayHigh),
+            regularMarketDayLow: wrap(meta.regularMarketDayLow),
+            regularMarketOpen: wrap(meta.regularMarketOpen),
+            regularMarketPreviousClose: wrap(prevClose),
+            marketCap: wrap(null),
           },
           financialData: {
-            currentPrice: wrap(q.regularMarketPrice),
+            currentPrice: wrap(price),
             targetHighPrice: wrap(null),
             targetLowPrice: wrap(null),
             recommendationKey: null,
           },
           summaryDetail: {
-            fiftyTwoWeekHigh: wrap(q.fiftyTwoWeekHigh),
-            fiftyTwoWeekLow: wrap(q.fiftyTwoWeekLow),
+            fiftyTwoWeekHigh: wrap(meta.fiftyTwoWeekHigh),
+            fiftyTwoWeekLow: wrap(meta.fiftyTwoWeekLow),
           },
         },
       ],
@@ -117,7 +124,9 @@ module.exports = (req, res) => {
     return res.status(400).json({ error: 'Invalid ticker' });
   }
 
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(tickerRaw)}`;
+  // Use v8/finance/chart with range=1d to get current quote data from the meta object.
+  // v7/finance/quote is now blocked by Yahoo Finance ("Unauthorized").
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(tickerRaw)}?range=1d&interval=1d`;
 
   let responded = false;
   const fail = (status, message) => {
@@ -145,11 +154,11 @@ module.exports = (req, res) => {
       if (responded) return;
       try {
         const json = JSON.parse(data);
-        const quote = json?.quoteResponse?.result?.[0];
-        if (!quote) {
+        const meta = json?.chart?.result?.[0]?.meta;
+        if (!meta) {
           return fail(404, 'Ticker not found');
         }
-        const shaped = mapQuoteToSummary(quote);
+        const shaped = mapChartMetaToSummary(meta);
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=30');
         res.status(200).json(shaped);
