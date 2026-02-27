@@ -794,7 +794,7 @@ async function fetchStockData(ticker, period = "1y", interval = "1d") {
 async function fetchQuickQuote(ticker) {
   const t0 = performance.now();
   apiCallCount++;
-  const url = `/api/chart/${encodeURIComponent(ticker)}?range=1mo&interval=1d`;
+  const url = `/api/chart/${encodeURIComponent(ticker)}?range=1d&interval=5m`;
   const resp = await fetchWithTimeout(url);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const json = await resp.json();
@@ -809,7 +809,7 @@ async function fetchQuickQuote(ticker) {
   const change = price - prevClose;
   const changePct = prevClose ? (change / prevClose) * 100 : 0;
   const volume = volumes[volumes.length - 1] || 0;
-  return { ticker, price, change, changePct, volume, name: meta.shortName || meta.symbol || ticker, spark: closes.slice(-30), prevClose };
+  return { ticker, price, change, changePct, volume, name: meta.shortName || meta.symbol || ticker, spark: closes, prevClose };
 }
 
 async function fetchIntradayData(ticker) {
