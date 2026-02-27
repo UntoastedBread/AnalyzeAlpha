@@ -4,10 +4,10 @@ const DEFAULT_ALLOWED_ORIGINS = new Set([
   'https://analyze-alpha.vercel.app',
   'http://localhost:3000',
 ]);
-const ALLOWED_RANGES = new Set(['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']);
-const ALLOWED_INTERVALS = new Set(['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo']);
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX = 120;
+const MAX_MODULES_COUNT = 8;
+const MAX_MODULES_LEN = 160;
 const MAX_BYTES = 2 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 8000;
 const rateBuckets = new Map();
@@ -77,20 +77,23 @@ module.exports = (req, res) => {
   }
 
   const tickerRaw = normalizeParam(req.query.ticker);
-  const range = normalizeParam(req.query.range) || '1y';
-  const interval = normalizeParam(req.query.interval) || '1d';
+  const modules = normalizeParam(req.query.modules) || 'price,financialData,defaultKeyStatistics,summaryDetail';
 
   if (!tickerRaw || !/^[A-Za-z0-9=^.\-]{1,12}$/.test(tickerRaw)) {
     return res.status(400).json({ error: 'Invalid ticker' });
   }
-  if (!ALLOWED_RANGES.has(range)) {
-    return res.status(400).json({ error: 'Invalid range' });
+  if (!/^[A-Za-z0-9,]+$/.test(modules)) {
+    return res.status(400).json({ error: 'Invalid modules' });
   }
-  if (!ALLOWED_INTERVALS.has(interval)) {
-    return res.status(400).json({ error: 'Invalid interval' });
+  if (modules.length > MAX_MODULES_LEN) {
+    return res.status(400).json({ error: 'Modules too long' });
+  }
+  const moduleList = modules.split(',').filter(Boolean);
+  if (!moduleList.length || moduleList.length > MAX_MODULES_COUNT) {
+    return res.status(400).json({ error: 'Too many modules' });
   }
 
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(tickerRaw)}?range=${range}&interval=${interval}&includePrePost=false`;
+  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(tickerRaw)}?modules=${modules}`;
 
   let responded = false;
   const fail = (status, message) => {
@@ -118,7 +121,7 @@ module.exports = (req, res) => {
       if (responded) return;
       try {
         res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+        res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=30');
         res.status(apiRes.statusCode).send(data);
       } catch (e) {
         fail(500, e.message);

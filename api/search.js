@@ -216,6 +216,8 @@ function fetchYahooSearch(query) {
             longname: item.longname,
             exchDisp: item.exchDisp,
             typeDisp: item.typeDisp,
+            exchange: item.exchDisp || item.exchange || null,
+            quoteType: item.quoteType || item.typeDisp || null,
           }));
           resolve(quotes);
         } catch (e) {

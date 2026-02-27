@@ -18,6 +18,7 @@
   ],
   "rewrites": [
     { "source": "/api/chart/:ticker", "destination": "/api/chart/[ticker]" },
+    { "source": "/api/summary/:ticker", "destination": "/api/summary/[ticker]" },
     { "source": "/((?!api/|\\.well-known/).*)", "destination": "/index.html" }
   ]
 }

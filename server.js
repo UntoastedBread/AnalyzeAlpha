@@ -387,6 +387,8 @@ app.get('/api/search', (req, res) => {
           longname: q.longname,
           exchDisp: q.exchDisp,
           typeDisp: q.typeDisp,
+          exchange: q.exchDisp || q.exchange || null,
+          quoteType: q.quoteType || q.typeDisp || null,
         }));
         cacheSet(cacheKey, 200, { quotes }, CACHE_TTL_MS);
         res.setHeader('X-Cache', 'MISS');
@@ -472,6 +474,11 @@ app.get('/api/prediction', async (req, res) => {
   }
 });
 
+app.get('/api/health', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.json({ ok: true });
+});
+
 app.get('/api/summary/:ticker', (req, res) => {
   const ticker = normalizeParam(req.params.ticker);
   const modules = normalizeParam(req.query.modules) || 'price,financialData,defaultKeyStatistics,summaryDetail';
@@ -517,6 +524,7 @@ app.get('/api/summary/:ticker', (req, res) => {
       if (responded) return;
       try {
         res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=30');
         res.status(apiRes.statusCode).send(data);
         console.log(`[Proxy] ✓ Summary ${ticker} — ${apiRes.statusCode}`);
       } catch (e) {
