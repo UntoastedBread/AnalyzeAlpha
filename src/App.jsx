@@ -794,7 +794,7 @@ async function fetchStockData(ticker, period = "1y", interval = "1d") {
 async function fetchQuickQuote(ticker) {
   const t0 = performance.now();
   apiCallCount++;
-  const url = `/api/chart/${encodeURIComponent(ticker)}?range=1d&interval=5m`;
+  const url = `/api/chart/${encodeURIComponent(ticker)}?range=1d&interval=30m`;
   const resp = await fetchWithTimeout(url);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const json = await resp.json();
