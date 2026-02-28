@@ -97,8 +97,8 @@ function HomeTab({
   const [widgets, setWidgets] = useState(() => {
     try {
       const saved = localStorage.getItem("aa_home_widgets_v1");
-      return saved ? JSON.parse(saved) : { tickerStrip: true, indexes: true, movers: true, news: true, fearGreed: true, predictionMarkets: true, marketBrief: true, changelog: true, earningsCalendar: true, economicSnapshot: true };
-    } catch { return { tickerStrip: true, indexes: true, movers: true, news: true, fearGreed: true, predictionMarkets: true, marketBrief: true, changelog: true, earningsCalendar: true, economicSnapshot: true }; }
+      return saved ? JSON.parse(saved) : { tickerStrip: true, indexes: true, movers: true, news: true, fearGreed: true, predictionMarkets: true, marketBrief: true, changelog: true, economicSnapshot: true };
+    } catch { return { tickerStrip: true, indexes: true, movers: true, news: true, fearGreed: true, predictionMarkets: true, marketBrief: true, changelog: true, economicSnapshot: true }; }
   });
   const toggleWidget = (key) => {
     setWidgets(prev => {
@@ -394,7 +394,7 @@ function HomeTab({
   };
 
   return (
-    <div style={{ display: "grid", gap: isMobile ? 20 : 18, minWidth: 0 }}>
+    <div style={{ display: "grid", gap: isMobile ? 16 : 14, minWidth: 0 }}>
       {customizing && (
         <div style={{ padding: "12px 16px", border: `1px solid ${C.rule}`, background: C.warmWhite, display: "grid", gap: 10 }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "var(--body)", color: C.inkMuted }}>
@@ -409,7 +409,6 @@ function HomeTab({
               { key: "fearGreed", label: "Fear & Greed" },
               { key: "predictionMarkets", label: "Polymarket" },
               { key: "marketBrief", label: "Market Brief" },
-              { key: "earningsCalendar", label: "Earnings Calendar" },
               { key: "economicSnapshot", label: "Economic Snapshot" },
               { key: "changelog", label: "Changelog" },
             ].map(w => (
@@ -448,7 +447,7 @@ function HomeTab({
       </HelpWrap>
 
       {/* Greeting */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 2px 14px", marginTop: 6, marginBottom: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 2px 8px", marginTop: 2, marginBottom: 2 }}>
         <div style={{ fontSize: isMobile ? 18 : 24, fontFamily: "var(--display)", color: C.ink, letterSpacing: "-0.01em", lineHeight: 1.2 }}>
           {greetingText}
         </div>
@@ -562,13 +561,6 @@ function HomeTab({
         </LazySection>
       )}
 
-      {/* Earnings Calendar */}
-      {widgets.earningsCalendar && (
-        <LazySection minHeight={120}>
-          <EarningsCalendar C={C} t={t} isMobile={isMobile} Section={Section} onAnalyze={onAnalyze} />
-        </LazySection>
-      )}
-
       {/* Market Movers — 3 columns */}
       {widgets.movers && <LazySection minHeight={240}>
         <HelpWrap help={{ title: t("help.movers.title"), body: t("help.movers.body") }} block>
@@ -677,14 +669,14 @@ function FearGreedWidget({ C, t, data, Sparkline }) {
   }
 
   return (
-    <div style={{ padding: "20px 24px", border: `1px solid ${C.rule}`, background: C.warmWhite }}>
+    <div style={{ padding: "16px 20px", border: `1px solid ${C.rule}`, background: C.warmWhite }}>
       <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--body)", color: C.inkMuted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>
         Crypto Fear & Greed Index
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
         {/* Emoji + label */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 100 }}>
-          <div style={{ fontSize: 48, lineHeight: 1 }}>{emoji}</div>
+          <div style={{ fontSize: 40, lineHeight: 1 }}>{emoji}</div>
           <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color, marginTop: 6 }}>{Math.round(value)}</div>
           <div style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--body)", color, marginTop: 2 }}>{label}</div>
         </div>
@@ -725,58 +717,6 @@ function FearGreedWidget({ C, t, data, Sparkline }) {
         Based on BTC RSI (14-day) as a proxy for market sentiment
       </div>
     </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// EARNINGS CALENDAR (Home widget)
-// ═══════════════════════════════════════════════════════════
-const WATCHLIST_EARNINGS = [
-  { ticker: "AAPL", name: "Apple", date: "2026-04-30", estEPS: "2.35", prevEPS: "2.18" },
-  { ticker: "MSFT", name: "Microsoft", date: "2026-04-22", estEPS: "3.22", prevEPS: "3.03" },
-  { ticker: "GOOGL", name: "Alphabet", date: "2026-04-29", estEPS: "2.01", prevEPS: "1.89" },
-  { ticker: "AMZN", name: "Amazon", date: "2026-05-01", estEPS: "1.36", prevEPS: "1.17" },
-  { ticker: "NVDA", name: "NVIDIA", date: "2026-05-28", estEPS: "0.88", prevEPS: "0.82" },
-  { ticker: "META", name: "Meta", date: "2026-04-23", estEPS: "6.29", prevEPS: "5.85" },
-  { ticker: "TSLA", name: "Tesla", date: "2026-04-22", estEPS: "0.73", prevEPS: "0.52" },
-  { ticker: "JPM", name: "JPMorgan", date: "2026-04-11", estEPS: "4.61", prevEPS: "4.33" },
-];
-
-function EarningsCalendar({ C, t, isMobile, Section, onAnalyze }) {
-  const now = new Date().toISOString().slice(0, 10);
-  const upcoming = WATCHLIST_EARNINGS.filter(e => e.date >= now).sort((a, b) => a.date.localeCompare(b.date));
-  const past = WATCHLIST_EARNINGS.filter(e => e.date < now).sort((a, b) => b.date.localeCompare(a.date));
-
-  return (
-    <Section C={C} title="Upcoming Earnings">
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-        {(upcoming.length > 0 ? upcoming : past.slice(0, 4)).map(e => {
-          const daysUntil = Math.ceil((new Date(e.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-          return (
-            <div
-              key={e.ticker}
-              onClick={() => onAnalyze?.(e.ticker)}
-              style={{ padding: "12px 14px", border: `1px solid ${C.ruleFaint}`, background: C.warmWhite, cursor: "pointer" }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--mono)", color: C.ink }}>{e.ticker}</span>
-                {daysUntil > 0 && (
-                  <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 6px", background: daysUntil <= 7 ? C.downBg : C.holdBg, color: daysUntil <= 7 ? C.down : C.hold, fontFamily: "var(--body)" }}>
-                    {daysUntil}d
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: 10, color: C.inkMuted, fontFamily: "var(--body)", marginBottom: 4 }}>{e.name}</div>
-              <div style={{ fontSize: 10, color: C.inkFaint, fontFamily: "var(--mono)" }}>{e.date}</div>
-              <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 10, fontFamily: "var(--mono)" }}>
-                <span style={{ color: C.inkMuted }}>Est: ${e.estEPS}</span>
-                <span style={{ color: C.inkFaint }}>Prev: ${e.prevEPS}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </Section>
   );
 }
 
@@ -911,14 +851,14 @@ function PredictionMarketsWidget({ C, t, isMobile, markets, loading, updatedAt, 
   };
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div style={{ display: "grid", gap: 10 }}>
       <style>{`
         @keyframes polyCardGlow {
-          0%   { box-shadow: 0 -8px 24px -2px rgba(46,92,255,0.45),  8px 0 24px -2px rgba(34,197,94,0.30),  0 8px 24px -2px rgba(168,85,247,0.15), -8px 0 24px -2px rgba(249,115,22,0.08); }
-          25%  { box-shadow: 0 -8px 24px -2px rgba(249,115,22,0.08),  8px 0 24px -2px rgba(46,92,255,0.45),  0 8px 24px -2px rgba(34,197,94,0.30), -8px 0 24px -2px rgba(168,85,247,0.15); }
-          50%  { box-shadow: 0 -8px 24px -2px rgba(168,85,247,0.15),  8px 0 24px -2px rgba(249,115,22,0.08),  0 8px 24px -2px rgba(46,92,255,0.45), -8px 0 24px -2px rgba(34,197,94,0.30); }
-          75%  { box-shadow: 0 -8px 24px -2px rgba(34,197,94,0.30),  8px 0 24px -2px rgba(168,85,247,0.15),  0 8px 24px -2px rgba(249,115,22,0.08), -8px 0 24px -2px rgba(46,92,255,0.45); }
-          100% { box-shadow: 0 -8px 24px -2px rgba(46,92,255,0.45),  8px 0 24px -2px rgba(34,197,94,0.30),  0 8px 24px -2px rgba(168,85,247,0.15), -8px 0 24px -2px rgba(249,115,22,0.08); }
+          0%   { box-shadow: 0 -8px 24px -2px rgba(46,92,255,0.30),  8px 0 24px -2px rgba(34,197,94,0.20),  0 8px 24px -2px rgba(168,85,247,0.10), -8px 0 24px -2px rgba(249,115,22,0.05); }
+          25%  { box-shadow: 0 -8px 24px -2px rgba(249,115,22,0.05),  8px 0 24px -2px rgba(46,92,255,0.30),  0 8px 24px -2px rgba(34,197,94,0.20), -8px 0 24px -2px rgba(168,85,247,0.10); }
+          50%  { box-shadow: 0 -8px 24px -2px rgba(168,85,247,0.10),  8px 0 24px -2px rgba(249,115,22,0.05),  0 8px 24px -2px rgba(46,92,255,0.30), -8px 0 24px -2px rgba(34,197,94,0.20); }
+          75%  { box-shadow: 0 -8px 24px -2px rgba(34,197,94,0.20),  8px 0 24px -2px rgba(168,85,247,0.10),  0 8px 24px -2px rgba(249,115,22,0.05), -8px 0 24px -2px rgba(46,92,255,0.30); }
+          100% { box-shadow: 0 -8px 24px -2px rgba(46,92,255,0.30),  8px 0 24px -2px rgba(34,197,94,0.20),  0 8px 24px -2px rgba(168,85,247,0.10), -8px 0 24px -2px rgba(249,115,22,0.05); }
         }
       `}</style>
 
@@ -947,7 +887,7 @@ function PredictionMarketsWidget({ C, t, isMobile, markets, loading, updatedAt, 
       <div style={{
         display: "grid",
         gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
-        gap: 12,
+        gap: 10,
       }}>
         {markets.map((market) => {
           const yesPct = Math.round((Number(market.probYes) || 0) * 100);
@@ -968,7 +908,7 @@ function PredictionMarketsWidget({ C, t, isMobile, markets, loading, updatedAt, 
                 borderBottom: `1px solid ${C.rule}`,
                 borderLeft: `4px solid ${POLY_BLUE}`,
                 background: C.warmWhite,
-                padding: isMobile ? "14px 14px" : "16px 16px",
+                padding: isMobile ? "12px 12px" : "14px 14px",
                 display: "grid",
                 gap: 10,
                 textDecoration: "none",
